@@ -1,141 +1,185 @@
-# 🚀 Welcome to Z.ai Code Scaffold
+# ERP TEMPLARIOS - Frontend PWA
 
-A modern, production-ready web application scaffold powered by cutting-edge technologies, designed to accelerate your development with [Z.ai](https://chat.z.ai)'s AI-powered coding assistance.
+Sistema de Gestión ERP para **TEMPLARIOS S.R.L.** - Empresa boliviana de transporte de carga y gestión de importaciones.
 
-## ✨ Technology Stack
+## 📋 Descripción
 
-This scaffold provides a robust foundation built with:
+Frontend PWA desarrollado con Next.js 16, TypeScript, Tailwind CSS 4 y shadcn/ui. Este proyecto consume los ~285 endpoints del backend API disponible en el repositorio [erp-templarios](https://github.com/ReynaldoAlvarez/erp-templarios).
 
-### 🎯 Core Framework
-- **⚡ Next.js 16** - The React framework for production with App Router
-- **📘 TypeScript 5** - Type-safe JavaScript for better developer experience
-- **🎨 Tailwind CSS 4** - Utility-first CSS framework for rapid UI development
+## 🚀 Stack Tecnológico
 
-### 🧩 UI Components & Styling
-- **🧩 shadcn/ui** - High-quality, accessible components built on Radix UI
-- **🎯 Lucide React** - Beautiful & consistent icon library
-- **🌈 Framer Motion** - Production-ready motion library for React
-- **🎨 Next Themes** - Perfect dark mode in 2 lines of code
+| Tecnología | Versión | Propósito |
+|------------|---------|-----------|
+| Next.js | 16.x | Framework React con App Router |
+| React | 19.x | Librería de UI |
+| TypeScript | 5.x | Tipado estático |
+| Tailwind CSS | 4.x | Estilos utilitarios |
+| shadcn/ui | Latest | Componentes UI |
+| Zustand | 5.x | Estado global |
+| TanStack Query | 5.x | Estado servidor |
+| React Hook Form | 7.x | Manejo de formularios |
+| Zod | 4.x | Validación de esquemas |
+| Axios | 1.x | Cliente HTTP |
+| Recharts | 2.x | Gráficos |
 
-### 📋 Forms & Validation
-- **🎣 React Hook Form** - Performant forms with easy validation
-- **✅ Zod** - TypeScript-first schema validation
+## 🎨 Sistema de Diseño
 
-### 🔄 State Management & Data Fetching
-- **🐻 Zustand** - Simple, scalable state management
-- **🔄 TanStack Query** - Powerful data synchronization for React
-- **🌐 Fetch** - Promise-based HTTP request
+### Color Corporativo
+- **Primary**: `#1B3F66` (Azul oscuro corporativo)
+- **Primary Light**: `#2B5F8F`
+- **Primary Dark**: `#0F2A47`
 
-### 🗄️ Database & Backend
-- **🗄️ Prisma** - Next-generation TypeScript ORM
-- **🔐 NextAuth.js** - Complete open-source authentication solution
+### Tipografía
+- Fuente principal: Inter
+- Body: 14px Regular
+- H1: 32px Bold
+- H2: 24px Bold
+- H3: 18px Semibold
 
-### 🎨 Advanced UI Features
-- **📊 TanStack Table** - Headless UI for building tables and datagrids
-- **🖱️ DND Kit** - Modern drag and drop toolkit for React
-- **📊 Recharts** - Redefined chart library built with React and D3
-- **🖼️ Sharp** - High performance image processing
-
-### 🌍 Internationalization & Utilities
-- **🌍 Next Intl** - Internationalization library for Next.js
-- **📅 Date-fns** - Modern JavaScript date utility library
-- **🪝 ReactUse** - Collection of essential React hooks for modern development
-
-## 🎯 Why This Scaffold?
-
-- **🏎️ Fast Development** - Pre-configured tooling and best practices
-- **🎨 Beautiful UI** - Complete shadcn/ui component library with advanced interactions
-- **🔒 Type Safety** - Full TypeScript configuration with Zod validation
-- **📱 Responsive** - Mobile-first design principles with smooth animations
-- **🗄️ Database Ready** - Prisma ORM configured for rapid backend development
-- **🔐 Auth Included** - NextAuth.js for secure authentication flows
-- **📊 Data Visualization** - Charts, tables, and drag-and-drop functionality
-- **🌍 i18n Ready** - Multi-language support with Next Intl
-- **🚀 Production Ready** - Optimized build and deployment settings
-- **🤖 AI-Friendly** - Structured codebase perfect for AI assistance
-
-## 🚀 Quick Start
-
-```bash
-# Install dependencies
-bun install
-
-# Start development server
-bun run dev
-
-# Build for production
-bun run build
-
-# Start production server
-bun start
-```
-
-Open [http://localhost:3000](http://localhost:3000) to see your application running.
-
-## 🤖 Powered by Z.ai
-
-This scaffold is optimized for use with [Z.ai](https://chat.z.ai) - your AI assistant for:
-
-- **💻 Code Generation** - Generate components, pages, and features instantly
-- **🎨 UI Development** - Create beautiful interfaces with AI assistance  
-- **🔧 Bug Fixing** - Identify and resolve issues with intelligent suggestions
-- **📝 Documentation** - Auto-generate comprehensive documentation
-- **🚀 Optimization** - Performance improvements and best practices
-
-Ready to build something amazing? Start chatting with Z.ai at [chat.z.ai](https://chat.z.ai) and experience the future of AI-powered development!
-
-## 📁 Project Structure
+## 📁 Estructura del Proyecto
 
 ```
 src/
-├── app/                 # Next.js App Router pages
-├── components/          # Reusable React components
-│   └── ui/             # shadcn/ui components
-├── hooks/              # Custom React hooks
-└── lib/                # Utility functions and configurations
+├── app/
+│   ├── (auth)/              # Rutas protegidas
+│   │   ├── dashboard/       # Dashboard principal
+│   │   └── layout.tsx       # Layout con sidebar
+│   ├── (public)/            # Rutas públicas
+│   │   ├── login/           # Página de login
+│   │   └── layout.tsx       # Layout público
+│   ├── api/
+│   │   └── v1/[...path]/    # Proxy al backend
+│   ├── globals.css          # Estilos globales
+│   ├── layout.tsx           # Layout raíz
+│   └── page.tsx             # Página inicial
+├── components/
+│   ├── layout/              # Sidebar, Header
+│   ├── modules/             # Componentes por módulo
+│   └── ui/                  # shadcn/ui components
+├── hooks/
+│   ├── use-auth.ts          # Hook de autenticación
+│   └── use-toast.ts         # Hook de notificaciones
+├── lib/
+│   ├── api-client.ts        # Cliente Axios
+│   ├── cookies.ts           # Manejo de cookies
+│   └── utils.ts             # Utilidades
+├── store/
+│   └── auth-store.ts        # Estado de autenticación
+└── types/
+    └── api.ts               # Tipos TypeScript
 ```
 
-## 🎨 Available Features & Components
+## 🗓️ Plan de Sprints
 
-This scaffold includes a comprehensive set of modern web development tools:
+| Sprint | Módulo | Estado |
+|--------|--------|--------|
+| 1 | Setup + Login + Layout | ✅ Completado |
+| 2 | Dashboard + IAM UI | 📅 Pendiente |
+| 3 | Clientes + BLs | 📅 Pendiente |
+| 4 | Viajes | 📅 Pendiente |
+| 5 | Flota | 📅 Pendiente |
+| 6 | Finanzas | 📅 Pendiente |
+| 7 | Reportes | 📅 Pendiente |
+| 8 | PWA + Offline | 📅 Pendiente |
+| 9 | Testing + Optimización | 📅 Pendiente |
+| 10 | Deploy + Documentación | 📅 Pendiente |
 
-### 🧩 UI Components (shadcn/ui)
-- **Layout**: Card, Separator, Aspect Ratio, Resizable Panels
-- **Forms**: Input, Textarea, Select, Checkbox, Radio Group, Switch
-- **Feedback**: Alert, Toast (Sonner), Progress, Skeleton
-- **Navigation**: Breadcrumb, Menubar, Navigation Menu, Pagination
-- **Overlay**: Dialog, Sheet, Popover, Tooltip, Hover Card
-- **Data Display**: Badge, Avatar, Calendar
+## 🔗 Backend API
 
-### 📊 Advanced Data Features
-- **Tables**: Powerful data tables with sorting, filtering, pagination (TanStack Table)
-- **Charts**: Beautiful visualizations with Recharts
-- **Forms**: Type-safe forms with React Hook Form + Zod validation
+El backend está disponible en:
+- **Repositorio**: https://github.com/ReynaldoAlvarez/erp-templarios
+- **Desarrollo**: http://localhost:3001/api/v1
+- **Endpoints**: ~285 endpoints disponibles
 
-### 🎨 Interactive Features
-- **Animations**: Smooth micro-interactions with Framer Motion
-- **Drag & Drop**: Modern drag-and-drop functionality with DND Kit
-- **Theme Switching**: Built-in dark/light mode support
+### Credenciales de Prueba
+```
+Email: admin@templarios.com
+Password: Admin123!
+```
 
-### 🔐 Backend Integration
-- **Authentication**: Ready-to-use auth flows with NextAuth.js
-- **Database**: Type-safe database operations with Prisma
-- **API Client**: HTTP requests with Fetch + TanStack Query
-- **State Management**: Simple and scalable with Zustand
+## 📦 Módulos del Sistema
 
-### 🌍 Production Features
-- **Internationalization**: Multi-language support with Next Intl
-- **Image Optimization**: Automatic image processing with Sharp
-- **Type Safety**: End-to-end TypeScript with Zod validation
-- **Essential Hooks**: 100+ useful React hooks with ReactUse for common patterns
+### IAM (Identity and Access Management)
+- Usuarios
+- Roles
+- Permisos
 
-## 🤝 Get Started with Z.ai
+### Operaciones
+- Clientes
+- Bill of Lading (BLs)
+- Viajes
+- Cruces de Frontera
+- Documentos
 
-1. **Clone this scaffold** to jumpstart your project
-2. **Visit [chat.z.ai](https://chat.z.ai)** to access your AI coding assistant
-3. **Start building** with intelligent code generation and assistance
-4. **Deploy with confidence** using the production-ready setup
+### Flota
+- Camiones
+- Remolques
+- Conductores
+- Gastos
+
+### Finanzas
+- Liquidaciones
+- Facturas
+- Pagos y Anticipos
+- Flujo de Caja
+- Activos
+- Pasivos
+
+### Reportes
+- Dashboard
+- Reportes operativos
+- Notificaciones
+
+## 🛠️ Instalación
+
+```bash
+# Clonar repositorio
+git clone https://github.com/ReynaldoAlvarez/erp-templarios-frontend.git
+cd erp-templarios-frontend
+
+# Instalar dependencias
+bun install
+
+# Configurar variables de entorno
+cp .env.example .env.local
+
+# Iniciar desarrollo
+bun run dev
+```
+
+## 📄 Variables de Entorno
+
+```env
+# Backend API URL
+NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
+
+# App Configuration
+NEXT_PUBLIC_APP_NAME=ERP TEMPLARIOS S.R.L.
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+## 👨‍💻 Desarrollo
+
+```bash
+# Iniciar servidor de desarrollo
+bun run dev
+
+# Verificar linting
+bun run lint
+
+# Construir para producción
+bun run build
+```
+
+## 📚 Documentación
+
+- [Documento de Diseño Detallado](docs/DOCUMENTO_DISENO_DETALLADO_ERP_TEMPLARIOS.pdf)
+- [Documento de Diseño Frontend](docs/DOCUMENTO_DISENO_FRONTEND_ERP_TEMPLARIOS.pdf)
+
+## 📝 Licencia
+
+Propiedad de TEMPLARIOS S.R.L. - Todos los derechos reservados.
 
 ---
 
-Built with ❤️ for the developer community. Supercharged by [Z.ai](https://chat.z.ai) 🚀
+Desarrollado con ❤️ para TEMPLARIOS S.R.L.
