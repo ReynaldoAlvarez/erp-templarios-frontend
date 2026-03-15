@@ -87,9 +87,9 @@ export function LoginForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel className="text-gray-700">Correo electrónico</FormLabel>
-              <FormControl>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <FormControl>
                   <Input
                     {...field}
                     type="email"
@@ -97,8 +97,8 @@ export function LoginForm() {
                     className="pl-10"
                     disabled={isSubmitting}
                   />
-                </div>
-              </FormControl>
+                </FormControl>
+              </div>
               <FormMessage />
             </FormItem>
           )}
@@ -111,9 +111,9 @@ export function LoginForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel className="text-gray-700">Contraseña</FormLabel>
-              <FormControl>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <FormControl>
                   <Input
                     {...field}
                     type={showPassword ? 'text' : 'password'}
@@ -121,20 +121,20 @@ export function LoginForm() {
                     className="pl-10 pr-10"
                     disabled={isSubmitting}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                    tabIndex={-1}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-              </FormControl>
+                </FormControl>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
               <FormMessage />
             </FormItem>
           )}
