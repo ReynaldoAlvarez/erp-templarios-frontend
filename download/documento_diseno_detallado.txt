@@ -1,0 +1,1183 @@
+DOCUMENTO DE DISEÑO DETALLADO
+
+          SISTEMA ERP INTELIGENTE
+              TEMPLARIOS S.R.L.
+
+ Arquitectura Técnica | Base de Datos | APIs | Interfaces | Plan de Implementación
+
+
+
+    Versión:                  1.0
+
+    Fecha:                    Marzo 2026
+
+    Tipo de Despliegue:       Digital Ocean (Cloud)
+
+    Tiempo Objetivo:          4-5 semanas
+
+    Arquitectura:             Backend Express + Frontend PWA
+TABLA DE CONTENIDO
+1. RESUMEN EJECUTIVO Y DECISIONES CONFIRMADAS
+2. ARQUITECTURA TÉCNICA DEL SISTEMA
+2.1 Visión General de la Arquitectura
+2.2 Stack Tecnológico Definitivo
+2.3 Estructura de Proyectos
+3. MODELO DE DATOS Y BASE DE DATOS
+3.1 Diagrama Entidad-Relación
+3.2 Esquema Prisma Completo
+3.3 Tablas y Campos Detallados
+4. API RESTful - ENDPOINTS COMPLETOS
+4.1 Módulo IAM
+4.2 Módulo BL y Carga
+4.3 Módulo Flota
+4.4 Módulo Viajes
+4.5 Módulo Documentos
+4.6 Módulo Finanzas
+4.7 Módulo Reportes
+5. INTERFACES DE USUARIO (WIREFRAMES)
+5.1 Dashboard Principal
+5.2 Módulo de Usuarios y Roles
+5.3 Módulo de Operaciones
+5.4 Módulo de Flota
+5.5 Módulo de Reportes
+6. FUNCIONALIDADES PWA Y OFFLINE
+7. PLAN DE IMPLEMENTACIÓN POR SPRINTS
+8. CRITERIOS DE ACEPTACIÓN POR MÓDULO
+9. FLUJOS DE APROBACIÓN Y NOTIFICACIONES
+1. RESUMEN EJECUTIVO Y DECISIONES CONFIRMADAS
+1.1 Decisiones Técnicas Confirmadas
+                     Aspecto                  Decisión Confirmada                               Observaciones
+
+             Orden de módulos       IAM → BL → Flota → Viajes → Docs →     Aprobado por cliente
+                                    Finanzas
+
+             Despliegue             Digital Ocean                          Cloud, escalable, sin inversión hardware
+
+             GPS                    Existe pero sin API                    Registro manual con evidencia
+
+             Facturación            SIN del Estado + Export compatible     Módulo propio con exportación
+
+             Aduanas                Registro manual + evidencia            Adjuntar capturas de pantalla
+
+             Dominio                Pendiente registro                     Se definirá antes del despliegue
+
+             Tiempo MVP             4-5 semanas                            Desarrollo asistido con IA
+
+             Product Owner          Administrador                          Conoce todos los procesos
+
+             Datos históricos       12 meses post-implementación           5 años disponibles
+
+             Arquitectura           Backend Express + Frontend PWA         Separación clara, offline support
+
+
+
+1.2 Requerimientos Específicos del Cliente
+Basado en el documento REQUERIMIENTOS TEMPLARIOS, se identifican los siguientes requerimientos específicos adicionales:
+GESTIÓN EMPRESARIAL: Registro de empresa con sucursal principal y sucursales secundarias, registro completo de empleados,
+activos y pasivos de la empresa. GESTIÓN DE FLOTA: Registro de vehículos de la empresa, registro por conductor con historial
+completo, gastos por conductor, rentabilidad por conductor, control de disponibilidad, sanciones e incidentes. OPERACIONES:
+Gestión de cargas con asignación de conductores y vehículos, monitoreo de estado de cada carga, registro de actualizaciones de
+ubicación, viajes con múltiples fronteras (BorderCrossing y BorderChannelHistory). DOCUMENTACIÓN: Registro de recepción de
+documentos físicos, almacenamiento local opcional para no gastar en nube, registro de asignación de vehículos, tarjetas tarja. PWA Y
+OFFLINE: Funcionamiento offline para zonas sin conectividad (fronteras), almacenamiento local con sincronización posterior.
+REPORTES: Rentabilidad mensual y por vehículo, top clientes, flujo de caja, gastos por categoría, dashboards operativos y
+financieros. SEGURIDAD: Autenticación de alta calidad con refresh tokens persistidos, rotación real, revocación, expiración
+verificada, cascade delete, token único.
+2. ARQUITECTURA TÉCNICA DEL SISTEMA
+2.1 Visión General de la Arquitectura
+El sistema ERP TEMPLARIOS se implementa con una arquitectura de dos componentes principales separados: BACKEND (API
+RESTful): Servidor Express.js independiente que expone APIs RESTful, maneja la lógica de negocio, autenticación, autorización, y
+acceso a datos. Se despliega en Digital Ocean como servicio independiente. FRONTEND (PWA): Aplicación Progressive Web App
+desarrollada con Next.js que consume las APIs del backend. Funciona como aplicación web tradicional y puede instalarse como app
+nativa en dispositivos móviles. Incluye soporte offline mediante Service Workers. Esta separación permite: Escalar frontend y
+backend independientemente, desarrollar y desplegar cada parte por separado, usar el backend para futuras integraciones (app móvil
+nativa, integraciones externas), y mantener la seguridad de la lógica de negocio en el servidor.
+
+
+2.2 Stack Tecnológico Definitivo
+                         Capa                     Tecnología                Versión                        Justificación
+
+               Backend Framework       Express.js                     4.x             Framework Node.js robusto, ecosistema maduro
+
+               Backend Runtime         Node.js                        20.x LTS        Rendimiento, async/await, gran ecosistema
+
+               Base de Datos           PostgreSQL                     16.x            Relacional, JSON, geoespacial, robusto
+
+               ORM                     Prisma                         6.x             Type-safe, migraciones, excelente DX
+
+               Autenticación           JWT + bcrypt                   -               Access token 15min, Refresh token 7 días
+
+               Frontend                Next.js                        15.x            SSR, PWA, App Router, optimizado
+               Framework
+
+               UI Components           shadcn/ui                      latest          Accesibles, customizables, Tailwind
+
+               Styling                 Tailwind CSS                   4.x             Utility-first, responsive, PWA ready
+
+               State Management        Zustand + TanStack Query       5.x / 5.x       Global state + Server state cache
+
+               Forms                   React Hook Form + Zod          7.x / 4.x       Validación, rendimiento, type-safe
+
+               PWA/Offline             next-pwa + IndexedDB           latest          Service workers, cache, offline storage
+
+               Cache/Sessions          Redis                          7.x             Refresh tokens, cache, rate limiting
+
+               File Storage            Local + Digital Ocean Spaces   -               Local first, cloud backup opcional
+
+
+
+2.3 Estructura de Proyectos
+PROYECTO BACKEND (erp-templarios-api):
+
+  erp-templarios-api/
+  ├── src/
+  │ ├── config/ # Configuraciones (DB, Redis, JWT, Email)
+  │ ├── controllers/ # Controladores por módulo
+  │ ├── middleware/ # Auth, validation, error handling
+  │ ├── models/ # Modelos Prisma generados
+  │ ├── routes/ # Definición de rutas API
+  │ ├── services/ # Lógica de negocio
+  │ ├── validators/ # Esquemas de validación (Zod)
+  │ ├── utils/ # Utilidades (logger, helpers)
+  │ └── app.ts # Entry point
+  ├── prisma/
+  │ └── schema.prisma # Esquema de base de datos
+  ├── uploads/ # Archivos subidos (local)
+  ├── tests/ # Tests unitarios e integración
+  ├── package.json
+  └── tsconfig.json
+
+PROYECTO FRONTEND (erp-templarios-pwa):
+
+  erp-templarios-pwa/
+  ├── src/
+  │ ├── app/ # App Router pages
+  │ │ ├── (auth)/ # Rutas autenticadas (layout)
+  │ │ ├── (public)/ # Rutas públicas (login)
+  │ │ └── api/ # API routes (proxy a backend)
+  │ ├── components/
+  │ │ ├── ui/ # Componentes shadcn/ui
+  │ │ ├── layout/ # Layout, Sidebar, Header
+│ │ └── modules/ # Componentes por módulo
+│ ├── hooks/ # Custom hooks
+│ ├── lib/ # API client, utils
+│ ├── store/ # Zustand stores
+│ ├── types/ # TypeScript types
+│ └── workers/ # Service Workers (PWA)
+├── public/
+│ ├── manifest.json # PWA manifest
+│ └── icons/ # Iconos PWA
+├── next.config.ts # Config PWA, proxy
+└── package.json
+3. MODELO DE DATOS Y BASE DE DATOS
+3.1 Diagrama Entidad-Relación (Resumen)
+El modelo de datos se ha diseñado considerando todos los requerimientos del cliente, incluyendo soporte para múltiples sucursales,
+historial completo de conductores, viajes con múltiples fronteras, y control de activos/pasivos. Las entidades principales y sus
+relaciones se resumen a continuación:
+
+                            Entidad                              Relaciones Principales                           Tipo
+
+                  Empresa                hasMany: Sucursal, Empleado, Camion, Activo, Pasivo              Maestro
+
+                  Sucursal               belongsTo: Empresa, hasMany: Empleado                            Maestro
+
+                  User                   belongsToMany: Role, hasMany: Session                            Seguridad
+
+                  Role                   belongsToMany: User, Permission                                  Seguridad
+
+                  Permission             belongsToMany: Role                                              Seguridad
+
+                  Empleado               belongsTo: Empresa, Sucursal; hasOne: Conductor                  RRHH
+
+                  Conductor              belongsTo: Empleado; hasMany: Viaje, Sancion, Gasto, Historial   Operación
+
+                  Camion                 belongsTo: Empresa; hasMany: Viaje, Mantenimiento                Flota
+
+                  Trailer                belongsTo: Camion                                                Flota
+
+                  Cliente                hasMany: BL, Factura                                             Comercial
+
+                  BL                     belongsTo: Cliente; hasMany: Viaje                               Operación
+
+                  Viaje                  belongsTo: BL, Camion, Conductor; hasMany: BorderCrossing,       Operación
+                                         Documento, Liquidacion
+
+                  BorderCrossing         belongsTo: Viaje; hasMany: BorderChannelHistory                  Operación
+
+                  BorderChannelHistory   belongsTo: BorderCrossing                                        Operación
+
+                  Liquidacion            belongsTo: Viaje                                                 Finanzas
+
+                  Factura                belongsTo: Cliente; belongsToMany: Viaje                         Finanzas
+
+                  Activo                 belongsTo: Empresa                                               Contabilidad
+
+                  Pasivo                 belongsTo: Empresa                                               Contabilidad
+
+                  Gasto                  belongsTo: Conductor, Viaje (opcional)                           Finanzas
+
+
+
+3.2 Esquema Prisma Completo
+A continuación se presenta el esquema Prisma completo con todos los modelos, campos y relaciones:
+
+  // =============================================
+  // SCHEMA PRISMA - ERP TEMPLARIOS
+  // =============================================
+
+  generator client {
+  provider = "prisma-client-js"
+  }
+
+  datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+  }
+
+  // ===================== EMPRESA Y SUCURSALES =====================
+
+  model Empresa {
+  id String @id @default(uuid())
+  nombre String
+  nit String @unique
+  direccion String?
+  telefono String?
+  email String?
+  logo String?
+  activo Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+sucursales Sucursal[]
+empleados Empleado[]
+camiones Camion[]
+activos Activo[]
+pasivos Pasivo[]
+usuarios User[]
+
+@@map("empresas")
+}
+
+model Sucursal {
+id String @id @default(uuid())
+nombre String
+direccion String?
+telefono String?
+esPrincipal Boolean @default(false)
+activo Boolean @default(true)
+empresaId String
+
+empresa Empresa @relation(fields: [empresaId], references: [id])
+empleados Empleado[]
+
+@@map("sucursales")
+}
+
+// ===================== USUARIOS Y AUTENTICACION =====================
+
+model User {
+id String @id @default(uuid())
+email String @unique
+passwordHash String
+nombre String
+apellido String
+telefono String?
+foto String?
+emailVerificado Boolean @default(false)
+verificadoEn DateTime?
+activo Boolean @default(true)
+empresaId String
+creadoPor String?
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+empresa Empresa @relation(fields: [empresaId], references: [id])
+roles UserRole[]
+sessions Session[]
+refreshTokens RefreshToken[]
+auditLogs AuditLog[]
+
+@@map("users")
+}
+
+model Role {
+id String @id @default(uuid())
+nombre String @unique
+descripcion String?
+color String @default("#3B82F6")
+esSistema Boolean @default(false)
+activo Boolean @default(true)
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+users UserRole[]
+permissions RolePermission[]
+
+@@map("roles")
+}
+
+model Permission {
+id String @id @default(uuid())
+modulo String // IAM, Operaciones, Flota, Finanzas, Reportes
+recurso String // usuarios, roles, bl, viajes, camiones...
+accion String // crear, leer, actualizar, eliminar, listar, exportar
+descripcion String?
+
+roles RolePermission[]
+
+@@unique([modulo, recurso, accion])
+@@map("permissions")
+}
+
+model UserRole {
+userId String
+roleId String
+asignadoPor String?
+asignadoEn DateTime @default(now())
+
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+@@id([userId, roleId])
+@@map("user_roles")
+}
+
+model RolePermission {
+roleId String
+permissionId String
+
+role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+@@id([roleId, permissionId])
+@@map("role_permissions")
+}
+
+model Session {
+id String @id @default(uuid())
+userId String
+token String @unique
+userAgent String?
+ipAddress String?
+expiresAt DateTime
+createdAt DateTime @default(now())
+
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+@@map("sessions")
+}
+
+model RefreshToken {
+id String @id @default(uuid())
+userId String
+token String @unique
+expiresAt DateTime
+revocado Boolean @default(false)
+revocadoEn DateTime?
+createdAt DateTime @default(now())
+
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+@@map("refresh_tokens")
+}
+
+model AuditLog {
+id String @id @default(uuid())
+userId String?
+accion String
+entidad String
+entidadId String?
+datosOld Json?
+datosNew Json?
+ip String?
+userAgent String?
+createdAt DateTime @default(now())
+
+user User? @relation(fields: [userId], references: [id])
+
+@@map("audit_logs")
+}
+
+// ===================== EMPLEADOS Y CONDUCTORES =====================
+
+model Empleado {
+id String @id @default(uuid())
+nombre String
+apellido String
+ci String @unique
+direccion String?
+telefono String?
+email String?
+fechaNacimiento DateTime?
+fechaIngreso DateTime @default(now())
+cargo String
+salario Decimal?
+sucursalId String
+empresaId String
+activo Boolean @default(true)
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+empresa Empresa @relation(fields: [empresaId], references: [id])
+sucursal Sucursal @relation(fields: [sucursalId], references: [id])
+conductor Conductor?
+
+@@map("empleados")
+}
+
+model Conductor {
+id String @id @default(uuid())
+empleadoId String @unique
+licencia String @unique
+categoriaLicencia String?
+vencimientoLicencia DateTime?
+tipoContrato String @default("MENSUAL") // MENSUAL, POR_VIAJE
+disponible Boolean @default(true)
+calificacion Decimal? @default(5.0)
+activo Boolean @default(true)
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+empleado Empleado @relation(fields: [empleadoId], references: [id])
+viajes Viaje[]
+historial HistorialConductor[]
+gastos Gasto[]
+sanciones Sancion[]
+
+@@map("conductores")
+}
+
+model HistorialConductor {
+id String @id @default(uuid())
+conductorId String
+fecha DateTime @default(now())
+tipo String // INCIDENTE, ACCIDENTE, MERITO, CAMBIO_ESTADO
+descripcion String
+observaciones String?
+
+conductor Conductor @relation(fields: [conductorId], references: [id], onDelete: Cascade)
+
+@@map("historial_conductor")
+}
+
+model Sancion {
+id String @id @default(uuid())
+conductorId String
+tipo String // MULTA, SUSPENSION, AMONESTACION
+motivo String
+monto Decimal?
+fechaInicio DateTime @default(now())
+fechaFin DateTime?
+estado String @default("PENDIENTE") // PENDIENTE, CUMPLIDA, ANULADA
+observaciones String?
+
+conductor Conductor @relation(fields: [conductorId], references: [id], onDelete: Cascade)
+
+@@map("sanciones")
+}
+
+model Gasto {
+id String @id @default(uuid())
+conductorId String
+viajeId String?
+concepto String
+monto Decimal
+fecha DateTime @default(now())
+comprobante String?
+categoria String? // COMBUSTIBLE, ALIMENTACION, PEAJE, OTROS
+observaciones String?
+
+conductor Conductor @relation(fields: [conductorId], references: [id])
+viaje Viaje? @relation(fields: [viajeId], references: [id])
+
+@@map("gastos")
+}
+
+// ===================== FLOTA =====================
+
+model Camion {
+id String @id @default(uuid())
+placa String @unique
+marca String
+modelo String
+ano Int
+color String?
+ejes Int @default(2)
+capacidadTn Decimal
+tarjetaOperacion String?
+vencimientoTO DateTime?
+kilometraje Int @default(0)
+empresaId String
+estado String @default("DISPONIBLE") // DISPONIBLE, EN_RUTA, MANTENIMIENTO, INACTIVO
+activo Boolean @default(true)
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+empresa Empresa @relation(fields: [empresaId], references: [id])
+trailers Trailer[]
+viajes Viaje[]
+mantenimientos Mantenimiento[]
+
+@@map("camiones")
+}
+
+model Trailer {
+id String @id @default(uuid())
+placa String @unique
+tipo String // SEMIRREMOLQUE, PLATFORMA, CISTERNA
+marca String?
+ano Int?
+capacidadTn Decimal
+tarjetaOperacion String?
+vencimientoTO DateTime?
+camionId String?
+activo Boolean @default(true)
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+camion Camion? @relation(fields: [camionId], references: [id])
+
+@@map("trailers")
+}
+
+model Mantenimiento {
+id String @id @default(uuid())
+camionId String
+tipo String // PREVENTIVO, CORRECTIVO
+descripcion String
+kilometraje Int?
+fechaInicio DateTime @default(now())
+fechaFin DateTime?
+costo Decimal?
+taller String?
+observaciones String?
+estado String @default("PENDIENTE") // PENDIENTE, EN_PROCESO, COMPLETADO
+
+camion Camion @relation(fields: [camionId], references: [id])
+
+@@map("mantenimientos")
+}
+
+// ===================== CLIENTES Y BL =====================
+
+model Cliente {
+id String @id @default(uuid())
+razonSocial String
+nit String @unique
+contacto String?
+telefono String?
+email String?
+direccion String?
+credito Boolean @default(false)
+limiteCredito Decimal?
+activo Boolean @default(true)
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+bls BL[]
+facturas Factura[]
+
+@@map("clientes")
+}
+
+model BL {
+id String @id @default(uuid())
+numero String @unique
+pesoTotal Decimal
+unidades Int
+tipoCarga String?
+puertoOrigen String
+aduana String
+destinoFinal String
+nave String?
+consignatario String?
+tipoEntrega String @default("DIRECTO") // DIRECTO, INDIRECTO
+clienteId String
+estado String @default("PENDIENTE") // PENDIENTE, EN_PROCESO, COMPLETADO
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+cliente Cliente @relation(fields: [clienteId], references: [id])
+viajes Viaje[]
+
+@@map("bls")
+}
+// ===================== VIAJES Y FRONTERAS =====================
+
+model Viaje {
+id String @id @default(uuid())
+micDta String @unique
+fechaSalida DateTime
+fechaLlegada DateTime?
+blId String
+camionId String
+conductorId String
+trailerId String?
+peso Decimal
+tarifaTn Decimal?
+observaciones String?
+estado String @default("PROGRAMADO") // PROGRAMADO, EN_RUTA, ADUANA, ENTREGADO, CANCELADO
+
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+bl BL @relation(fields: [blId], references: [id])
+camion Camion @relation(fields: [camionId], references: [id])
+conductor Conductor @relation(fields: [conductorId], references: [id])
+trailer Trailer? @relation(fields: [trailerId], references: [id])
+tramos Tramo[]
+fronteras BorderCrossing[]
+documentos Documento[]
+liquidacion Liquidacion?
+gastos Gasto[]
+facturas FacturaViaje[]
+
+@@map("viajes")
+}
+
+model Tramo {
+id String @id @default(uuid())
+viajeId String
+origen String
+destino String
+distanciaKm Decimal?
+tarifa Decimal?
+duracion Int? // horas estimadas
+
+viaje Viaje @relation(fields: [viajeId], references: [id], onDelete: Cascade)
+
+@@map("tramos")
+}
+
+model BorderCrossing {
+id String @id @default(uuid())
+viajeId String
+frontera String
+arrivedAt DateTime @default(now())
+exitedAt DateTime?
+
+viaje Viaje @relation(fields: [viajeId], references: [id], onDelete: Cascade)
+canales BorderChannelHistory[]
+
+@@map("border_crossings")
+}
+
+model BorderChannelHistory {
+id String @id @default(uuid())
+borderCrossingId String
+canal String // VERDE, AMARILLO, ROJO
+fechaCambio DateTime @default(now())
+motivo String?
+observaciones String?
+responsable String?
+
+borderCrossing BorderCrossing @relation(fields: [borderCrossingId], references: [id], onDelete: Cascade)
+@@map("border_channel_history")
+}
+
+// ===================== DOCUMENTOS =====================
+
+model Documento {
+id String @id @default(uuid())
+viajeId String
+tipo String // MIC, CRT, ASPB, NOTA_TARJA, BALANZA, ENTREGA, FACTURA_TRANSPORTISTA
+numero String?
+fecha DateTime @default(now())
+estado String @default("PENDIENTE") // PENDIENTE, RECIBIDO, VERIFICADO
+archivoUrl String?
+archivoLocal Boolean @default(false)
+observaciones String?
+recibidoPor String?
+recibidoEn DateTime?
+
+viaje Viaje @relation(fields: [viajeId], references: [id])
+
+@@map("documentos")
+}
+
+// ===================== FINANZAS =====================
+
+model Liquidacion {
+id String @id @default(uuid())
+viajeId String @unique
+fleteUsd Decimal
+fleteBs Decimal
+tipoCambio Decimal
+precioTn Decimal
+it3Pct Decimal // Impuesto a las transacciones
+factura7Pct Decimal // Retención
+comisionExterna Decimal?
+anticipo Decimal @default(0)
+pagoLiquido Decimal
+estado String @default("PENDIENTE") // PENDIENTE, APROBADO, PAGADO
+fechaPago DateTime?
+pagadoPor String?
+observaciones String?
+
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+viaje Viaje @relation(fields: [viajeId], references: [id])
+
+@@map("liquidaciones")
+}
+
+model Factura {
+id String @id @default(uuid())
+numero String @unique
+clienteId String
+fecha DateTime @default(now())
+montoTotal Decimal
+montoUsd Decimal?
+tipoCambio Decimal?
+estado String @default("PENDIENTE") // PENDIENTE, EMITIDA, PAGADA, ANULADA
+fechaPago DateTime?
+observaciones String?
+
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+cliente Cliente @relation(fields: [clienteId], references: [id])
+viajes FacturaViaje[]
+
+@@map("facturas")
+}
+model FacturaViaje {
+facturaId String
+viajeId String
+
+factura Factura @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+viaje Viaje @relation(fields: [viajeId], references: [id], onDelete: Cascade)
+
+@@id([facturaId, viajeId])
+@@map("factura_viajes")
+}
+
+// ===================== ACTIVOS Y PASIVOS =====================
+
+model Activo {
+id String @id @default(uuid())
+empresaId String
+nombre String
+descripcion String?
+categoria String // VEHICULO, EQUIPO, INMUEBLE, OTROS
+valor Decimal
+fechaAdquisicion DateTime?
+vidaUtil Int? // meses
+depreciacion Decimal @default(0)
+activo Boolean @default(true)
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+empresa Empresa @relation(fields: [empresaId], references: [id])
+
+@@map("activos")
+}
+
+model Pasivo {
+id String @id @default(uuid())
+empresaId String
+nombre String
+descripcion String?
+tipo String // PRESTAMO, CUENTA_PAGAR, HIPOTECA, OTROS
+monto Decimal
+interes Decimal?
+fechaInicio DateTime?
+fechaVencimiento DateTime?
+estado String @default("PENDIENTE") // PENDIENTE, PARCIAL, PAGADO
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+empresa Empresa @relation(fields: [empresaId], references: [id])
+
+@@map("pasivos")
+}
+4. API RESTful - ENDPOINTS COMPLETOS
+4.1 Módulo IAM - Autenticación y Autorización
+         Método                     Endpoint                                 Descripción                              Permisos
+
+          POST     /api/auth/login                    Autenticar usuario, retorna access + refresh tokens   Público
+
+          POST     /api/auth/logout                   Invalidar sesión y refresh token                      Autenticado
+
+          POST     /api/auth/refresh                  Renovar access token con refresh token                Refresh token válido
+
+          POST     /api/auth/forgot-password          Enviar email de recuperación                          Público
+
+          POST     /api/auth/reset-password           Establecer nueva contraseña                           Token válido
+
+          GET      /api/users                         Listar usuarios paginado                              iam:usuarios:listar
+
+          GET      /api/users/:id                     Obtener usuario por ID                                iam:usuarios:leer
+
+          POST     /api/users                         Crear usuario (envía email con password)              iam:usuarios:crear
+
+          PUT      /api/users/:id                     Actualizar usuario                                    iam:usuarios:actualizar
+
+         DELETE    /api/users/:id                     Desactivar usuario (soft delete)                      iam:usuarios:eliminar
+
+          GET      /api/roles                         Listar todos los roles                                iam:roles:listar
+
+          POST     /api/roles                         Crear nuevo rol                                       iam:roles:crear
+
+          PUT      /api/roles/:id                     Actualizar rol                                        iam:roles:actualizar
+
+          POST     /api/roles/:id/permissions         Asignar permisos a rol                                iam:roles:asignar
+
+          GET      /api/permissions                   Listar todos los permisos                             iam:permisos:listar
+
+          GET      /api/users/:id/permissions         Permisos efectivos del usuario                        iam:permisos:leer
+
+          GET      /api/audit-logs                    Registro de auditoría                                 iam:usuarios:listar
+
+
+
+4.2 Módulo BL y Carga
+         Método                     Endpoint                                 Descripción                              Permisos
+
+          GET      /api/clientes                      Listar clientes                                       operaciones:clientes:listar
+
+          POST     /api/clientes                      Crear cliente                                         operaciones:clientes:crear
+
+          GET      /api/bls                           Listar BLs con filtros                                operaciones:bl:listar
+
+          GET      /api/bls/:id                       Obtener BL con viajes asociados                       operaciones:bl:leer
+
+          POST     /api/bls                           Crear BL (requiere aprobación)                        operaciones:bl:crear
+
+          POST     /api/bls/:id/calcular-flota        Calcular camiones necesarios                          operaciones:bl:calcular
+
+          PUT      /api/bls/:id                       Actualizar BL                                         operaciones:bl:actualizar
+
+          POST     /api/bls/import                    Importar BLs desde Excel                              operaciones:bl:crear
+
+          GET      /api/bls/export                    Exportar BLs a Excel                                  operaciones:bl:exportar
+
+
+
+4.3 Módulo Flota
+         Método                      Endpoint                                  Descripción                            Permisos
+
+          GET      /api/camiones                           Listar camiones con filtros                      flota:camiones:listar
+
+          POST     /api/camiones                           Registrar camión                                 flota:camiones:crear
+
+          GET      /api/camiones/:id                       Detalle de camión con historial                  flota:camiones:leer
+
+          PUT      /api/camiones/:id                       Actualizar camión                                flota:camiones:actualizar
+
+          GET      /api/camiones/:id/disponibilidad        Disponibilidad del camión                        flota:camiones:leer
+
+          GET      /api/conductores                        Listar conductores                               flota:conductores:listar
+
+          POST     /api/conductores                        Registrar conductor                              flota:conductores:crear
+
+          GET      /api/conductores/:id                    Detalle con historial y rentabilidad             flota:conductores:leer
+
+          GET      /api/conductores/:id/gastos             Gastos del conductor                             flota:conductores:leer
+
+          POST     /api/conductores/:id/sanciones          Registrar sanción                                flota:conductores:actualiz
+                                                                                                            ar
+
+          GET      /api/trailers                           Listar trailers                                  flota:camiones:listar
+GET    /api/mantenimientos   Listar mantenimientos     flota:camiones:listar
+
+POST   /api/mantenimientos   Registrar mantenimiento   flota:camiones:mantenim
+                                                       iento
+4.4 Módulo Viajes
+         Método                       Endpoint                                Descripción                  Permisos
+
+          GET       /api/viajes                            Listar viajes con filtros               operaciones:viajes:listar
+
+          POST      /api/viajes                            Programar viaje (asigna MIC)            operaciones:viajes:progra
+                                                                                                   mar
+
+          GET       /api/viajes/:id                        Detalle completo del viaje              operaciones:viajes:leer
+
+          PUT       /api/viajes/:id                        Actualizar viaje                        operaciones:viajes:actuali
+                                                                                                   zar
+
+          PUT       /api/viajes/:id/estado                 Cambiar estado del viaje                operaciones:viajes:despac
+                                                                                                   har
+
+          POST      /api/viajes/:id/fronteras              Registrar cruce de frontera             operaciones:viajes:actuali
+                                                                                                   zar
+
+          POST      /api/fronteras/:id/canal               Registrar cambio de canal               operaciones:viajes:actuali
+                                                                                                   zar
+
+          GET       /api/viajes/:id/documentos             Documentos del viaje                    documentos:archivos:list
+                                                                                                   ar
+
+          POST      /api/viajes/:id/documentos             Subir documento                         documentos:archivos:sub
+                                                                                                   ir
+
+          GET       /api/viajes/export                     Exportar viajes a Excel (formato MIC)   operaciones:viajes:export
+                                                                                                   ar
+
+
+
+4.5 Módulo Finanzas
+         Método                       Endpoint                                Descripción                  Permisos
+
+          GET       /api/liquidaciones                     Listar liquidaciones                    finanzas:pagos:listar
+
+          POST      /api/viajes/:id/liquidacion            Crear/actualizar liquidación            finanzas:pagos:crear
+
+          PUT       /api/liquidaciones/:id/aprobar         Aprobar liquidación                     finanzas:pagos:aprobar
+
+          PUT       /api/liquidaciones/:id/pagar           Marcar como pagado                      finanzas:pagos:aprobar
+
+          GET       /api/facturas                          Listar facturas                         finanzas:facturacion:listar
+
+          POST      /api/facturas                          Crear factura (requiere aprobación)     finanzas:facturacion:crear
+
+          PUT       /api/facturas/:id/anular               Anular factura                          finanzas:facturacion:anul
+                                                                                                   ar
+
+          GET       /api/facturas/export-sin               Exportar formato SIN                    finanzas:facturacion:expo
+                                                                                                   rtar
+
+          GET       /api/activos                           Listar activos                          finanzas:facturacion:listar
+
+          POST      /api/activos                           Registrar activo                        finanzas:facturacion:crear
+
+          GET       /api/pasivos                           Listar pasivos                          finanzas:facturacion:listar
+
+          POST      /api/pasivos                           Registrar pasivo                        finanzas:facturacion:crear
+
+
+
+4.6 Módulo Reportes
+         Método                       Endpoint                                Descripción                  Permisos
+
+          GET       /api/reportes/dashboard                Datos del dashboard principal           reportes:dashboard:ver
+
+          GET       /api/reportes/flota-tiempo-real        Estado de flota en tiempo real          reportes:dashboard:ver
+
+          GET       /api/reportes/viajes-dia               Viajes del día                          reportes:dashboard:ver
+
+          GET       /api/reportes/rentabilidad-mensual     Rentabilidad mensual                    reportes:dashboard:ver
+
+          GET       /api/reportes/rentabilidad-vehiculo    Rentabilidad por vehículo               reportes:dashboard:ver
+
+          GET       /api/reportes/rentabilidad-conductor   Rentabilidad por conductor              reportes:dashboard:ver
+
+          GET       /api/reportes/top-clientes             Top clientes por facturación            reportes:dashboard:ver
+
+          GET       /api/reportes/flujo-caja               Flujo de caja                           reportes:dashboard:ver
+
+          GET       /api/reportes/gastos-categoria         Gastos por categoría                    reportes:dashboard:ver
+
+          GET       /api/reportes/demoras-aduanas          Análisis de demoras en aduanas          reportes:dashboard:ver
+5. INTERFACES DE USUARIO (WIREFRAMES DESCRIPTIVOS)
+5.1 Dashboard Principal
+El dashboard principal será la pantalla de inicio después del login, mostrando información crítica de un vistazo: ENCABEZADO:
+Logo empresa, nombre usuario, avatar, notificaciones (badge con contador), botón logout. BARRA LATERAL (Sidebar):
+Navegación principal colapsable con iconos y labels. Secciones: Dashboard, Operaciones (BL, Viajes), Flota (Camiones,
+Conductores, Trailers), Documentos, Finanzas (Facturas, Liquidaciones, Activos/Pasivos), Reportes, Administración (Usuarios,
+Roles, Empresa). Footer con versión del sistema y estado de conexión (online/offline). ÁREA PRINCIPAL - TARJETAS KPI: 4
+tarjetas en fila mostrando: Viajes Activos (con badge de estado), Camiones Disponibles (verde)/En Ruta (azul)/Mantenimiento
+(naranja), Documentos Pendientes (con alerta si > 5), Facturación del Mes (con comparación vs mes anterior). GRÁFICOS: Fila de 2
+gráficos - Gráfico de líneas: Viajes últimos 30 días. Gráfico de barras: Rentabilidad por camión (top 5). Fila inferior - Tabla: Últimos
+5 viajes con estado (cards con indicador de color según estado). Lista de alertas: Documentos pendientes, licencias por vencer, pagos
+pendientes. MODO OFFLINE: Cuando no hay conexión, mostrar indicador visual en el header. Los datos mostrados serán los
+últimos sincronizados. Los cambios se guardarán localmente y se sincronizarán cuando vuelva la conexión.
+
+
+5.2 Módulo de Usuarios y Roles
+LISTADO DE USUARIOS: Tabla con columnas: Avatar, Nombre, Email, Roles (badges de colores), Estado (Activo/Inactivo
+badge), Último acceso, Acciones (Ver, Editar, Desactivar). Filtros: Por rol, por estado, búsqueda por nombre/email. Botón 'Nuevo
+Usuario' arriba a la derecha. FORMULARIO CREAR USUARIO: Campos: Email (único, validación), Nombre, Apellido, Teléfono
+(opcional), Sucursal (dropdown), Roles (multiselect con chips), Foto (opcional, upload). Al crear: Generar contraseña automática,
+enviar email con credenciales, marcar emailVerificado = false. Validación: Email único, al menos un rol. GESTIÓN DE ROLES:
+Vista de cards con cada rol mostrando: Nombre, Descripción, Color (preview), Número de usuarios asignados, Número de permisos.
+Botón 'Nuevo Rol' para crear roles personalizados. Modal de edición con: Nombre, Descripción, Color picker, Lista de permisos por
+módulo (checkboxes agrupados). PERMISOS EFECTIVOS: Vista de usuario mostrando todos los permisos heredados de sus roles,
+agrupados por módulo con indicador de qué rol otorga cada permiso.
+
+
+5.3 Módulo de Operaciones (BL y Viajes)
+LISTADO DE BL: Tabla con columnas: Número BL, Cliente, Peso Total, Unidades, Origen, Destino, Estado (badge color), # Viajes,
+Acciones. Filtros: Por cliente, por estado, por fecha, búsqueda por número. Botón 'Nuevo BL' y 'Importar desde Excel'. Card de
+resumen: Total BLs pendientes, en proceso, completados. FORMULARIO BL: Secciones: Datos del BL (Número único, Cliente
+dropdown, Tipo entrega), Datos de Carga (Peso total, Unidades, Tipo de carga), Ruta (Puerto origen, Aduana, Destino final, Nave),
+Estado. Botón 'Calcular Flota' que muestra cuántos camiones se necesitan según capacidad. PROGRAMACIÓN DE VIAJES: Desde
+un BL, botón 'Programar Viaje' abre modal con: Camión (dropdown de disponibles), Conductor (dropdown de disponibles), Fecha
+salida, Peso asignado, Generar MIC automático o manual. Tabla de viajes programados para el BL con estado de cada uno.
+SEGUIMIENTO DE VIAJES: Timeline vertical mostrando: Salida de puerto → Cruces de frontera (con canal y fechas) → Llegada a
+destino. Cada paso con fecha/hora, estado, y documentos asociados. Formulario para registrar cambios de canal en fronteras (nunca
+edita, siempre inserta nuevo registro). DETALLE DE VIAJE: Tabs: General (datos principales), Tramos, Fronteras (historial de
+canales), Documentos (lista con estado), Liquidación (cálculos financieros). Indicadores de estado con colores: Programado (gris), En
+Ruta (azul), En Aduana (amarillo), Entregado (verde), Cancelado (rojo).
+
+
+5.4 Módulo de Flota
+LISTADO DE CAMIONES: Vista de tarjetas o tabla con: Foto/Icono, Placa, Marca/Modelo, Capacidad (Tn), Estado (badge color),
+Disponibilidad, Kilometraje, Acciones. Filtros: Por estado, por sucursal, por capacidad. Indicador visual de documentación por
+vencer (licencia, tarjeta operación). DETALLE DE CAMIÓN: Tabs: Información general, Documentación (tarjeta operación con
+vencimiento y alerta), Viajes (histórico), Mantenimientos (historial y próximos), Rentabilidad (gráfico de ingresos vs gastos).
+Métricas: Viajes totales, Ingresos totales, Gastos totales, Rentabilidad neta. LISTADO DE CONDUCTORES: Tabla con: Foto,
+Nombre, Licencia, Vencimiento licencia (alerta si próximo), Disponibilidad, Calificación, # Viajes, Acciones. Filtros: Por
+disponibilidad, por tipo contrato, por sucursal. DETALLE DE CONDUCTOR: Tabs: Información personal, Historial de viajes,
+Gastos (tabla con totales), Sanciones/Incidentes (historial), Rentabilidad (ingresos generados vs pagos). Cards de resumen: Total
+viajes, Total ingresos generados, Calificación promedio, Gastos totales. REGISTRO DE GASTOS: Modal con: Conductor
+(autoseleccionado si desde detalle), Viaje (opcional), Concepto, Monto, Categoría, Fecha, Comprobante (foto opcional),
+Observaciones. Lista de gastos con totales por categoría y período.
+
+
+5.5 Módulo de Reportes
+DASHBOARD DE REPORTES: Grid de tarjetas con acceso a cada reporte. Filtros globales de fecha y sucursal aplicables a todos los
+reportes. REPORTE RENTABILIDAD MENSUAL: Gráfico de líneas con ingresos, gastos y utilidad neta por mes. Tabla con detalle
+mensual exportable. Comparación con año anterior (opcional). REPORTE RENTABILIDAD POR VEHÍCULO: Tabla ordenada por
+rentabilidad con: Placa, # Viajes, Ingresos, Gastos (combustible, mantenimiento, otros), Utilidad neta, % Utilidad. Gráfico de barras
+horizontal. REPORTE TOP CLIENTES: Tabla con: Cliente, # BLs, # Viajes, Facturación total, % del total. Gráfico de torta con
+distribución. REPORTE FLUJO DE CAJA: Tabla tipo cash flow con: Fecha, Concepto, Entradas, Salidas, Saldo. Gráfico de área
+acumulativa. Filtros por período. REPORTE GASTOS POR CATEGORÍA: Gráfico de torta con distribución. Tabla con totales por
+categoría y % del total. Drill-down a detalle de gastos. REPORTE DEMORAS EN ADUANAS: Tabla con: Frontera, Canal, Tiempo
+promedio, # de casos, Impacto en días. Gráfico de barras por tipo de canal. Identificación de patrones de demora. EXPORTACIÓN:
+Todos los reportes tienen botón de exportar a Excel o PDF. El Excel mantiene formato de los registros actuales para familiaridad.
+6. FUNCIONALIDADES PWA Y OFFLINE
+6.1 Configuración PWA
+El frontend se configurará como Progressive Web App con las siguientes características: MANIFEST.JSON: Nombre: ERP
+TEMPLARIOS, Iconos: 192x192 y 512x512 (generados desde logo), Display: standalone, Orientation: portrait-primary, Start URL:
+/dashboard, Theme color: #1B3F66 (azul corporativo). SERVICE WORKER: Estrategia de cache: Cache First para assets estáticos
+(JS, CSS, imágenes), Network First para datos de API, Stale While Revalidate para datos no críticos. Precaching de: Página de login,
+Página offline, Assets críticos (JS/CSS principales). INSTALACIÓN: Banner de instalación automático después de 2 visitas. Botón
+'Instalar App' en el header para instalación manual. Funciona como app nativa en Android, iOS y Desktop.
+
+
+6.2 Funcionalidad Offline
+INDEXED DB (Base de datos local): Se almacenarán localmente: Datos de usuario actual y permisos, Últimos 100 viajes
+sincronizados, Maestros de clientes, camiones, conductores, Documentos pendientes de subir, Formularios en progreso.
+SINCRONIZACIÓN: Detección automática de conexión (online/offline event). Cola de acciones offline (crear viaje, subir
+documento, etc.). Sincronización automática al recuperar conexión. Indicador visual de datos no sincronizados (badge naranja).
+DOCUMENTOS LOCALES: Opción de guardar documentos localmente sin subir a nube. Estructura de carpetas por:
+Año/Mes/BL/Viaje. Almacenamiento en File System API del navegador. Exportación masiva a disco local cuando se requiera.
+MODO OFFLINE COMPLETO: Navegación por secciones previamente cargadas. Creación de nuevos registros (se marcan como
+pendientes). Edición de registros existentes. Visualización de documentos previamente descargados. Alertas de funcionalidad
+limitada cuando no hay datos en cache.
+
+
+7. PLAN DE IMPLEMENTACIÓN POR SPRINTS
+              Sprint      Duración                           Entregables                                Criterio de Aceptación
+
+             Sprint 1   Semana 1        Backend: IAM completo (auth, usuarios, roles,            Login funcional, CRUD usuarios,
+                                        permisos). Frontend: Login, layout, dashboard básico     asignación de roles, permisos operando
+
+             Sprint 2   Semana 2        Backend: BL, Clientes, cálculo flota. Frontend: Módulo   Crear BL, calcular camiones necesarios,
+                                        BL completo                                              listar/editar BLs
+
+             Sprint 3   Semana 3        Backend: Camiones, Conductores, Trailers,                CRUD completo de flota, historial de
+                                        Mantenimientos. Frontend: Módulo Flota                   conductores, disponibilidad
+
+             Sprint 4   Semana 4        Backend: Viajes, Fronteras, Documentos. Frontend:        Programar viajes, registrar fronteras,
+                                        Módulo Viajes completo                                   subir documentos
+
+             Sprint 5   Semana 5        Backend: Liquidaciones, Facturas, Activos/Pasivos.       Liquidaciones automáticas, facturación,
+                                        Frontend: Módulo Finanzas + Reportes básicos             dashboards
+
+             Sprint 6   Semana 6        PWA: Service Worker, Offline, IndexedDB.                 App instalable, funciona offline,
+                                        Notificaciones email                                     notificaciones
+
+             Sprint 7   Semana 7        Reportes avanzados, Export Excel, Aprobaciones,          Todos los reportes funcionando, flujos
+                                        Auditoría                                                de aprobación
+
+             Sprint 8   Semana 8        Testing, Fixes, Migración datos, Capacitación,           Sistema estable, datos migrados,
+                                        Despliegue                                               usuarios capacitados
+8. CRITERIOS DE ACEPTACIÓN POR MÓDULO
+8.1 Módulo IAM
+AUTENTICACIÓN: Usuario puede iniciar sesión con email y contraseña válidos. Token de acceso se genera con expiración de 15
+minutos. Refresh token se genera con expiración de 7 días y se persiste en BD. Usuario bloqueado después de 5 intentos fallidos.
+Email de recuperación de contraseña funcional. Logout invalida sesión y refresh token. GESTIÓN DE USUARIOS: Administrador
+puede crear usuarios con email único. Contraseña generada automáticamente y enviada por email. Usuario debe cambiar contraseña
+en primer login. Administrador puede editar datos de usuario. Administrador puede desactivar usuario (soft delete). Usuario ve su
+propio perfil y puede editar datos básicos. ROLES Y PERMISOS: Administrador puede crear roles personalizados. Administrador
+puede asignar múltiples roles a un usuario. Los permisos efectivos son la unión de todos los roles. Usuario sin permiso específico no
+puede acceder al recurso. API rechaza peticiones sin permisos adecuados (403). Auditoría registra quién otorgó cada rol.
+
+
+8.2 Módulo BL y Carga
+GESTIÓN DE CLIENTES: CRUD completo de clientes con validación de NIT único. Búsqueda de clientes por nombre o NIT.
+GESTIÓN DE BL: Crear BL con datos completos del documento. Número de BL único validado. Cálculo automático de camiones
+necesarios según peso y capacidad. Filtro de BLs por cliente, estado, fecha. Importación de BLs desde Excel (formato definido).
+Exportación de BLs a Excel. APROBACIONES: Creación de BL nuevo requiere aprobación de Gerente/Administrador. Notificación
+por email al aprobador. Registro de aprobación en auditoría.
+
+
+8.3 Módulo Flota
+GESTIÓN DE CAMIONES: CRUD completo de camiones. Placa única validada. Asignación de trailer a camión. Historial de viajes
+por camión. Registro de mantenimientos. Alertas de vencimiento de tarjeta de operación. Cálculo de rentabilidad por camión
+(ingresos - gastos). GESTIÓN DE CONDUCTORES: CRUD completo de conductores. Licencia única validada. Alertas de
+vencimiento de licencia. Historial de viajes, sanciones, gastos. Cálculo de rentabilidad por conductor. Control de disponibilidad.
+REGISTRO DE GASTOS: Registrar gastos por conductor. Asociar gasto a viaje (opcional). Categorización de gastos. Totales por
+categoría y período.
+
+
+8.4 Módulo Viajes
+PROGRAMACIÓN: Crear viaje asociado a un BL. Asignar camión y conductor disponible. Generar MIC/DTA automático o manual.
+Validar que camión no esté en otro viaje activo. Validar que conductor esté disponible. GESTIÓN DE FRONTERAS: Registrar cruce
+de frontera con fecha/hora. Registrar canal asignado (Verde/Amarillo/Rojo). Cambios de canal crean nuevo registro (nunca editan).
+Historial completo de canales por frontera. Justificación de retrasos. DOCUMENTOS: Subir documentos por viaje (MIC, CRT,
+ASPB, etc.). Marcar documento como recibido. Lista de documentos pendientes. Almacenamiento local opcional. ESTADOS: Flujo
+de estados: Programado → En Ruta → Aduana → Entregado. Cancelación con motivo obligatorio. Registro de cambios de estado en
+auditoría.
+
+
+8.5 Módulo Finanzas
+LIQUIDACIONES: Crear liquidación por viaje con cálculo automático. Fórmula: PagoLiquido = Flete - IT 3% - Factura 7% -
+Comisión - Anticipo. Aprobación de Gerente/Finanzas para pagar. Registro de fecha y responsable de pago. Historial de
+liquidaciones. FACTURACIÓN: Crear factura asociada a uno o más viajes. Número de factura único. Estados: Pendiente → Emitida
+→ Pagada / Anulada. Exportación en formato compatible con SIN. Aprobación de Gerente/Administrador para emitir. ACTIVOS Y
+PASIVOS: CRUD completo de activos. CRUD completo de pasivos. Cálculo de depreciación (opcional). Estados de pago de pasivos.
+9. FLUJOS DE APROBACIÓN Y NOTIFICACIONES
+9.1 Flujos de Aprobación Definidos
+                        Proceso              Aprobación                   Aprobador                        Notificación
+
+             Crear BL nuevo                      Sí          Gerente / Administrador       Email + Sistema
+
+             Asignar viaje                      No           -                             WhatsApp al conductor
+
+             Anticipo transportista              Sí          Gerente / Finanzas            Email + Sistema
+
+             Pago liquidación                    Sí          Gerente / Finanzas            Email + Sistema
+
+             Facturar a cliente                  Sí          Gerente / Administrador       Email + Sistema
+
+             Crear usuario                       Sí          Super Admin                   Sistema
+
+             Modificar tarifas                   Sí          Gerente                       Sistema
+
+
+
+9.2 Notificaciones Automáticas
+                             Evento                             Destinatarios                              Canales
+
+             Nuevo BL recibido                 Administración, Gerencia                Email, Sistema
+
+             Viaje programado                  Conductor asignado                      WhatsApp
+
+             Documento pendiente               Operaciones                             Sistema
+
+             Licencia por vencer (30 días)     Administración, Conductor               Email, Sistema
+
+             Tarjeta operación por vencer      Administración                          Email, Sistema
+
+             Pago pendiente de aprobación      Finanzas, Gerencia                      Email, Sistema
+
+             Canal Rojo en aduana              Logística, Gerencia                     Email, WhatsApp
+
+             Canal Amarillo en aduana          Logística                               Sistema
+
+             Documentos físicos pendientes     Encargado de recepción (al loguear)     Alerta en sistema
+
+
+
+
+9.3 Implementación de WhatsApp
+Para las notificaciones por WhatsApp, se recomienda integrar con WhatsApp Business API a través de un proveedor autorizado como
+Twilio, MessageBird, o 360dialog. La implementación será gradual: FASE 1: Notificaciones salientes simples (sin respuestas).
+Templates pre-aprobados por Meta para: Notificación de viaje asignado, Alerta de canal Rojo en aduana, Recordatorio de licencia por
+vencer. FASE 2 (Opcional): Respuestas automáticas básicas. El conductor puede confirmar recepción de viaje. El conductor puede
+reportar incidencias por WhatsApp. COSTOS: WhatsApp Business API tiene costos por conversación. Se recomienda usar la primera
+fase para mantener costos controlados.
+
