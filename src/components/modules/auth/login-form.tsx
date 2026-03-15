@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Eye, EyeOff, Mail, Lock, Loader2 } from 'lucide-react';
 
@@ -12,13 +12,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
+  Field,
+  FieldLabel,
+  FieldError,
+  FieldGroup,
+} from '@/components/ui/field';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -78,55 +76,58 @@ export function LoginForm() {
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <FieldGroup>
         {/* Email Field */}
-        <FormField
-          control={form.control}
+        <Controller
           name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-gray-700">Correo electrónico</FormLabel>
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="email">Correo electrónico</FieldLabel>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <FormControl>
-                  <Input
-                    {...field}
-                    type="email"
-                    placeholder="correo@ejemplo.com"
-                    className="pl-10"
-                    disabled={isSubmitting}
-                  />
-                </FormControl>
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                <Input
+                  {...field}
+                  id="email"
+                  type="email"
+                  placeholder="correo@ejemplo.com"
+                  className="pl-10"
+                  disabled={isSubmitting}
+                  aria-invalid={fieldState.invalid}
+                  autoComplete="email"
+                />
               </div>
-              <FormMessage />
-            </FormItem>
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
           )}
         />
 
         {/* Password Field */}
-        <FormField
-          control={form.control}
+        <Controller
           name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-gray-700">Contraseña</FormLabel>
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="password">Contraseña</FieldLabel>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <FormControl>
-                  <Input
-                    {...field}
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    className="pl-10 pr-10"
-                    disabled={isSubmitting}
-                  />
-                </FormControl>
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                <Input
+                  {...field}
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  className="pl-10 pr-10"
+                  disabled={isSubmitting}
+                  aria-invalid={fieldState.invalid}
+                  autoComplete="current-password"
+                />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                   tabIndex={-1}
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -135,29 +136,26 @@ export function LoginForm() {
                   )}
                 </button>
               </div>
-              <FormMessage />
-            </FormItem>
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
           )}
         />
 
-        {/* Remember Me & Forgot Password */}
+        {/* Remember Me */}
         <div className="flex items-center justify-between">
-          <FormField
-            control={form.control}
+          <Controller
             name="rememberMe"
+            control={form.control}
             render={({ field }) => (
-              <FormItem className="flex items-center space-x-2 space-y-0">
-                <FormControl>
-                  <Checkbox
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                    disabled={isSubmitting}
-                  />
-                </FormControl>
-                <FormLabel className="text-sm text-gray-600 cursor-pointer">
-                  Recordarme
-                </FormLabel>
-              </FormItem>
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  disabled={isSubmitting}
+                  id="rememberMe"
+                />
+                <span className="text-sm text-gray-600">Recordarme</span>
+              </label>
             )}
           />
           <Link
@@ -167,23 +165,23 @@ export function LoginForm() {
             ¿Olvidó su contraseña?
           </Link>
         </div>
+      </FieldGroup>
 
-        {/* Submit Button */}
-        <Button
-          type="submit"
-          className="w-full bg-[#1B3F66] hover:bg-[#1B3F66]/90 text-white"
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Iniciando sesión...
-            </>
-          ) : (
-            'Iniciar Sesión'
-          )}
-        </Button>
-      </form>
-    </Form>
+      {/* Submit Button */}
+      <Button
+        type="submit"
+        className="w-full bg-[#1B3F66] hover:bg-[#1B3F66]/90 text-white"
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Iniciando sesión...
+          </>
+        ) : (
+          'Iniciar Sesión'
+        )}
+      </Button>
+    </form>
   );
 }
