@@ -15,19 +15,17 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { isAuthenticated, isLoading, initialize } = useAuth();
+  const { isAuthenticated, isLoading, isHydrated } = useAuth();
 
   useEffect(() => {
-    initialize();
-  }, [initialize]);
-
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    // Only redirect after hydration is complete
+    if (isHydrated && !isLoading && !isAuthenticated) {
       router.push('/login');
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, router, isHydrated]);
 
-  if (isLoading) {
+  // Show loading during hydration or auth check
+  if (!isHydrated || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-4">

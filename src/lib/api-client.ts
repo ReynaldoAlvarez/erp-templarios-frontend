@@ -176,15 +176,10 @@ export const api = {
 // ==========================================
 export const authApi = {
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    console.log('[authApi.login] called with:', { email: credentials?.email, password: credentials?.password ? '***' : 'missing' });
-    
-    const payload = {
+    const response = await api.post<{ data: AuthResponse }>('/auth/login', {
       email: credentials?.email,
       password: credentials?.password,
-    };
-    console.log('[authApi.login] payload to send:', JSON.stringify(payload));
-    
-    const response = await api.post<{ data: AuthResponse }>('/auth/login', payload);
+    });
     
     const { accessToken, refreshToken, user } = response.data.data;
     tokenManager.setTokens(accessToken, refreshToken, credentials?.rememberMe);

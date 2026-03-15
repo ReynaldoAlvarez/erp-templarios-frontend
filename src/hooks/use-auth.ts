@@ -1,12 +1,14 @@
 'use client';
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth-store';
 import { LoginCredentials } from '@/types/api';
 
 export function useAuth() {
   const router = useRouter();
+  const [isHydrated, setIsHydrated] = useState(false);
+  
   const {
     user,
     isAuthenticated,
@@ -17,9 +19,16 @@ export function useAuth() {
     initialize,
   } = useAuthStore();
 
+  // Wait for hydration to complete to avoid mismatch
   useEffect(() => {
-    initialize();
-  }, [initialize]);
+    setIsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (isHydrated) {
+      initialize();
+    }
+  }, [initialize, isHydrated]);
 
   const login = useCallback(
     async (credentials: LoginCredentials) => {
@@ -69,41 +78,43 @@ export function useAuth() {
   return {
     user,
     isAuthenticated,
-    isLoading,
+    isLoading: isLoading || !isHydrated,
     login,
     logout,
     refreshUser,
+    initialize,
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
     hasRole,
+    isHydrated,
   };
 }
 
 // Hook for protecting routes
 export function useRequireAuth(redirectTo: string = '/login') {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, user, isHydrated } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (isHydrated && !isLoading && !isAuthenticated) {
       router.push(redirectTo);
     }
-  }, [isAuthenticated, isLoading, router, redirectTo]);
+  }, [isAuthenticated, isLoading, router, redirectTo, isHydrated]);
 
   return { isAuthenticated, isLoading, user };
 }
 
 // Hook for redirecting authenticated users
 export function useRedirectIfAuthenticated(redirectTo: string = '/dashboard') {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, isHydrated } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && isAuthenticated) {
+    if (isHydrated && !isLoading && isAuthenticated) {
       router.push(redirectTo);
     }
-  }, [isAuthenticated, isLoading, router, redirectTo]);
+  }, [isAuthenticated, isLoading, router, redirectTo, isHydrated]);
 
   return { isAuthenticated, isLoading };
 }
