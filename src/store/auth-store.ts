@@ -23,13 +23,10 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
   isLoading: true,
 
   login: async (credentials: LoginCredentials) => {
+    console.log('[AuthStore] login called with:', { email: credentials.email, password: '***' });
     set({ isLoading: true });
     try {
-      const response = await authApi.login(
-        credentials.email,
-        credentials.password,
-        credentials.rememberMe || false
-      );
+      const response = await authApi.login(credentials);
       
       set({
         user: response.user,

@@ -51,13 +51,22 @@ export function LoginForm() {
   });
 
   const onSubmit = async (values: LoginFormValues) => {
+    console.log('=== DEBUG LOGIN FORM ===');
+    console.log('[LoginForm] onSubmit called');
+    console.log('[LoginForm] values:', JSON.stringify(values, null, 2));
+    console.log('[LoginForm] values.email:', values.email);
+    console.log('[LoginForm] values.password:', values.password ? '***' : 'empty');
+    
     setIsSubmitting(true);
     try {
-      await login({
+      const credentials = {
         email: values.email,
         password: values.password,
         rememberMe: values.rememberMe,
-      });
+      };
+      console.log('[LoginForm] credentials to pass:', { email: credentials.email, password: '***', rememberMe: credentials.rememberMe });
+      
+      await login(credentials);
       toast({
         title: 'Bienvenido',
         description: 'Has iniciado sesión correctamente',
