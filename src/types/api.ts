@@ -8,11 +8,23 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
+  fullName?: string;
   phone?: string;
   avatar?: string | null;
+  status: 'ACTIVE' | 'INACTIVE' | 'LOCKED';
+  emailVerified?: boolean;
+  lastLoginAt?: string | null;
   company?: Company;
-  roles: string[];
-  permissions: string[];
+  roles: UserRole[];
+  permissions?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface UserRole {
+  id: string;
+  name: string;
+  color?: string;
 }
 
 export interface Company {
@@ -35,6 +47,7 @@ export interface CreateUserInput {
   lastName: string;
   phone?: string;
   roleIds: string[];
+  companyId?: string;
 }
 
 export interface UpdateUserInput {
@@ -139,6 +152,11 @@ export interface PaginatedResponse<T> {
     hasNext: boolean;
     hasPrev: boolean;
   };
+}
+
+// ============ User List Params ============
+export interface UserListParams extends PaginationParams {
+  status?: 'ACTIVE' | 'INACTIVE' | 'LOCKED';
 }
 
 // ============ Navigation Types ============

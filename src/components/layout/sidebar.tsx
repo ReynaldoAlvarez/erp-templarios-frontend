@@ -155,9 +155,13 @@ const navigation: NavGroup[] = [
     title: 'Administración',
     items: [
       {
-        title: 'Usuarios',
-        href: '/usuarios',
+        title: 'IAM',
         icon: Shield,
+        children: [
+          { title: 'Usuarios', href: '/dashboard/iam/usuarios' },
+          { title: 'Roles', href: '/dashboard/iam/roles' },
+          { title: 'Permisos', href: '/dashboard/iam/permisos' },
+        ],
       },
       {
         title: 'Empresa',
@@ -176,7 +180,9 @@ const navigation: NavGroup[] = [
 function NavItemWithChildren({ item }: { item: NavItem }) {
   const pathname = usePathname();
   const { state } = useSidebar();
-  const isActive = item.href === pathname;
+  // Check if current path matches this item or any of its children
+  const isActive = item.href === pathname || 
+    (item.children?.some(child => child.href === pathname));
   const hasChildren = item.children && item.children.length > 0;
 
   if (hasChildren && item.children) {
