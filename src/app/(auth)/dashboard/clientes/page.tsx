@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
+import axios from 'axios';
 import {
   Search,
   Plus,
@@ -13,13 +14,17 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
-  Building2,
   CreditCard,
+  Eye,
+  RotateCcw,
+  DollarSign,
 } from 'lucide-react';
 
 import {
   Card,
   CardContent,
+  CardHeader,
+  CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -71,7 +76,7 @@ import { clientesApi } from '@/lib/api-client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Client, CreateClientInput, UpdateClientInput } from '@/types/api';
 
-// Form schemas - using backend field names
+// Form schemas - with conditional credit validation
 const clienteSchema = z.object({
   businessName: z.string().min(1, 'La razón social es requerida'),
   nit: z.string().min(1, 'El NIT es requerido'),
@@ -80,17 +85,54 @@ const clienteSchema = z.object({
   email: z.string().email('Email inválido').optional().or(z.literal('')),
   address: z.string().optional().or(z.literal('')),
   hasCredit: z.boolean().optional(),
-  creditLimit: z.number().min(0, 'El límite debe ser mayor o igual a 0').optional().nullable(),
+  creditLimit: z.number().optional().nullable(),
+}).refine((data) => {
+  // Si hasCredit es true, creditLimit debe ser mayor a 0
+  if (data.hasCredit && (!data.creditLimit || data.creditLimit <= 0)) {
+    return false;
+  }
+  return true;
+}, {
+  message: 'El límite de crédito es requerido cuando el cliente tiene crédito',
+  path: ['creditLimit'],
 });
 
 type ClienteFormData = z.infer<typeof clienteSchema>;
 
-// Status badge config - using function to handle boolean properly
+// Status badge config
 const getStatusConfig = (isActive: boolean) => {
   return isActive 
     ? { label: 'Activo', className: 'bg-green-100 text-green-800 border-green-200' }
     : { label: 'Inactivo', className: 'bg-gray-100 text-gray-800 border-gray-200' };
 };
+
+// Helper para extraer mensaje de error del backend
+const getErrorMessage = (error: unknown, defaultMessage: string): string => {
+  if (axios.isAxiosError(error)) {
+    const backendMessage = error.response?.data?.message;
+    if (backendMessage) return backendMessage;
+    
+    // Errores de validación
+    const errors = error.response?.data?.errors;
+    if (errors && Array.isArray(errors)) {
+      return errors.map((e: { message?: string; msg?: string }) => e.message || e.msg).join(', ');
+    }
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return defaultMessage;
+};
+
+// Interface para estado de crédito
+interface CreditState {
+  hasCredit: boolean;
+  creditLimit: number;
+  usedCredit: number;
+  availableCredit: number;
+  utilizationPercent: number;
+  pendingInvoices: number;
+}
 
 export default function ClientesPage() {
   const { toast } = useToast();
@@ -101,19 +143,23 @@ export default function ClientesPage() {
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState('');
   const [activoFilter, setActivoFilter] = useState<string>('all');
+  const [creditoFilter, setCreditoFilter] = useState<string>('all');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isCreditOpen, setIsCreditOpen] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState<Client | null>(null);
+  const [creditData, setCreditData] = useState<CreditState | null>(null);
 
-  // Query
+  // Query con filtros
   const { data: clientesData, isLoading } = useQuery({
-    queryKey: ['clientes', { page, limit, search, isActive: activoFilter }],
+    queryKey: ['clientes', { page, limit, search, isActive: activoFilter, hasCredit: creditoFilter }],
     queryFn: () => clientesApi.getAll({
       page,
       limit,
       search: search || undefined,
       isActive: activoFilter !== 'all' ? activoFilter === 'true' : undefined,
+      hasCredit: creditoFilter !== 'all' ? creditoFilter === 'true' : undefined,
     }),
   });
 
@@ -129,11 +175,12 @@ export default function ClientesPage() {
       setIsCreateOpen(false);
       createForm.reset();
     },
-    onError: () => {
+    onError: (error: unknown) => {
+      const message = getErrorMessage(error, 'No se pudo crear el cliente.');
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: 'No se pudo crear el cliente. Intente nuevamente.',
+        title: 'Error al crear cliente',
+        description: message,
       });
     },
   });
@@ -151,11 +198,12 @@ export default function ClientesPage() {
       setSelectedCliente(null);
       editForm.reset();
     },
-    onError: () => {
+    onError: (error: unknown) => {
+      const message = getErrorMessage(error, 'No se pudo actualizar el cliente.');
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: 'No se pudo actualizar el cliente. Intente nuevamente.',
+        title: 'Error al actualizar',
+        description: message,
       });
     },
   });
@@ -165,19 +213,45 @@ export default function ClientesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clientes'] });
       toast({
-        title: 'Cliente eliminado',
-        description: 'El cliente ha sido eliminado exitosamente.',
+        title: 'Cliente desactivado',
+        description: 'El cliente ha sido desactivado exitosamente.',
       });
       setIsDeleteOpen(false);
       setSelectedCliente(null);
     },
-    onError: () => {
+    onError: (error: unknown) => {
+      const message = getErrorMessage(error, 'No se pudo desactivar el cliente.');
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'No se pudo eliminar el cliente. Intente nuevamente.',
+        description: message,
       });
     },
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: (id: string) => clientesApi.restore(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clientes'] });
+      toast({
+        title: 'Cliente reactivado',
+        description: 'El cliente ha sido reactivado exitosamente.',
+      });
+    },
+    onError: (error: unknown) => {
+      const message = getErrorMessage(error, 'No se pudo reactivar el cliente.');
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: message,
+      });
+    },
+  });
+
+  const creditQuery = useQuery({
+    queryKey: ['client-credit', selectedCliente?.id],
+    queryFn: () => clientesApi.getCredit(selectedCliente!.id),
+    enabled: !!selectedCliente?.id && isCreditOpen,
   });
 
   // Forms
@@ -218,8 +292,8 @@ export default function ClientesPage() {
       phone: data.phone || undefined,
       email: data.email || undefined,
       address: data.address || undefined,
-      hasCredit: data.hasCredit,
-      creditLimit: data.creditLimit || undefined,
+      hasCredit: data.hasCredit || false,
+      creditLimit: data.hasCredit ? data.creditLimit || 0 : undefined,
     });
   };
 
@@ -235,7 +309,7 @@ export default function ClientesPage() {
         email: data.email || undefined,
         address: data.address || undefined,
         hasCredit: data.hasCredit,
-        creditLimit: data.creditLimit || undefined,
+        creditLimit: data.hasCredit ? data.creditLimit || 0 : undefined,
       },
     });
   };
@@ -243,6 +317,10 @@ export default function ClientesPage() {
   const handleDelete = async () => {
     if (!selectedCliente) return;
     deleteMutation.mutate(selectedCliente.id);
+  };
+
+  const handleRestore = (cliente: Client) => {
+    restoreMutation.mutate(cliente.id);
   };
 
   const openEditDialog = (cliente: Client) => {
@@ -263,6 +341,11 @@ export default function ClientesPage() {
   const openDeleteDialog = (cliente: Client) => {
     setSelectedCliente(cliente);
     setIsDeleteOpen(true);
+  };
+
+  const openCreditDialog = async (cliente: Client) => {
+    setSelectedCliente(cliente);
+    setIsCreditOpen(true);
   };
 
   // Pagination helpers
@@ -319,13 +402,26 @@ export default function ClientesPage() {
               setActivoFilter(value);
               setPage(1);
             }}>
-              <SelectTrigger className="w-full md:w-[180px]">
+              <SelectTrigger className="w-full md:w-[150px]">
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="true">Activo</SelectItem>
                 <SelectItem value="false">Inactivo</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={creditoFilter} onValueChange={(value) => {
+              setCreditoFilter(value);
+              setPage(1);
+            }}>
+              <SelectTrigger className="w-full md:w-[150px]">
+                <SelectValue placeholder="Crédito" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="true">Con crédito</SelectItem>
+                <SelectItem value="false">Sin crédito</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -349,7 +445,6 @@ export default function ClientesPage() {
                       <TableHead>NIT</TableHead>
                       <TableHead>Contacto</TableHead>
                       <TableHead>Teléfono</TableHead>
-                      <TableHead>Email</TableHead>
                       <TableHead>Crédito</TableHead>
                       <TableHead>Estado</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
@@ -358,7 +453,7 @@ export default function ClientesPage() {
                   <TableBody>
                     {clientes.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                           No se encontraron clientes
                         </TableCell>
                       </TableRow>
@@ -378,7 +473,6 @@ export default function ClientesPage() {
                           <TableCell className="text-gray-600">{cliente.nit}</TableCell>
                           <TableCell className="text-gray-600">{cliente.contactName || '-'}</TableCell>
                           <TableCell className="text-gray-600">{cliente.phone || '-'}</TableCell>
-                          <TableCell className="text-gray-600">{cliente.email || '-'}</TableCell>
                           <TableCell>
                             {cliente.hasCredit ? (
                               <div className="flex items-center gap-1">
@@ -407,18 +501,34 @@ export default function ClientesPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
+                                {cliente.hasCredit && (
+                                  <DropdownMenuItem onClick={() => openCreditDialog(cliente)}>
+                                    <DollarSign className="h-4 w-4 mr-2" />
+                                    Ver Crédito
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem onClick={() => openEditDialog(cliente)}>
                                   <Edit className="h-4 w-4 mr-2" />
                                   Editar
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  className="text-red-600"
-                                  onClick={() => openDeleteDialog(cliente)}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Eliminar
-                                </DropdownMenuItem>
+                                {cliente.isActive ? (
+                                  <DropdownMenuItem
+                                    className="text-red-600"
+                                    onClick={() => openDeleteDialog(cliente)}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Desactivar
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem
+                                    className="text-green-600"
+                                    onClick={() => handleRestore(cliente)}
+                                  >
+                                    <RotateCcw className="h-4 w-4 mr-2" />
+                                    Reactivar
+                                  </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
@@ -575,7 +685,7 @@ export default function ClientesPage() {
                   control={createForm.control}
                   render={({ field, fieldState }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="creditLimit">Límite de Crédito (Bs)</Label>
+                      <Label htmlFor="creditLimit">Límite de Crédito (Bs) *</Label>
                       <Input
                         {...field}
                         id="creditLimit"
@@ -702,7 +812,7 @@ export default function ClientesPage() {
                   control={editForm.control}
                   render={({ field, fieldState }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="edit-creditLimit">Límite de Crédito (Bs)</Label>
+                      <Label htmlFor="edit-creditLimit">Límite de Crédito (Bs) *</Label>
                       <Input
                         {...field}
                         id="edit-creditLimit"
@@ -731,14 +841,14 @@ export default function ClientesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
+      {/* Deactivate Confirmation */}
       <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar cliente?</AlertDialogTitle>
+            <AlertDialogTitle>¿Desactivar cliente?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción eliminará a {selectedCliente?.businessName} del sistema.
-              Esta acción no se puede deshacer.
+              Esta acción desactivará a {selectedCliente?.businessName} del sistema.
+              El cliente no podrá realizar nuevas operaciones hasta ser reactivado.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -748,11 +858,84 @@ export default function ClientesPage() {
               onClick={handleDelete}
             >
               {deleteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Eliminar
+              Desactivar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Credit Status Dialog */}
+      <Dialog open={isCreditOpen} onOpenChange={setIsCreditOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Estado de Crédito</DialogTitle>
+            <DialogDescription>
+              {selectedCliente?.businessName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {creditQuery.isLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <Loader2 className="h-6 w-6 animate-spin text-[#1B3F66]" />
+              </div>
+            ) : creditQuery.data ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="text-sm text-gray-500">Límite de Crédito</div>
+                      <div className="text-xl font-bold text-[#1B3F66]">
+                        Bs {creditQuery.data.creditLimit?.toLocaleString() || 0}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="text-sm text-gray-500">Crédito Usado</div>
+                      <div className="text-xl font-bold text-orange-600">
+                        Bs {creditQuery.data.usedCredit?.toLocaleString() || 0}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="text-sm text-gray-500">Disponible</div>
+                      <div className="text-xl font-bold text-green-600">
+                        Bs {creditQuery.data.availableCredit?.toLocaleString() || 0}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="text-sm text-gray-500">Utilización</div>
+                      <div className="text-xl font-bold">
+                        {creditQuery.data.utilizationPercent?.toFixed(1) || 0}%
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-[#1B3F66] h-2 rounded-full transition-all" 
+                    style={{ width: `${Math.min(creditQuery.data.utilizationPercent || 0, 100)}%` }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="text-center text-gray-500">
+                No se pudo cargar el estado de crédito
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreditOpen(false)}>
+              Cerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

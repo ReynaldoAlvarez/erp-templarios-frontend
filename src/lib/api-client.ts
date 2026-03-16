@@ -384,8 +384,22 @@ export const clientesApi = {
     return response.data.data;
   },
 
-  getCredit: async (id: string): Promise<{ hasCredit: boolean; creditLimit: number; usedCredit: number; availableCredit: number }> => {
-    const response = await api.get<{ data: { hasCredit: boolean; creditLimit: number; usedCredit: number; availableCredit: number } }>(`/clients/${id}/credit`);
+  getCredit: async (id: string): Promise<{
+    hasCredit: boolean;
+    creditLimit: number;
+    usedCredit: number;
+    availableCredit: number;
+    utilizationPercent: number;
+    pendingInvoices: number;
+  }> => {
+    const response = await api.get<{ data: {
+      hasCredit: boolean;
+      creditLimit: number;
+      usedCredit: number;
+      availableCredit: number;
+      utilizationPercent: number;
+      pendingInvoices: number;
+    } }>(`/clients/${id}/credit`);
     return response.data.data;
   },
 };
@@ -461,8 +475,36 @@ export const blsApi = {
     return response.data.data;
   },
 
-  getProgress: async (id: string): Promise<{ totalWeight: number; transportedWeight: number; remainingWeight: number; progressPercent: number }> => {
-    const response = await api.get<{ data: { totalWeight: number; transportedWeight: number; remainingWeight: number; progressPercent: number } }>(`/bl/${id}/progress`);
+  getProgress: async (id: string): Promise<{
+    totalWeight: number;
+    deliveredWeight: number;
+    pendingWeight: number;
+    progressPercent: number;
+    totalTrips: number;
+    deliveredTrips: number;
+    pendingTrips: number;
+    tripsByStatus?: {
+      scheduled: number;
+      inTransit: number;
+      delivered: number;
+      cancelled: number;
+    };
+  }> => {
+    const response = await api.get<{ data: {
+      totalWeight: number;
+      deliveredWeight: number;
+      pendingWeight: number;
+      progressPercent: number;
+      totalTrips: number;
+      deliveredTrips: number;
+      pendingTrips: number;
+      tripsByStatus?: {
+        scheduled: number;
+        inTransit: number;
+        delivered: number;
+        cancelled: number;
+      };
+    } }>(`/bl/${id}/progress`);
     return response.data.data;
   },
 

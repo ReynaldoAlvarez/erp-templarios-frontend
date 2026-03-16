@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
+import axios from 'axios';
 import {
   Search,
   Plus,
@@ -15,11 +16,16 @@ import {
   ChevronRight,
   Anchor,
   CheckCircle,
+  BarChart3,
+  Calendar,
+  Download,
 } from 'lucide-react';
 
 import {
   Card,
   CardContent,
+  CardHeader,
+  CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,7 +66,7 @@ import { blsApi, clientesApi } from '@/lib/api-client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { BillOfLading, CreateBLInput, UpdateBLInput, BLStatus, DeliveryType } from '@/types/api';
 
-// Form schemas - using backend field names
+// Form schemas
 const blSchema = z.object({
   blNumber: z.string().min(1, 'El número de BL es requerido'),
   totalWeight: z.number().min(0.01, 'El peso debe ser mayor a 0'),
@@ -75,7 +81,6 @@ const blSchema = z.object({
   clientId: z.string().min(1, 'El cliente es requerido'),
 });
 
-// Cancel reason schema
 const cancelSchema = z.object({
   reason: z.string().min(1, 'La razón de cancelación es requerida'),
 });
@@ -83,7 +88,7 @@ const cancelSchema = z.object({
 type BLFormData = z.infer<typeof blSchema>;
 type CancelFormData = z.infer<typeof cancelSchema>;
 
-// Status badge config
+// Status config
 const statusConfig: Record<BLStatus, { label: string; className: string }> = {
   SCHEDULED: { label: 'Programado', className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
   IN_TRANSIT: { label: 'En Tránsito', className: 'bg-blue-100 text-blue-800 border-blue-200' },
@@ -96,6 +101,40 @@ const deliveryTypeConfig: Record<DeliveryType, { label: string }> = {
   INDIRECT: { label: 'Indirecto' },
 };
 
+// Helper para extraer mensaje de error del backend
+const getErrorMessage = (error: unknown, defaultMessage: string): string => {
+  if (axios.isAxiosError(error)) {
+    const backendMessage = error.response?.data?.message;
+    if (backendMessage) return backendMessage;
+    
+    const errors = error.response?.data?.errors;
+    if (errors && Array.isArray(errors)) {
+      return errors.map((e: { message?: string; msg?: string }) => e.message || e.msg).join(', ');
+    }
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return defaultMessage;
+};
+
+// Interface para progreso del BL
+interface BLProgress {
+  totalWeight: number;
+  deliveredWeight: number;
+  pendingWeight: number;
+  progressPercent: number;
+  totalTrips: number;
+  deliveredTrips: number;
+  pendingTrips: number;
+  tripsByStatus?: {
+    scheduled: number;
+    inTransit: number;
+    delivered: number;
+    cancelled: number;
+  };
+}
+
 export default function BLsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -106,20 +145,25 @@ export default function BLsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [clienteFilter, setClienteFilter] = useState<string>('all');
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isCancelOpen, setIsCancelOpen] = useState(false);
+  const [isProgressOpen, setIsProgressOpen] = useState(false);
   const [selectedBL, setSelectedBL] = useState<BillOfLading | null>(null);
 
   // Queries
   const { data: blsData, isLoading } = useQuery({
-    queryKey: ['bls', { page, limit, search, status: statusFilter, clientId: clienteFilter }],
+    queryKey: ['bls', { page, limit, search, status: statusFilter, clientId: clienteFilter, dateFrom, dateTo }],
     queryFn: () => blsApi.getAll({
       page,
       limit,
       search: search || undefined,
       status: statusFilter !== 'all' ? statusFilter as BLStatus : undefined,
       clientId: clienteFilter !== 'all' ? clienteFilter : undefined,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
     }),
   });
 
@@ -129,6 +173,13 @@ export default function BLsPage() {
   });
 
   const clientes = clientesData?.data || [];
+
+  // Progress Query
+  const progressQuery = useQuery({
+    queryKey: ['bl-progress', selectedBL?.id],
+    queryFn: () => blsApi.getProgress(selectedBL!.id),
+    enabled: !!selectedBL?.id && isProgressOpen,
+  });
 
   // Mutations
   const createMutation = useMutation({
@@ -142,11 +193,12 @@ export default function BLsPage() {
       setIsCreateOpen(false);
       createForm.reset();
     },
-    onError: (error: Error) => {
+    onError: (error: unknown) => {
+      const message = getErrorMessage(error, 'No se pudo crear el BL.');
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: 'No se pudo crear el BL. Intente nuevamente.',
+        title: 'Error al crear BL',
+        description: message,
       });
     },
   });
@@ -164,11 +216,12 @@ export default function BLsPage() {
       setSelectedBL(null);
       editForm.reset();
     },
-    onError: () => {
+    onError: (error: unknown) => {
+      const message = getErrorMessage(error, 'No se pudo actualizar el BL.');
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: 'No se pudo actualizar el BL. Intente nuevamente.',
+        title: 'Error al actualizar',
+        description: message,
       });
     },
   });
@@ -186,11 +239,11 @@ export default function BLsPage() {
       setSelectedBL(null);
       cancelForm.reset();
     },
-    onError: (error: Error) => {
-      const message = error?.message || 'No se pudo cancelar el BL. Intente nuevamente.';
+    onError: (error: unknown) => {
+      const message = getErrorMessage(error, 'No se pudo cancelar el BL.');
       toast({
         variant: 'destructive',
-        title: 'Error',
+        title: 'Error al cancelar',
         description: message,
       });
     },
@@ -205,11 +258,12 @@ export default function BLsPage() {
         description: 'El Bill of Lading ha sido aprobado exitosamente.',
       });
     },
-    onError: () => {
+    onError: (error: unknown) => {
+      const message = getErrorMessage(error, 'No se pudo aprobar el BL.');
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: 'No se pudo aprobar el BL. Intente nuevamente.',
+        title: 'Error al aprobar',
+        description: message,
       });
     },
   });
@@ -251,13 +305,11 @@ export default function BLsPage() {
 
   const cancelForm = useForm<CancelFormData>({
     resolver: zodResolver(cancelSchema),
-    defaultValues: {
-      reason: '',
-    },
+    defaultValues: { reason: '' },
   });
 
   // Handlers
-  const handleCreate = async (data: BLFormData) => {
+  const handleCreate = (data: BLFormData) => {
     createMutation.mutate({
       blNumber: data.blNumber,
       totalWeight: data.totalWeight,
@@ -273,7 +325,7 @@ export default function BLsPage() {
     });
   };
 
-  const handleEdit = async (data: BLFormData) => {
+  const handleEdit = (data: BLFormData) => {
     if (!selectedBL) return;
     updateMutation.mutate({
       id: selectedBL.id,
@@ -293,12 +345,9 @@ export default function BLsPage() {
     });
   };
 
-  const handleCancel = async (data: CancelFormData) => {
+  const handleCancel = (data: CancelFormData) => {
     if (!selectedBL) return;
-    cancelMutation.mutate({
-      id: selectedBL.id,
-      reason: data.reason,
-    });
+    cancelMutation.mutate({ id: selectedBL.id, reason: data.reason });
   };
 
   const handleApprove = (bl: BillOfLading) => {
@@ -329,7 +378,12 @@ export default function BLsPage() {
     setIsCancelOpen(true);
   };
 
-  // Pagination helpers
+  const openProgressDialog = (bl: BillOfLading) => {
+    setSelectedBL(bl);
+    setIsProgressOpen(true);
+  };
+
+  // Pagination
   const totalPages = blsData?.pagination?.totalPages || 1;
   const totalBLs = blsData?.pagination?.total || 0;
   const canPrev = page > 1;
@@ -363,50 +417,94 @@ export default function BLsPage() {
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Buscar por número de BL..."
-                className="pl-10"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-              />
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Buscar por número de BL..."
+                  className="pl-10"
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
+              <Select value={clienteFilter} onValueChange={(value) => {
+                setClienteFilter(value);
+                setPage(1);
+              }}>
+                <SelectTrigger className="w-full md:w-[200px]">
+                  <SelectValue placeholder="Cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los clientes</SelectItem>
+                  {clientes.map((cliente) => (
+                    <SelectItem key={cliente.id} value={cliente.id}>
+                      {cliente.businessName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={(value) => {
+                setStatusFilter(value);
+                setPage(1);
+              }}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectValue placeholder="Estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="SCHEDULED">Programado</SelectItem>
+                  <SelectItem value="IN_TRANSIT">En Tránsito</SelectItem>
+                  <SelectItem value="DELIVERED">Entregado</SelectItem>
+                  <SelectItem value="CANCELLED">Cancelado</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select value={clienteFilter} onValueChange={(value) => {
-              setClienteFilter(value);
-              setPage(1);
-            }}>
-              <SelectTrigger className="w-full md:w-[200px]">
-                <SelectValue placeholder="Cliente" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los clientes</SelectItem>
-                {clientes.map((cliente) => (
-                  <SelectItem key={cliente.id} value={cliente.id}>
-                    {cliente.businessName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={(value) => {
-              setStatusFilter(value);
-              setPage(1);
-            }}>
-              <SelectTrigger className="w-full md:w-[180px]">
-                <SelectValue placeholder="Estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="SCHEDULED">Programado</SelectItem>
-                <SelectItem value="IN_TRANSIT">En Tránsito</SelectItem>
-                <SelectItem value="DELIVERED">Entregado</SelectItem>
-                <SelectItem value="CANCELLED">Cancelado</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Date Range Filter */}
+            <div className="flex flex-col md:flex-row gap-4 items-end">
+              <div className="flex-1">
+                <Label htmlFor="dateFrom" className="text-sm text-gray-500">Desde</Label>
+                <Input
+                  id="dateFrom"
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => {
+                    setDateFrom(e.target.value);
+                    setPage(1);
+                  }}
+                  className="mt-1"
+                />
+              </div>
+              <div className="flex-1">
+                <Label htmlFor="dateTo" className="text-sm text-gray-500">Hasta</Label>
+                <Input
+                  id="dateTo"
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => {
+                    setDateTo(e.target.value);
+                    setPage(1);
+                  }}
+                  className="mt-1"
+                />
+              </div>
+              {(dateFrom || dateTo) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setDateFrom('');
+                    setDateTo('');
+                    setPage(1);
+                  }}
+                >
+                  Limpiar fechas
+                </Button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -489,11 +587,15 @@ export default function BLsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openProgressDialog(bl)}>
+                                  <BarChart3 className="h-4 w-4 mr-2" />
+                                  Ver Progreso
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => openEditDialog(bl)}>
                                   <Edit className="h-4 w-4 mr-2" />
                                   Editar
                                 </DropdownMenuItem>
-                                {bl.status === 'SCHEDULED' && (
+                                {bl.status === 'SCHEDULED' && !bl.approvedById && (
                                   <>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem onClick={() => handleApprove(bl)}>
@@ -982,6 +1084,107 @@ export default function BLsPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Progress Dialog */}
+      <Dialog open={isProgressOpen} onOpenChange={setIsProgressOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Progreso del BL</DialogTitle>
+            <DialogDescription>
+              {selectedBL?.blNumber} - {selectedBL?.client?.businessName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {progressQuery.isLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <Loader2 className="h-6 w-6 animate-spin text-[#1B3F66]" />
+              </div>
+            ) : progressQuery.data ? (
+              <div className="space-y-4">
+                {/* Progress Bar */}
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Progreso General</span>
+                    <span className="font-medium">{progressQuery.data.progressPercent?.toFixed(1) || 0}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div 
+                      className="bg-[#1B3F66] h-3 rounded-full transition-all" 
+                      style={{ width: `${Math.min(progressQuery.data.progressPercent || 0, 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 gap-4">
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="text-sm text-gray-500">Peso Total</div>
+                      <div className="text-xl font-bold text-[#1B3F66]">
+                        {progressQuery.data.totalWeight?.toLocaleString() || 0} kg
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="text-sm text-gray-500">Entregado</div>
+                      <div className="text-xl font-bold text-green-600">
+                        {progressQuery.data.deliveredWeight?.toLocaleString() || 0} kg
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="text-sm text-gray-500">Pendiente</div>
+                      <div className="text-xl font-bold text-orange-600">
+                        {progressQuery.data.pendingWeight?.toLocaleString() || 0} kg
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="text-sm text-gray-500">Viajes</div>
+                      <div className="text-xl font-bold">
+                        {progressQuery.data.deliveredTrips || 0} / {progressQuery.data.totalTrips || 0}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Trips by Status */}
+                {progressQuery.data.tripsByStatus && (
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium">Viajes por Estado</div>
+                    <div className="flex gap-2 flex-wrap">
+                      {progressQuery.data.tripsByStatus.scheduled > 0 && (
+                        <Badge className="bg-yellow-100 text-yellow-800">Programados: {progressQuery.data.tripsByStatus.scheduled}</Badge>
+                      )}
+                      {progressQuery.data.tripsByStatus.inTransit > 0 && (
+                        <Badge className="bg-blue-100 text-blue-800">En Tránsito: {progressQuery.data.tripsByStatus.inTransit}</Badge>
+                      )}
+                      {progressQuery.data.tripsByStatus.delivered > 0 && (
+                        <Badge className="bg-green-100 text-green-800">Entregados: {progressQuery.data.tripsByStatus.delivered}</Badge>
+                      )}
+                      {progressQuery.data.tripsByStatus.cancelled > 0 && (
+                        <Badge className="bg-red-100 text-red-800">Cancelados: {progressQuery.data.tripsByStatus.cancelled}</Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center text-gray-500 py-8">
+                No se pudo cargar el progreso del BL
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsProgressOpen(false)}>
+              Cerrar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
