@@ -155,7 +155,7 @@ apiClient.interceptors.response.use(
 // API Helper Functions
 // ==========================================
 export const api = {
-  get: <T>(url: string, params?: Record<string, unknown>) =>
+  get: <T>(url: string, params?: Record<string, string | number | boolean | undefined>) =>
     apiClient.get<T>(url, { params }),
 
   post: <T>(url: string, data?: unknown) =>
@@ -322,110 +322,156 @@ export const permissionsApi = {
 // ==========================================
 // Clientes API
 // ==========================================
-interface BackendClientesResponse {
+// Backend response structure:
+// { success: true, data: { clients: [...], total, page, limit, totalPages }, timestamp }
+interface BackendClientsResponse {
   success: boolean;
   message: string;
-  data: import('@/types/api').Cliente[];
-  meta: {
+  data: {
+    clients: import('@/types/api').Client[];
+    total: number;
     page: number;
     limit: number;
-    total: number;
     totalPages: number;
   };
+  timestamp: string;
 }
 
 export const clientesApi = {
-  getAll: async (params?: import('@/types/api').ClienteListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').Cliente>> => {
-    const response = await api.get<BackendClientesResponse>('/clientes', params);
-    const { data: clientes, meta } = response.data;
+  getAll: async (params?: import('@/types/api').ClientListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').Client>> => {
+    const response = await api.get<BackendClientsResponse>('/clients', params);
+    const { clients, total, page, limit, totalPages } = response.data.data;
 
     return {
-      data: clientes,
+      data: clients,
       pagination: {
-        page: meta.page,
-        limit: meta.limit,
-        total: meta.total,
-        totalPages: meta.totalPages,
-        hasNext: meta.page < meta.totalPages,
-        hasPrev: meta.page > 1,
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
       },
     };
   },
 
-  getById: async (id: string): Promise<import('@/types/api').Cliente> => {
-    const response = await api.get<{ data: import('@/types/api').Cliente }>(`/clientes/${id}`);
+  getById: async (id: string): Promise<import('@/types/api').Client> => {
+    const response = await api.get<{ data: import('@/types/api').Client }>(`/clients/${id}`);
     return response.data.data;
   },
 
-  create: async (data: import('@/types/api').CreateClienteInput): Promise<import('@/types/api').Cliente> => {
-    const response = await api.post<{ data: import('@/types/api').Cliente }>('/clientes', data);
+  create: async (data: import('@/types/api').CreateClientInput): Promise<import('@/types/api').Client> => {
+    const response = await api.post<{ data: import('@/types/api').Client }>('/clients', data);
     return response.data.data;
   },
 
-  update: async (id: string, data: import('@/types/api').UpdateClienteInput): Promise<import('@/types/api').Cliente> => {
-    const response = await api.put<{ data: import('@/types/api').Cliente }>(`/clientes/${id}`, data);
+  update: async (id: string, data: import('@/types/api').UpdateClientInput): Promise<import('@/types/api').Client> => {
+    const response = await api.put<{ data: import('@/types/api').Client }>(`/clients/${id}`, data);
     return response.data.data;
   },
 
   delete: async (id: string): Promise<void> => {
-    await api.delete(`/clientes/${id}`);
+    await api.delete(`/clients/${id}`);
+  },
+
+  restore: async (id: string): Promise<import('@/types/api').Client> => {
+    const response = await api.post<{ data: import('@/types/api').Client }>(`/clients/${id}/restore`);
+    return response.data.data;
+  },
+
+  search: async (query: string): Promise<import('@/types/api').Client[]> => {
+    const response = await api.get<{ data: import('@/types/api').Client[] }>('/clients/search', { q: query });
+    return response.data.data;
+  },
+
+  getCredit: async (id: string): Promise<{ hasCredit: boolean; creditLimit: number; usedCredit: number; availableCredit: number }> => {
+    const response = await api.get<{ data: { hasCredit: boolean; creditLimit: number; usedCredit: number; availableCredit: number } }>(`/clients/${id}/credit`);
+    return response.data.data;
   },
 };
 
 // ==========================================
 // BLs API
 // ==========================================
+// Backend response structure:
+// { success: true, data: { bls: [...], total, page, limit, totalPages }, timestamp }
 interface BackendBLsResponse {
   success: boolean;
   message: string;
-  data: import('@/types/api').BL[];
-  meta: {
+  data: {
+    bls: import('@/types/api').BillOfLading[];
+    total: number;
     page: number;
     limit: number;
-    total: number;
     totalPages: number;
   };
+  timestamp: string;
 }
 
 export const blsApi = {
-  getAll: async (params?: import('@/types/api').BLListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').BL>> => {
-    const response = await api.get<BackendBLsResponse>('/bls', params);
-    const { data: bls, meta } = response.data;
+  getAll: async (params?: import('@/types/api').BLListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').BillOfLading>> => {
+    const response = await api.get<BackendBLsResponse>('/bl', params);
+    const { bls, total, page, limit, totalPages } = response.data.data;
 
     return {
       data: bls,
       pagination: {
-        page: meta.page,
-        limit: meta.limit,
-        total: meta.total,
-        totalPages: meta.totalPages,
-        hasNext: meta.page < meta.totalPages,
-        hasPrev: meta.page > 1,
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
       },
     };
   },
 
-  getById: async (id: string): Promise<import('@/types/api').BL> => {
-    const response = await api.get<{ data: import('@/types/api').BL }>(`/bls/${id}`);
+  getById: async (id: string): Promise<import('@/types/api').BillOfLading> => {
+    const response = await api.get<{ data: import('@/types/api').BillOfLading }>(`/bl/${id}`);
     return response.data.data;
   },
 
-  create: async (data: import('@/types/api').CreateBLInput): Promise<import('@/types/api').BL> => {
-    const response = await api.post<{ data: import('@/types/api').BL }>('/bls', data);
+  getByNumber: async (blNumber: string): Promise<import('@/types/api').BillOfLading> => {
+    const response = await api.get<{ data: import('@/types/api').BillOfLading }>(`/bl/number/${blNumber}`);
     return response.data.data;
   },
 
-  update: async (id: string, data: import('@/types/api').UpdateBLInput): Promise<import('@/types/api').BL> => {
-    const response = await api.put<{ data: import('@/types/api').BL }>(`/bls/${id}`, data);
+  create: async (data: import('@/types/api').CreateBLInput): Promise<import('@/types/api').BillOfLading> => {
+    const response = await api.post<{ data: import('@/types/api').BillOfLading }>('/bl', data);
+    return response.data.data;
+  },
+
+  update: async (id: string, data: import('@/types/api').UpdateBLInput): Promise<import('@/types/api').BillOfLading> => {
+    const response = await api.put<{ data: import('@/types/api').BillOfLading }>(`/bl/${id}`, data);
     return response.data.data;
   },
 
   delete: async (id: string): Promise<void> => {
-    await api.delete(`/bls/${id}`);
+    await api.delete(`/bl/${id}`);
   },
 
-  calcularFlota: async (id: string): Promise<import('@/types/api').CalcularFlotaResult> => {
-    const response = await api.post<{ data: import('@/types/api').CalcularFlotaResult }>(`/bls/${id}/calcular-flota`);
+  approve: async (id: string): Promise<import('@/types/api').BillOfLading> => {
+    const response = await api.post<{ data: import('@/types/api').BillOfLading }>(`/bl/${id}/approve`);
+    return response.data.data;
+  },
+
+  cancel: async (id: string, reason: string): Promise<import('@/types/api').BillOfLading> => {
+    const response = await api.post<{ data: import('@/types/api').BillOfLading }>(`/bl/${id}/cancel`, { reason });
+    return response.data.data;
+  },
+
+  getProgress: async (id: string): Promise<{ totalWeight: number; transportedWeight: number; remainingWeight: number; progressPercent: number }> => {
+    const response = await api.get<{ data: { totalWeight: number; transportedWeight: number; remainingWeight: number; progressPercent: number } }>(`/bl/${id}/progress`);
+    return response.data.data;
+  },
+
+  search: async (query: string): Promise<import('@/types/api').BillOfLading[]> => {
+    const response = await api.get<{ data: import('@/types/api').BillOfLading[] }>('/bl/search', { q: query });
+    return response.data.data;
+  },
+
+  importFromJSON: async (items: Array<{ blNumber: string; clientNit: string; clientName: string; totalWeight: number; unitCount: number; cargoType?: string; originPort: string; customsPoint: string; finalDestination: string }>): Promise<{ total: number; created: number; skipped: number; errors: string[] }> => {
+    const response = await api.post<{ data: { total: number; created: number; skipped: number; errors: string[] } }>('/bl/import/json', items);
     return response.data.data;
   },
 };

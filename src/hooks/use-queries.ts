@@ -13,9 +13,9 @@ import {
   CreateUserInput,
   UpdateUserInput,
   CreateRoleInput,
-  ClienteListParams,
-  CreateClienteInput,
-  UpdateClienteInput,
+  ClientListParams,
+  CreateClientInput,
+  UpdateClientInput,
   BLListParams,
   CreateBLInput,
   UpdateBLInput,
@@ -159,7 +159,7 @@ export function usePermissions(module?: string) {
 // ==========================================
 // Clientes Queries
 // ==========================================
-export function useClientes(params?: ClienteListParams) {
+export function useClientes(params?: ClientListParams) {
   return useQuery({
     queryKey: ['clientes', params],
     queryFn: () => clientesApi.getAll(params),
@@ -180,7 +180,7 @@ export function useCliente(id: string | undefined) {
 export function useCreateCliente() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: CreateClienteInput) => clientesApi.create(data),
+    mutationFn: (data: CreateClientInput) => clientesApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clientes'] });
     },
@@ -190,7 +190,7 @@ export function useCreateCliente() {
 export function useUpdateCliente() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateClienteInput }) =>
+    mutationFn: ({ id, data }: { id: string; data: UpdateClientInput }) =>
       clientesApi.update(id, data),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['clientes'] });
@@ -262,8 +262,25 @@ export function useDeleteBL() {
   });
 }
 
-export function useCalcularFlota() {
+export function useApproveBL() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => blsApi.calcularFlota(id),
+    mutationFn: (id: string) => blsApi.approve(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['bls'] });
+      queryClient.invalidateQueries({ queryKey: ['bls', id] });
+    },
+  });
+}
+
+export function useCancelBL() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      blsApi.cancel(id, reason),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['bls'] });
+      queryClient.invalidateQueries({ queryKey: ['bls', id] });
+    },
   });
 }

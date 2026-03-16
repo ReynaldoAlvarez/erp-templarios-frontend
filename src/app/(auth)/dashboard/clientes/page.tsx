@@ -67,36 +67,34 @@ import {
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import {
-  useClientes,
-  useCreateCliente,
-  useUpdateCliente,
-  useDeleteCliente,
-} from '@/hooks/use-queries';
-import { Cliente } from '@/types/api';
+import { clientesApi } from '@/lib/api-client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Client, CreateClientInput, UpdateClientInput } from '@/types/api';
 
-// Form schemas
+// Form schemas - using backend field names
 const clienteSchema = z.object({
-  razonSocial: z.string().min(1, 'La razón social es requerida'),
+  businessName: z.string().min(1, 'La razón social es requerida'),
   nit: z.string().min(1, 'El NIT es requerido'),
-  contacto: z.string().optional().or(z.literal('')),
-  telefono: z.string().optional().or(z.literal('')),
+  contactName: z.string().optional().or(z.literal('')),
+  phone: z.string().optional().or(z.literal('')),
   email: z.string().email('Email inválido').optional().or(z.literal('')),
-  direccion: z.string().optional().or(z.literal('')),
-  credito: z.boolean().optional(),
-  limiteCredito: z.number().min(0, 'El límite debe ser mayor o igual a 0').optional().nullable(),
+  address: z.string().optional().or(z.literal('')),
+  hasCredit: z.boolean().optional(),
+  creditLimit: z.number().min(0, 'El límite debe ser mayor o igual a 0').optional().nullable(),
 });
 
 type ClienteFormData = z.infer<typeof clienteSchema>;
 
-// Status badge config
-const statusConfig: Record<boolean, { label: string; className: string }> = {
-  true: { label: 'Activo', className: 'bg-green-100 text-green-800 border-green-200' },
-  false: { label: 'Inactivo', className: 'bg-gray-100 text-gray-800 border-gray-200' },
+// Status badge config - using function to handle boolean properly
+const getStatusConfig = (isActive: boolean) => {
+  return isActive 
+    ? { label: 'Activo', className: 'bg-green-100 text-green-800 border-green-200' }
+    : { label: 'Inactivo', className: 'bg-gray-100 text-gray-800 border-gray-200' };
 };
 
 export default function ClientesPage() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // State
   const [page, setPage] = useState(1);
@@ -106,94 +104,45 @@ export default function ClientesPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
+  const [selectedCliente, setSelectedCliente] = useState<Client | null>(null);
 
-  // Queries
-  const { data: clientesData, isLoading } = useClientes({
-    page,
-    limit,
-    search: search || undefined,
-    activo: activoFilter !== 'all' ? activoFilter === 'true' : undefined,
+  // Query
+  const { data: clientesData, isLoading } = useQuery({
+    queryKey: ['clientes', { page, limit, search, isActive: activoFilter }],
+    queryFn: () => clientesApi.getAll({
+      page,
+      limit,
+      search: search || undefined,
+      isActive: activoFilter !== 'all' ? activoFilter === 'true' : undefined,
+    }),
   });
 
   // Mutations
-  const createCliente = useCreateCliente();
-  const updateCliente = useUpdateCliente();
-  const deleteCliente = useDeleteCliente();
-
-  // Forms
-  const createForm = useForm<ClienteFormData>({
-    resolver: zodResolver(clienteSchema),
-    defaultValues: {
-      razonSocial: '',
-      nit: '',
-      contacto: '',
-      telefono: '',
-      email: '',
-      direccion: '',
-      credito: false,
-      limiteCredito: null,
-    },
-  });
-
-  const editForm = useForm<ClienteFormData>({
-    resolver: zodResolver(clienteSchema),
-    defaultValues: {
-      razonSocial: '',
-      nit: '',
-      contacto: '',
-      telefono: '',
-      email: '',
-      direccion: '',
-      credito: false,
-      limiteCredito: null,
-    },
-  });
-
-  // Handlers
-  const handleCreate = async (data: ClienteFormData) => {
-    try {
-      await createCliente.mutateAsync({
-        razonSocial: data.razonSocial,
-        nit: data.nit,
-        contacto: data.contacto || undefined,
-        telefono: data.telefono || undefined,
-        email: data.email || undefined,
-        direccion: data.direccion || undefined,
-        credito: data.credito,
-        limiteCredito: data.limiteCredito || undefined,
-      });
+  const createMutation = useMutation({
+    mutationFn: (data: CreateClientInput) => clientesApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clientes'] });
       toast({
         title: 'Cliente creado',
         description: 'El cliente ha sido creado exitosamente.',
       });
       setIsCreateOpen(false);
       createForm.reset();
-    } catch (error) {
+    },
+    onError: () => {
       toast({
         variant: 'destructive',
         title: 'Error',
         description: 'No se pudo crear el cliente. Intente nuevamente.',
       });
-    }
-  };
+    },
+  });
 
-  const handleEdit = async (data: ClienteFormData) => {
-    if (!selectedCliente) return;
-    try {
-      await updateCliente.mutateAsync({
-        id: selectedCliente.id,
-        data: {
-          razonSocial: data.razonSocial,
-          nit: data.nit,
-          contacto: data.contacto || undefined,
-          telefono: data.telefono || undefined,
-          email: data.email || undefined,
-          direccion: data.direccion || undefined,
-          credito: data.credito,
-          limiteCredito: data.limiteCredito || undefined,
-        },
-      });
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateClientInput }) =>
+      clientesApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clientes'] });
       toast({
         title: 'Cliente actualizado',
         description: 'El cliente ha sido actualizado exitosamente.',
@@ -201,50 +150,117 @@ export default function ClientesPage() {
       setIsEditOpen(false);
       setSelectedCliente(null);
       editForm.reset();
-    } catch (error) {
+    },
+    onError: () => {
       toast({
         variant: 'destructive',
         title: 'Error',
         description: 'No se pudo actualizar el cliente. Intente nuevamente.',
       });
-    }
-  };
+    },
+  });
 
-  const handleDelete = async () => {
-    if (!selectedCliente) return;
-    try {
-      await deleteCliente.mutateAsync(selectedCliente.id);
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => clientesApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clientes'] });
       toast({
         title: 'Cliente eliminado',
         description: 'El cliente ha sido eliminado exitosamente.',
       });
       setIsDeleteOpen(false);
       setSelectedCliente(null);
-    } catch (error) {
+    },
+    onError: () => {
       toast({
         variant: 'destructive',
         title: 'Error',
         description: 'No se pudo eliminar el cliente. Intente nuevamente.',
       });
-    }
+    },
+  });
+
+  // Forms
+  const createForm = useForm<ClienteFormData>({
+    resolver: zodResolver(clienteSchema),
+    defaultValues: {
+      businessName: '',
+      nit: '',
+      contactName: '',
+      phone: '',
+      email: '',
+      address: '',
+      hasCredit: false,
+      creditLimit: null,
+    },
+  });
+
+  const editForm = useForm<ClienteFormData>({
+    resolver: zodResolver(clienteSchema),
+    defaultValues: {
+      businessName: '',
+      nit: '',
+      contactName: '',
+      phone: '',
+      email: '',
+      address: '',
+      hasCredit: false,
+      creditLimit: null,
+    },
+  });
+
+  // Handlers
+  const handleCreate = async (data: ClienteFormData) => {
+    createMutation.mutate({
+      businessName: data.businessName,
+      nit: data.nit,
+      contactName: data.contactName || undefined,
+      phone: data.phone || undefined,
+      email: data.email || undefined,
+      address: data.address || undefined,
+      hasCredit: data.hasCredit,
+      creditLimit: data.creditLimit || undefined,
+    });
   };
 
-  const openEditDialog = (cliente: Cliente) => {
+  const handleEdit = async (data: ClienteFormData) => {
+    if (!selectedCliente) return;
+    updateMutation.mutate({
+      id: selectedCliente.id,
+      data: {
+        businessName: data.businessName,
+        nit: data.nit,
+        contactName: data.contactName || undefined,
+        phone: data.phone || undefined,
+        email: data.email || undefined,
+        address: data.address || undefined,
+        hasCredit: data.hasCredit,
+        creditLimit: data.creditLimit || undefined,
+      },
+    });
+  };
+
+  const handleDelete = async () => {
+    if (!selectedCliente) return;
+    deleteMutation.mutate(selectedCliente.id);
+  };
+
+  const openEditDialog = (cliente: Client) => {
     setSelectedCliente(cliente);
     editForm.reset({
-      razonSocial: cliente.razonSocial,
+      businessName: cliente.businessName,
       nit: cliente.nit,
-      contacto: cliente.contacto || '',
-      telefono: cliente.telefono || '',
+      contactName: cliente.contactName || '',
+      phone: cliente.phone || '',
       email: cliente.email || '',
-      direccion: cliente.direccion || '',
-      credito: cliente.credito,
-      limiteCredito: cliente.limiteCredito || null,
+      address: cliente.address || '',
+      hasCredit: cliente.hasCredit,
+      creditLimit: cliente.creditLimit ? parseFloat(cliente.creditLimit) : null,
     });
     setIsEditOpen(true);
   };
 
-  const openDeleteDialog = (cliente: Cliente) => {
+  const openDeleteDialog = (cliente: Client) => {
     setSelectedCliente(cliente);
     setIsDeleteOpen(true);
   };
@@ -256,8 +272,8 @@ export default function ClientesPage() {
   const canNext = page < totalPages;
   const clientes = clientesData?.data || [];
 
-  const watchCredito = createForm.watch('credito');
-  const watchEditCredito = editForm.watch('credito');
+  const watchHasCredit = createForm.watch('hasCredit');
+  const watchEditHasCredit = editForm.watch('hasCredit');
 
   return (
     <div className="space-y-6" suppressHydrationWarning>
@@ -352,23 +368,23 @@ export default function ClientesPage() {
                           <TableCell>
                             <div className="flex items-center gap-3">
                               <div className="h-8 w-8 rounded-full bg-[#1B3F66] flex items-center justify-center text-white text-sm font-medium">
-                                {cliente.razonSocial?.[0]?.toUpperCase() || 'C'}
+                                {cliente.businessName?.[0]?.toUpperCase() || 'C'}
                               </div>
                               <div className="font-medium text-gray-900">
-                                {cliente.razonSocial}
+                                {cliente.businessName}
                               </div>
                             </div>
                           </TableCell>
                           <TableCell className="text-gray-600">{cliente.nit}</TableCell>
-                          <TableCell className="text-gray-600">{cliente.contacto || '-'}</TableCell>
-                          <TableCell className="text-gray-600">{cliente.telefono || '-'}</TableCell>
+                          <TableCell className="text-gray-600">{cliente.contactName || '-'}</TableCell>
+                          <TableCell className="text-gray-600">{cliente.phone || '-'}</TableCell>
                           <TableCell className="text-gray-600">{cliente.email || '-'}</TableCell>
                           <TableCell>
-                            {cliente.credito ? (
+                            {cliente.hasCredit ? (
                               <div className="flex items-center gap-1">
                                 <CreditCard className="h-4 w-4 text-green-600" />
                                 <span className="text-sm text-green-600">
-                                  Bs {cliente.limiteCredito?.toLocaleString() || 0}
+                                  Bs {parseFloat(cliente.creditLimit || '0').toLocaleString()}
                                 </span>
                               </div>
                             ) : (
@@ -378,9 +394,9 @@ export default function ClientesPage() {
                           <TableCell>
                             <Badge
                               variant="outline"
-                              className={statusConfig[cliente.activo]?.className}
+                              className={getStatusConfig(cliente.isActive).className}
                             >
-                              {statusConfig[cliente.activo]?.label}
+                              {getStatusConfig(cliente.isActive).label}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -473,12 +489,12 @@ export default function ClientesPage() {
           <form onSubmit={createForm.handleSubmit(handleCreate)}>
             <div className="space-y-4 py-4">
               <Controller
-                name="razonSocial"
+                name="businessName"
                 control={createForm.control}
                 render={({ field, fieldState }) => (
                   <div className="space-y-2">
-                    <Label htmlFor="razonSocial">Razón Social *</Label>
-                    <Input {...field} id="razonSocial" placeholder="Empresa S.R.L." className={fieldState.invalid ? 'border-red-500' : ''} />
+                    <Label htmlFor="businessName">Razón Social *</Label>
+                    <Input {...field} id="businessName" placeholder="Empresa S.R.L." className={fieldState.invalid ? 'border-red-500' : ''} />
                     {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
                   </div>
                 )}
@@ -495,23 +511,23 @@ export default function ClientesPage() {
                 )}
               />
               <Controller
-                name="contacto"
+                name="contactName"
                 control={createForm.control}
                 render={({ field }) => (
                   <div className="space-y-2">
-                    <Label htmlFor="contacto">Contacto</Label>
-                    <Input {...field} id="contacto" placeholder="Juan Pérez" />
+                    <Label htmlFor="contactName">Contacto</Label>
+                    <Input {...field} id="contactName" placeholder="Juan Pérez" />
                   </div>
                 )}
               />
               <div className="grid grid-cols-2 gap-4">
                 <Controller
-                  name="telefono"
+                  name="phone"
                   control={createForm.control}
                   render={({ field }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="telefono">Teléfono</Label>
-                      <Input {...field} id="telefono" placeholder="+591 7XXXXXXX" />
+                      <Label htmlFor="phone">Teléfono</Label>
+                      <Input {...field} id="phone" placeholder="+591 7XXXXXXX" />
                     </div>
                   )}
                 />
@@ -528,41 +544,41 @@ export default function ClientesPage() {
                 />
               </div>
               <Controller
-                name="direccion"
+                name="address"
                 control={createForm.control}
                 render={({ field }) => (
                   <div className="space-y-2">
-                    <Label htmlFor="direccion">Dirección</Label>
-                    <Input {...field} id="direccion" placeholder="Av. Principal #123" />
+                    <Label htmlFor="address">Dirección</Label>
+                    <Input {...field} id="address" placeholder="Av. Principal #123" />
                   </div>
                 )}
               />
               <Controller
-                name="credito"
+                name="hasCredit"
                 control={createForm.control}
                 render={({ field }) => (
                   <div className="flex items-center space-x-2">
                     <Checkbox
-                      id="credito"
+                      id="hasCredit"
                       checked={field.value}
                       onCheckedChange={field.onChange}
                     />
-                    <Label htmlFor="credito" className="cursor-pointer">
+                    <Label htmlFor="hasCredit" className="cursor-pointer">
                       Tiene crédito
                     </Label>
                   </div>
                 )}
               />
-              {watchCredito && (
+              {watchHasCredit && (
                 <Controller
-                  name="limiteCredito"
+                  name="creditLimit"
                   control={createForm.control}
                   render={({ field, fieldState }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="limiteCredito">Límite de Crédito (Bs)</Label>
+                      <Label htmlFor="creditLimit">Límite de Crédito (Bs)</Label>
                       <Input
                         {...field}
-                        id="limiteCredito"
+                        id="creditLimit"
                         type="number"
                         placeholder="10000"
                         value={field.value ?? ''}
@@ -579,8 +595,8 @@ export default function ClientesPage() {
               <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={createCliente.isPending}>
-                {createCliente.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <Button type="submit" className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={createMutation.isPending}>
+                {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Crear
               </Button>
             </DialogFooter>
@@ -600,12 +616,12 @@ export default function ClientesPage() {
           <form onSubmit={editForm.handleSubmit(handleEdit)}>
             <div className="space-y-4 py-4">
               <Controller
-                name="razonSocial"
+                name="businessName"
                 control={editForm.control}
                 render={({ field, fieldState }) => (
                   <div className="space-y-2">
-                    <Label htmlFor="edit-razonSocial">Razón Social *</Label>
-                    <Input {...field} id="edit-razonSocial" className={fieldState.invalid ? 'border-red-500' : ''} />
+                    <Label htmlFor="edit-businessName">Razón Social *</Label>
+                    <Input {...field} id="edit-businessName" className={fieldState.invalid ? 'border-red-500' : ''} />
                     {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
                   </div>
                 )}
@@ -622,23 +638,23 @@ export default function ClientesPage() {
                 )}
               />
               <Controller
-                name="contacto"
+                name="contactName"
                 control={editForm.control}
                 render={({ field }) => (
                   <div className="space-y-2">
-                    <Label htmlFor="edit-contacto">Contacto</Label>
-                    <Input {...field} id="edit-contacto" />
+                    <Label htmlFor="edit-contactName">Contacto</Label>
+                    <Input {...field} id="edit-contactName" />
                   </div>
                 )}
               />
               <div className="grid grid-cols-2 gap-4">
                 <Controller
-                  name="telefono"
+                  name="phone"
                   control={editForm.control}
                   render={({ field }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="edit-telefono">Teléfono</Label>
-                      <Input {...field} id="edit-telefono" />
+                      <Label htmlFor="edit-phone">Teléfono</Label>
+                      <Input {...field} id="edit-phone" />
                     </div>
                   )}
                 />
@@ -655,41 +671,41 @@ export default function ClientesPage() {
                 />
               </div>
               <Controller
-                name="direccion"
+                name="address"
                 control={editForm.control}
                 render={({ field }) => (
                   <div className="space-y-2">
-                    <Label htmlFor="edit-direccion">Dirección</Label>
-                    <Input {...field} id="edit-direccion" />
+                    <Label htmlFor="edit-address">Dirección</Label>
+                    <Input {...field} id="edit-address" />
                   </div>
                 )}
               />
               <Controller
-                name="credito"
+                name="hasCredit"
                 control={editForm.control}
                 render={({ field }) => (
                   <div className="flex items-center space-x-2">
                     <Checkbox
-                      id="edit-credito"
+                      id="edit-hasCredit"
                       checked={field.value}
                       onCheckedChange={field.onChange}
                     />
-                    <Label htmlFor="edit-credito" className="cursor-pointer">
+                    <Label htmlFor="edit-hasCredit" className="cursor-pointer">
                       Tiene crédito
                     </Label>
                   </div>
                 )}
               />
-              {watchEditCredito && (
+              {watchEditHasCredit && (
                 <Controller
-                  name="limiteCredito"
+                  name="creditLimit"
                   control={editForm.control}
                   render={({ field, fieldState }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="edit-limiteCredito">Límite de Crédito (Bs)</Label>
+                      <Label htmlFor="edit-creditLimit">Límite de Crédito (Bs)</Label>
                       <Input
                         {...field}
-                        id="edit-limiteCredito"
+                        id="edit-creditLimit"
                         type="number"
                         placeholder="10000"
                         value={field.value ?? ''}
@@ -706,8 +722,8 @@ export default function ClientesPage() {
               <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={updateCliente.isPending}>
-                {updateCliente.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <Button type="submit" className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={updateMutation.isPending}>
+                {updateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Guardar
               </Button>
             </DialogFooter>
@@ -721,7 +737,7 @@ export default function ClientesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar cliente?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción eliminará a {selectedCliente?.razonSocial} del sistema.
+              Esta acción eliminará a {selectedCliente?.businessName} del sistema.
               Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -731,7 +747,7 @@ export default function ClientesPage() {
               className="bg-red-600 hover:bg-red-700"
               onClick={handleDelete}
             >
-              {deleteCliente.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {deleteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>

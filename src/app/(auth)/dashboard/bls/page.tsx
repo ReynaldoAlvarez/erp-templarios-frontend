@@ -14,7 +14,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Anchor,
-  Calculator,
   Package,
   MapPin,
 } from 'lucide-react';
@@ -68,164 +67,100 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import {
-  useBLs,
-  useClientes,
-  useCreateBL,
-  useUpdateBL,
-  useDeleteBL,
-  useCalcularFlota,
-} from '@/hooks/use-queries';
-import { BL, CalcularFlotaResult } from '@/types/api';
+import { blsApi, clientesApi } from '@/lib/api-client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { BillOfLading, CreateBLInput, UpdateBLInput, BLStatus, DeliveryType } from '@/types/api';
 
-// Form schemas
+// Form schemas - using backend field names
 const blSchema = z.object({
-  numero: z.string().min(1, 'El número de BL es requerido'),
-  pesoTotal: z.number().min(0.01, 'El peso debe ser mayor a 0'),
-  unidades: z.number().min(1, 'Las unidades deben ser al menos 1'),
-  tipoCarga: z.string().optional().or(z.literal('')),
-  puertoOrigen: z.string().min(1, 'El puerto de origen es requerido'),
-  aduana: z.string().min(1, 'La aduana es requerida'),
-  destinoFinal: z.string().min(1, 'El destino final es requerido'),
-  nave: z.string().optional().or(z.literal('')),
-  consignatario: z.string().optional().or(z.literal('')),
-  tipoEntrega: z.enum(['DIRECTO', 'INDIRECTO']).optional(),
-  clienteId: z.string().min(1, 'El cliente es requerido'),
+  blNumber: z.string().min(1, 'El número de BL es requerido'),
+  totalWeight: z.number().min(0.01, 'El peso debe ser mayor a 0'),
+  unitCount: z.number().min(1, 'Las unidades deben ser al menos 1'),
+  cargoType: z.string().optional().or(z.literal('')),
+  originPort: z.string().min(1, 'El puerto de origen es requerido'),
+  customsPoint: z.string().min(1, 'La aduana es requerida'),
+  finalDestination: z.string().min(1, 'El destino final es requerido'),
+  vessel: z.string().optional().or(z.literal('')),
+  consignee: z.string().optional().or(z.literal('')),
+  deliveryType: z.enum(['DIRECT', 'INDIRECT']).optional(),
+  clientId: z.string().min(1, 'El cliente es requerido'),
 });
 
 type BLFormData = z.infer<typeof blSchema>;
 
 // Status badge config
-const estadoConfig: Record<string, { label: string; className: string }> = {
-  PENDIENTE: { label: 'Pendiente', className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-  EN_PROCESO: { label: 'En Proceso', className: 'bg-blue-100 text-blue-800 border-blue-200' },
-  COMPLETADO: { label: 'Completado', className: 'bg-green-100 text-green-800 border-green-200' },
+const statusConfig: Record<BLStatus, { label: string; className: string }> = {
+  SCHEDULED: { label: 'Programado', className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+  IN_TRANSIT: { label: 'En Tránsito', className: 'bg-blue-100 text-blue-800 border-blue-200' },
+  DELIVERED: { label: 'Entregado', className: 'bg-green-100 text-green-800 border-green-200' },
+  CANCELLED: { label: 'Cancelado', className: 'bg-red-100 text-red-800 border-red-200' },
 };
 
-const tipoEntregaConfig: Record<string, { label: string }> = {
-  DIRECTO: { label: 'Directo' },
-  INDIRECTO: { label: 'Indirecto' },
+const deliveryTypeConfig: Record<DeliveryType, { label: string }> = {
+  DIRECT: { label: 'Directo' },
+  INDIRECT: { label: 'Indirecto' },
 };
 
 export default function BLsPage() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // State
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState('');
-  const [estadoFilter, setEstadoFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [clienteFilter, setClienteFilter] = useState<string>('all');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isFlotaOpen, setIsFlotaOpen] = useState(false);
-  const [selectedBL, setSelectedBL] = useState<BL | null>(null);
-  const [flotaResult, setFlotaResult] = useState<CalcularFlotaResult | null>(null);
+  const [selectedBL, setSelectedBL] = useState<BillOfLading | null>(null);
 
   // Queries
-  const { data: blsData, isLoading } = useBLs({
-    page,
-    limit,
-    search: search || undefined,
-    estado: estadoFilter !== 'all' ? estadoFilter as 'PENDIENTE' | 'EN_PROCESO' | 'COMPLETADO' : undefined,
-    clienteId: clienteFilter !== 'all' ? clienteFilter : undefined,
+  const { data: blsData, isLoading } = useQuery({
+    queryKey: ['bls', { page, limit, search, status: statusFilter, clientId: clienteFilter }],
+    queryFn: () => blsApi.getAll({
+      page,
+      limit,
+      search: search || undefined,
+      status: statusFilter !== 'all' ? statusFilter as BLStatus : undefined,
+      clientId: clienteFilter !== 'all' ? clienteFilter : undefined,
+    }),
   });
 
-  const { data: clientesData } = useClientes({ limit: 100 });
+  const { data: clientesData } = useQuery({
+    queryKey: ['clientes', { limit: 100 }],
+    queryFn: () => clientesApi.getAll({ limit: 100 }),
+  });
+
   const clientes = clientesData?.data || [];
 
   // Mutations
-  const createBL = useCreateBL();
-  const updateBL = useUpdateBL();
-  const deleteBL = useDeleteBL();
-  const calcularFlota = useCalcularFlota();
-
-  // Forms
-  const createForm = useForm<BLFormData>({
-    resolver: zodResolver(blSchema),
-    defaultValues: {
-      numero: '',
-      pesoTotal: 0,
-      unidades: 1,
-      tipoCarga: '',
-      puertoOrigen: '',
-      aduana: '',
-      destinoFinal: '',
-      nave: '',
-      consignatario: '',
-      tipoEntrega: 'DIRECTO',
-      clienteId: '',
-    },
-  });
-
-  const editForm = useForm<BLFormData>({
-    resolver: zodResolver(blSchema),
-    defaultValues: {
-      numero: '',
-      pesoTotal: 0,
-      unidades: 1,
-      tipoCarga: '',
-      puertoOrigen: '',
-      aduana: '',
-      destinoFinal: '',
-      nave: '',
-      consignatario: '',
-      tipoEntrega: 'DIRECTO',
-      clienteId: '',
-    },
-  });
-
-  // Handlers
-  const handleCreate = async (data: BLFormData) => {
-    try {
-      await createBL.mutateAsync({
-        numero: data.numero,
-        pesoTotal: data.pesoTotal,
-        unidades: data.unidades,
-        tipoCarga: data.tipoCarga || undefined,
-        puertoOrigen: data.puertoOrigen,
-        aduana: data.aduana,
-        destinoFinal: data.destinoFinal,
-        nave: data.nave || undefined,
-        consignatario: data.consignatario || undefined,
-        tipoEntrega: data.tipoEntrega,
-        clienteId: data.clienteId,
-      });
+  const createMutation = useMutation({
+    mutationFn: (data: CreateBLInput) => blsApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bls'] });
       toast({
         title: 'BL creado',
         description: 'El Bill of Lading ha sido creado exitosamente.',
       });
       setIsCreateOpen(false);
       createForm.reset();
-    } catch (error) {
+    },
+    onError: () => {
       toast({
         variant: 'destructive',
         title: 'Error',
         description: 'No se pudo crear el BL. Intente nuevamente.',
       });
-    }
-  };
+    },
+  });
 
-  const handleEdit = async (data: BLFormData) => {
-    if (!selectedBL) return;
-    try {
-      await updateBL.mutateAsync({
-        id: selectedBL.id,
-        data: {
-          numero: data.numero,
-          pesoTotal: data.pesoTotal,
-          unidades: data.unidades,
-          tipoCarga: data.tipoCarga || undefined,
-          puertoOrigen: data.puertoOrigen,
-          aduana: data.aduana,
-          destinoFinal: data.destinoFinal,
-          nave: data.nave || undefined,
-          consignatario: data.consignatario || undefined,
-          tipoEntrega: data.tipoEntrega,
-          clienteId: data.clienteId,
-        },
-      });
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateBLInput }) =>
+      blsApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bls'] });
       toast({
         title: 'BL actualizado',
         description: 'El Bill of Lading ha sido actualizado exitosamente.',
@@ -233,68 +168,132 @@ export default function BLsPage() {
       setIsEditOpen(false);
       setSelectedBL(null);
       editForm.reset();
-    } catch (error) {
+    },
+    onError: () => {
       toast({
         variant: 'destructive',
         title: 'Error',
         description: 'No se pudo actualizar el BL. Intente nuevamente.',
       });
-    }
-  };
+    },
+  });
 
-  const handleDelete = async () => {
-    if (!selectedBL) return;
-    try {
-      await deleteBL.mutateAsync(selectedBL.id);
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => blsApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bls'] });
       toast({
         title: 'BL eliminado',
         description: 'El Bill of Lading ha sido eliminado exitosamente.',
       });
       setIsDeleteOpen(false);
       setSelectedBL(null);
-    } catch (error) {
+    },
+    onError: () => {
       toast({
         variant: 'destructive',
         title: 'Error',
         description: 'No se pudo eliminar el BL. Intente nuevamente.',
       });
-    }
+    },
+  });
+
+  // Forms
+  const createForm = useForm<BLFormData>({
+    resolver: zodResolver(blSchema),
+    defaultValues: {
+      blNumber: '',
+      totalWeight: 0,
+      unitCount: 1,
+      cargoType: '',
+      originPort: '',
+      customsPoint: '',
+      finalDestination: '',
+      vessel: '',
+      consignee: '',
+      deliveryType: 'DIRECT',
+      clientId: '',
+    },
+  });
+
+  const editForm = useForm<BLFormData>({
+    resolver: zodResolver(blSchema),
+    defaultValues: {
+      blNumber: '',
+      totalWeight: 0,
+      unitCount: 1,
+      cargoType: '',
+      originPort: '',
+      customsPoint: '',
+      finalDestination: '',
+      vessel: '',
+      consignee: '',
+      deliveryType: 'DIRECT',
+      clientId: '',
+    },
+  });
+
+  // Handlers
+  const handleCreate = async (data: BLFormData) => {
+    createMutation.mutate({
+      blNumber: data.blNumber,
+      totalWeight: data.totalWeight,
+      unitCount: data.unitCount,
+      cargoType: data.cargoType || undefined,
+      originPort: data.originPort,
+      customsPoint: data.customsPoint,
+      finalDestination: data.finalDestination,
+      vessel: data.vessel || undefined,
+      consignee: data.consignee || undefined,
+      deliveryType: data.deliveryType,
+      clientId: data.clientId,
+    });
   };
 
-  const handleCalcularFlota = async (bl: BL) => {
-    try {
-      const result = await calcularFlota.mutateAsync(bl.id);
-      setFlotaResult(result);
-      setSelectedBL(bl);
-      setIsFlotaOpen(true);
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'No se pudo calcular la flota. Intente nuevamente.',
-      });
-    }
+  const handleEdit = async (data: BLFormData) => {
+    if (!selectedBL) return;
+    updateMutation.mutate({
+      id: selectedBL.id,
+      data: {
+        blNumber: data.blNumber,
+        totalWeight: data.totalWeight,
+        unitCount: data.unitCount,
+        cargoType: data.cargoType || undefined,
+        originPort: data.originPort,
+        customsPoint: data.customsPoint,
+        finalDestination: data.finalDestination,
+        vessel: data.vessel || undefined,
+        consignee: data.consignee || undefined,
+        deliveryType: data.deliveryType,
+        clientId: data.clientId,
+      },
+    });
   };
 
-  const openEditDialog = (bl: BL) => {
+  const handleDelete = async () => {
+    if (!selectedBL) return;
+    deleteMutation.mutate(selectedBL.id);
+  };
+
+  const openEditDialog = (bl: BillOfLading) => {
     setSelectedBL(bl);
     editForm.reset({
-      numero: bl.numero,
-      pesoTotal: bl.pesoTotal,
-      unidades: bl.unidades,
-      tipoCarga: bl.tipoCarga || '',
-      puertoOrigen: bl.puertoOrigen,
-      aduana: bl.aduana,
-      destinoFinal: bl.destinoFinal,
-      nave: bl.nave || '',
-      consignatario: bl.consignatario || '',
-      tipoEntrega: bl.tipoEntrega,
-      clienteId: bl.clienteId,
+      blNumber: bl.blNumber,
+      totalWeight: parseFloat(bl.totalWeight || '0'),
+      unitCount: bl.unitCount,
+      cargoType: bl.cargoType || '',
+      originPort: bl.originPort,
+      customsPoint: bl.customsPoint,
+      finalDestination: bl.finalDestination,
+      vessel: bl.vessel || '',
+      consignee: bl.consignee || '',
+      deliveryType: bl.deliveryType,
+      clientId: bl.clientId,
     });
     setIsEditOpen(true);
   };
 
-  const openDeleteDialog = (bl: BL) => {
+  const openDeleteDialog = (bl: BillOfLading) => {
     setSelectedBL(bl);
     setIsDeleteOpen(true);
   };
@@ -357,13 +356,13 @@ export default function BLsPage() {
                 <SelectItem value="all">Todos los clientes</SelectItem>
                 {clientes.map((cliente) => (
                   <SelectItem key={cliente.id} value={cliente.id}>
-                    {cliente.razonSocial}
+                    {cliente.businessName}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Select value={estadoFilter} onValueChange={(value) => {
-              setEstadoFilter(value);
+            <Select value={statusFilter} onValueChange={(value) => {
+              setStatusFilter(value);
               setPage(1);
             }}>
               <SelectTrigger className="w-full md:w-[180px]">
@@ -371,9 +370,10 @@ export default function BLsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="PENDIENTE">Pendiente</SelectItem>
-                <SelectItem value="EN_PROCESO">En Proceso</SelectItem>
-                <SelectItem value="COMPLETADO">Completado</SelectItem>
+                <SelectItem value="SCHEDULED">Programado</SelectItem>
+                <SelectItem value="IN_TRANSIT">En Tránsito</SelectItem>
+                <SelectItem value="DELIVERED">Entregado</SelectItem>
+                <SelectItem value="CANCELLED">Cancelado</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -419,35 +419,35 @@ export default function BLsPage() {
                                 <Anchor className="h-4 w-4" />
                               </div>
                               <div className="font-medium text-gray-900">
-                                {bl.numero}
+                                {bl.blNumber}
                               </div>
                             </div>
                           </TableCell>
                           <TableCell className="text-gray-600">
-                            {bl.cliente?.razonSocial || '-'}
+                            {bl.client?.businessName || '-'}
                           </TableCell>
                           <TableCell className="text-gray-600">
-                            {bl.pesoTotal.toLocaleString()} kg
+                            {parseFloat(bl.totalWeight || '0').toLocaleString()} kg
                           </TableCell>
                           <TableCell className="text-gray-600">
-                            {bl.unidades}
+                            {bl.unitCount}
                           </TableCell>
                           <TableCell className="text-gray-600">
-                            <div className="max-w-[150px] truncate" title={bl.puertoOrigen}>
-                              {bl.puertoOrigen}
+                            <div className="max-w-[150px] truncate" title={bl.originPort}>
+                              {bl.originPort}
                             </div>
                           </TableCell>
                           <TableCell className="text-gray-600">
-                            <div className="max-w-[150px] truncate" title={bl.destinoFinal}>
-                              {bl.destinoFinal}
+                            <div className="max-w-[150px] truncate" title={bl.finalDestination}>
+                              {bl.finalDestination}
                             </div>
                           </TableCell>
                           <TableCell>
                             <Badge
                               variant="outline"
-                              className={estadoConfig[bl.estado]?.className}
+                              className={statusConfig[bl.status]?.className}
                             >
-                              {estadoConfig[bl.estado]?.label}
+                              {statusConfig[bl.status]?.label}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -461,10 +461,6 @@ export default function BLsPage() {
                                 <DropdownMenuItem onClick={() => openEditDialog(bl)}>
                                   <Edit className="h-4 w-4 mr-2" />
                                   Editar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleCalcularFlota(bl)}>
-                                  <Calculator className="h-4 w-4 mr-2" />
-                                  Calcular Flota
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
@@ -545,22 +541,22 @@ export default function BLsPage() {
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <Controller
-                  name="numero"
+                  name="blNumber"
                   control={createForm.control}
                   render={({ field, fieldState }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="numero">Número BL *</Label>
-                      <Input {...field} id="numero" placeholder="BL-2024-001" className={fieldState.invalid ? 'border-red-500' : ''} />
+                      <Label htmlFor="blNumber">Número BL *</Label>
+                      <Input {...field} id="blNumber" placeholder="BL-2024-001" className={fieldState.invalid ? 'border-red-500' : ''} />
                       {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
                     </div>
                   )}
                 />
                 <Controller
-                  name="clienteId"
+                  name="clientId"
                   control={createForm.control}
                   render={({ field, fieldState }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="clienteId">Cliente *</Label>
+                      <Label htmlFor="clientId">Cliente *</Label>
                       <Select value={field.value} onValueChange={field.onChange}>
                         <SelectTrigger className={fieldState.invalid ? 'border-red-500' : ''}>
                           <SelectValue placeholder="Seleccionar cliente" />
@@ -568,7 +564,7 @@ export default function BLsPage() {
                         <SelectContent>
                           {clientes.map((cliente) => (
                             <SelectItem key={cliente.id} value={cliente.id}>
-                              {cliente.razonSocial}
+                              {cliente.businessName}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -580,14 +576,14 @@ export default function BLsPage() {
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <Controller
-                  name="pesoTotal"
+                  name="totalWeight"
                   control={createForm.control}
                   render={({ field, fieldState }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="pesoTotal">Peso Total (kg) *</Label>
+                      <Label htmlFor="totalWeight">Peso Total (kg) *</Label>
                       <Input
                         {...field}
-                        id="pesoTotal"
+                        id="totalWeight"
                         type="number"
                         step="0.01"
                         placeholder="0.00"
@@ -600,14 +596,14 @@ export default function BLsPage() {
                   )}
                 />
                 <Controller
-                  name="unidades"
+                  name="unitCount"
                   control={createForm.control}
                   render={({ field, fieldState }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="unidades">Unidades *</Label>
+                      <Label htmlFor="unitCount">Unidades *</Label>
                       <Input
                         {...field}
-                        id="unidades"
+                        id="unitCount"
                         type="number"
                         placeholder="1"
                         value={field.value || ''}
@@ -619,86 +615,86 @@ export default function BLsPage() {
                   )}
                 />
                 <Controller
-                  name="tipoCarga"
+                  name="cargoType"
                   control={createForm.control}
                   render={({ field }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="tipoCarga">Tipo de Carga</Label>
-                      <Input {...field} id="tipoCarga" placeholder="Contenedor" />
+                      <Label htmlFor="cargoType">Tipo de Carga</Label>
+                      <Input {...field} id="cargoType" placeholder="Bobinas de acero" />
                     </div>
                   )}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <Controller
-                  name="puertoOrigen"
+                  name="originPort"
                   control={createForm.control}
                   render={({ field, fieldState }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="puertoOrigen">Puerto de Origen *</Label>
-                      <Input {...field} id="puertoOrigen" placeholder="Shanghai" className={fieldState.invalid ? 'border-red-500' : ''} />
+                      <Label htmlFor="originPort">Puerto de Origen *</Label>
+                      <Input {...field} id="originPort" placeholder="Desaguadero" className={fieldState.invalid ? 'border-red-500' : ''} />
                       {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
                     </div>
                   )}
                 />
                 <Controller
-                  name="destinoFinal"
+                  name="finalDestination"
                   control={createForm.control}
                   render={({ field, fieldState }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="destinoFinal">Destino Final *</Label>
-                      <Input {...field} id="destinoFinal" placeholder="La Paz" className={fieldState.invalid ? 'border-red-500' : ''} />
+                      <Label htmlFor="finalDestination">Destino Final *</Label>
+                      <Input {...field} id="finalDestination" placeholder="Cochabamba" className={fieldState.invalid ? 'border-red-500' : ''} />
                       {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
                     </div>
                   )}
                 />
               </div>
               <Controller
-                name="aduana"
+                name="customsPoint"
                 control={createForm.control}
                 render={({ field, fieldState }) => (
                   <div className="space-y-2">
-                    <Label htmlFor="aduana">Aduana *</Label>
-                    <Input {...field} id="aduana" placeholder="Aduana de Desaguadero" className={fieldState.invalid ? 'border-red-500' : ''} />
+                    <Label htmlFor="customsPoint">Aduana *</Label>
+                    <Input {...field} id="customsPoint" placeholder="Desaguadero" className={fieldState.invalid ? 'border-red-500' : ''} />
                     {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
                   </div>
                 )}
               />
               <div className="grid grid-cols-2 gap-4">
                 <Controller
-                  name="nave"
+                  name="vessel"
                   control={createForm.control}
                   render={({ field }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="nave">Nave</Label>
-                      <Input {...field} id="nave" placeholder="Nombre del barco" />
+                      <Label htmlFor="vessel">Nave</Label>
+                      <Input {...field} id="vessel" placeholder="MSC Maria" />
                     </div>
                   )}
                 />
                 <Controller
-                  name="consignatario"
+                  name="consignee"
                   control={createForm.control}
                   render={({ field }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="consignatario">Consignatario</Label>
-                      <Input {...field} id="consignatario" placeholder="Nombre del consignatario" />
+                      <Label htmlFor="consignee">Consignatario</Label>
+                      <Input {...field} id="consignee" placeholder="Nombre del consignatario" />
                     </div>
                   )}
                 />
               </div>
               <Controller
-                name="tipoEntrega"
+                name="deliveryType"
                 control={createForm.control}
                 render={({ field, fieldState }) => (
                   <div className="space-y-2">
-                    <Label htmlFor="tipoEntrega">Tipo de Entrega *</Label>
+                    <Label htmlFor="deliveryType">Tipo de Entrega *</Label>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger className={fieldState.invalid ? 'border-red-500' : ''}>
                         <SelectValue placeholder="Seleccionar tipo" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="DIRECTO">Directo</SelectItem>
-                        <SelectItem value="INDIRECTO">Indirecto</SelectItem>
+                        <SelectItem value="DIRECT">Directo</SelectItem>
+                        <SelectItem value="INDIRECT">Indirecto</SelectItem>
                       </SelectContent>
                     </Select>
                     {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
@@ -710,8 +706,8 @@ export default function BLsPage() {
               <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={createBL.isPending}>
-                {createBL.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <Button type="submit" className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={createMutation.isPending}>
+                {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Crear
               </Button>
             </DialogFooter>
@@ -732,22 +728,22 @@ export default function BLsPage() {
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <Controller
-                  name="numero"
+                  name="blNumber"
                   control={editForm.control}
                   render={({ field, fieldState }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="edit-numero">Número BL *</Label>
-                      <Input {...field} id="edit-numero" className={fieldState.invalid ? 'border-red-500' : ''} />
+                      <Label htmlFor="edit-blNumber">Número BL *</Label>
+                      <Input {...field} id="edit-blNumber" className={fieldState.invalid ? 'border-red-500' : ''} />
                       {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
                     </div>
                   )}
                 />
                 <Controller
-                  name="clienteId"
+                  name="clientId"
                   control={editForm.control}
                   render={({ field, fieldState }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="edit-clienteId">Cliente *</Label>
+                      <Label htmlFor="edit-clientId">Cliente *</Label>
                       <Select value={field.value} onValueChange={field.onChange}>
                         <SelectTrigger className={fieldState.invalid ? 'border-red-500' : ''}>
                           <SelectValue placeholder="Seleccionar cliente" />
@@ -755,7 +751,7 @@ export default function BLsPage() {
                         <SelectContent>
                           {clientes.map((cliente) => (
                             <SelectItem key={cliente.id} value={cliente.id}>
-                              {cliente.razonSocial}
+                              {cliente.businessName}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -767,14 +763,14 @@ export default function BLsPage() {
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <Controller
-                  name="pesoTotal"
+                  name="totalWeight"
                   control={editForm.control}
                   render={({ field, fieldState }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="edit-pesoTotal">Peso Total (kg) *</Label>
+                      <Label htmlFor="edit-totalWeight">Peso Total (kg) *</Label>
                       <Input
                         {...field}
-                        id="edit-pesoTotal"
+                        id="edit-totalWeight"
                         type="number"
                         step="0.01"
                         value={field.value || ''}
@@ -786,14 +782,14 @@ export default function BLsPage() {
                   )}
                 />
                 <Controller
-                  name="unidades"
+                  name="unitCount"
                   control={editForm.control}
                   render={({ field, fieldState }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="edit-unidades">Unidades *</Label>
+                      <Label htmlFor="edit-unitCount">Unidades *</Label>
                       <Input
                         {...field}
-                        id="edit-unidades"
+                        id="edit-unitCount"
                         type="number"
                         value={field.value || ''}
                         onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : 0)}
@@ -804,86 +800,86 @@ export default function BLsPage() {
                   )}
                 />
                 <Controller
-                  name="tipoCarga"
+                  name="cargoType"
                   control={editForm.control}
                   render={({ field }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="edit-tipoCarga">Tipo de Carga</Label>
-                      <Input {...field} id="edit-tipoCarga" />
+                      <Label htmlFor="edit-cargoType">Tipo de Carga</Label>
+                      <Input {...field} id="edit-cargoType" />
                     </div>
                   )}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <Controller
-                  name="puertoOrigen"
+                  name="originPort"
                   control={editForm.control}
                   render={({ field, fieldState }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="edit-puertoOrigen">Puerto de Origen *</Label>
-                      <Input {...field} id="edit-puertoOrigen" className={fieldState.invalid ? 'border-red-500' : ''} />
+                      <Label htmlFor="edit-originPort">Puerto de Origen *</Label>
+                      <Input {...field} id="edit-originPort" className={fieldState.invalid ? 'border-red-500' : ''} />
                       {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
                     </div>
                   )}
                 />
                 <Controller
-                  name="destinoFinal"
+                  name="finalDestination"
                   control={editForm.control}
                   render={({ field, fieldState }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="edit-destinoFinal">Destino Final *</Label>
-                      <Input {...field} id="edit-destinoFinal" className={fieldState.invalid ? 'border-red-500' : ''} />
+                      <Label htmlFor="edit-finalDestination">Destino Final *</Label>
+                      <Input {...field} id="edit-finalDestination" className={fieldState.invalid ? 'border-red-500' : ''} />
                       {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
                     </div>
                   )}
                 />
               </div>
               <Controller
-                name="aduana"
+                name="customsPoint"
                 control={editForm.control}
                 render={({ field, fieldState }) => (
                   <div className="space-y-2">
-                    <Label htmlFor="edit-aduana">Aduana *</Label>
-                    <Input {...field} id="edit-aduana" className={fieldState.invalid ? 'border-red-500' : ''} />
+                    <Label htmlFor="edit-customsPoint">Aduana *</Label>
+                    <Input {...field} id="edit-customsPoint" className={fieldState.invalid ? 'border-red-500' : ''} />
                     {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
                   </div>
                 )}
               />
               <div className="grid grid-cols-2 gap-4">
                 <Controller
-                  name="nave"
+                  name="vessel"
                   control={editForm.control}
                   render={({ field }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="edit-nave">Nave</Label>
-                      <Input {...field} id="edit-nave" />
+                      <Label htmlFor="edit-vessel">Nave</Label>
+                      <Input {...field} id="edit-vessel" />
                     </div>
                   )}
                 />
                 <Controller
-                  name="consignatario"
+                  name="consignee"
                   control={editForm.control}
                   render={({ field }) => (
                     <div className="space-y-2">
-                      <Label htmlFor="edit-consignatario">Consignatario</Label>
-                      <Input {...field} id="edit-consignatario" />
+                      <Label htmlFor="edit-consignee">Consignatario</Label>
+                      <Input {...field} id="edit-consignee" />
                     </div>
                   )}
                 />
               </div>
               <Controller
-                name="tipoEntrega"
+                name="deliveryType"
                 control={editForm.control}
                 render={({ field, fieldState }) => (
                   <div className="space-y-2">
-                    <Label htmlFor="edit-tipoEntrega">Tipo de Entrega *</Label>
+                    <Label htmlFor="edit-deliveryType">Tipo de Entrega *</Label>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger className={fieldState.invalid ? 'border-red-500' : ''}>
                         <SelectValue placeholder="Seleccionar tipo" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="DIRECTO">Directo</SelectItem>
-                        <SelectItem value="INDIRECTO">Indirecto</SelectItem>
+                        <SelectItem value="DIRECT">Directo</SelectItem>
+                        <SelectItem value="INDIRECT">Indirecto</SelectItem>
                       </SelectContent>
                     </Select>
                     {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
@@ -895,8 +891,8 @@ export default function BLsPage() {
               <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={updateBL.isPending}>
-                {updateBL.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <Button type="submit" className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={updateMutation.isPending}>
+                {updateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Guardar
               </Button>
             </DialogFooter>
@@ -910,7 +906,7 @@ export default function BLsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar BL?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción eliminará el BL {selectedBL?.numero} del sistema.
+              Esta acción eliminará el BL {selectedBL?.blNumber} del sistema.
               Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -920,70 +916,12 @@ export default function BLsPage() {
               className="bg-red-600 hover:bg-red-700"
               onClick={handleDelete}
             >
-              {deleteBL.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {deleteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Calcular Flota Dialog */}
-      <Dialog open={isFlotaOpen} onOpenChange={setIsFlotaOpen}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Calculator className="h-5 w-5 text-[#1B3F66]" />
-              Cálculo de Flota
-            </DialogTitle>
-            <DialogDescription>
-              BL: {selectedBL?.numero}
-            </DialogDescription>
-          </DialogHeader>
-          {flotaResult && (
-            <div className="space-y-4 py-4">
-              <div className="bg-[#1B3F66]/5 rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Peso Total:</span>
-                  <span className="font-semibold text-gray-900">
-                    {selectedBL?.pesoTotal.toLocaleString()} kg
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Camiones Necesarios:</span>
-                  <span className="font-bold text-2xl text-[#1B3F66]">
-                    {flotaResult.camionesNecesarios}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Capacidad Total:</span>
-                  <span className="font-semibold text-gray-900">
-                    {flotaResult.capacidadTotal.toLocaleString()} kg
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Peso Restante:</span>
-                  <span className="font-semibold text-gray-900">
-                    {flotaResult.pesoRestante.toLocaleString()} kg
-                  </span>
-                </div>
-              </div>
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                <p className="text-sm text-green-800">
-                  {flotaResult.camionesNecesarios} camione{flotaResult.camionesNecesarios !== 1 ? 's' : ''} con capacidad estándar de 25,000 kg pueden transportar esta carga.
-                </p>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button
-              className="bg-[#1B3F66] hover:bg-[#1B3F66]/90"
-              onClick={() => setIsFlotaOpen(false)}
-            >
-              Cerrar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
