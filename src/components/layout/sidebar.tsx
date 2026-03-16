@@ -21,6 +21,7 @@ import {
   Settings,
   ChevronDown,
   ChevronRight,
+  Anchor,
 } from 'lucide-react';
 
 import {
@@ -91,8 +92,13 @@ const navigation: NavGroup[] = [
       },
       {
         title: 'Clientes',
-        href: '/clientes',
+        href: '/dashboard/clientes',
         icon: Users,
+      },
+      {
+        title: 'Bill of Lading',
+        href: '/dashboard/bls',
+        icon: Anchor,
       },
     ],
   },

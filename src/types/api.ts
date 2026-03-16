@@ -172,3 +172,145 @@ export interface NavGroup {
   title: string;
   items: NavItem[];
 }
+
+// ============ Cliente Types ============
+// Backend field names (English)
+export interface Client {
+  id: string;
+  businessName: string;      // Razón social
+  nit: string;               // NIT
+  contactName?: string;      // Nombre contacto
+  phone?: string;            // Teléfono
+  email?: string;            // Email
+  address?: string;          // Dirección
+  hasCredit: boolean;        // Tiene crédito
+  creditLimit?: string;      // Límite de crédito (string from backend)
+  isActive: boolean;         // Está activo
+  billsOfLadingCount?: number;
+  invoicesCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Alias for backward compatibility
+export type Cliente = Client;
+
+export interface CreateClientInput {
+  businessName: string;
+  nit: string;
+  contactName?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  hasCredit?: boolean;
+  creditLimit?: number;
+}
+
+export type CreateClienteInput = CreateClientInput;
+
+export interface UpdateClientInput {
+  businessName?: string;
+  nit?: string;
+  contactName?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  hasCredit?: boolean;
+  creditLimit?: number;
+}
+
+export type UpdateClienteInput = UpdateClientInput;
+
+export interface ClientListParams extends PaginationParams {
+  isActive?: boolean;
+  hasCredit?: boolean;
+}
+
+export type ClienteListParams = ClientListParams;
+
+// ============ BL (Bill of Lading) Types ============
+// Backend field names (English)
+export type BLStatus = 'SCHEDULED' | 'IN_TRANSIT' | 'DELIVERED' | 'CANCELLED';
+export type DeliveryType = 'DIRECT' | 'INDIRECT';
+
+export interface BLClient {
+  id: string;
+  businessName: string;
+  nit: string;
+}
+
+export interface BLProgress {
+  totalWeight: number;
+  transportedWeight: number;
+  remainingWeight: number;
+  progressPercent: number;
+  deliveredTrips: number;
+  totalTrips: number;
+}
+
+export interface BillOfLading {
+  id: string;
+  blNumber: string;          // Número de BL
+  totalWeight: string;       // Peso total (string from backend)
+  unitCount: number;         // Cantidad de unidades
+  cargoType?: string;        // Tipo de carga
+  originPort: string;        // Puerto de origen
+  customsPoint: string;      // Punto aduanero
+  finalDestination: string;  // Destino final
+  vessel?: string;           // Nave
+  consignee?: string;        // Consignatario
+  deliveryType: DeliveryType;
+  clientId: string;
+  client?: BLClient;
+  status: BLStatus;
+  approvedById?: string;
+  approvedAt?: string;
+  tripsCount?: number;
+  progress?: BLProgress;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Alias for backward compatibility
+export type BL = BillOfLading;
+
+export interface CreateBLInput {
+  blNumber: string;
+  totalWeight: number;
+  unitCount: number;
+  cargoType?: string;
+  originPort: string;
+  customsPoint: string;
+  finalDestination: string;
+  vessel?: string;
+  consignee?: string;
+  deliveryType?: DeliveryType;
+  clientId: string;
+}
+
+export interface UpdateBLInput {
+  blNumber?: string;
+  totalWeight?: number;
+  unitCount?: number;
+  cargoType?: string;
+  originPort?: string;
+  customsPoint?: string;
+  finalDestination?: string;
+  vessel?: string;
+  consignee?: string;
+  deliveryType?: DeliveryType;
+  clientId?: string;
+}
+
+export interface CalcularFlotaResult {
+  camionesNecesarios: number;
+  capacidadTotal: number;
+  pesoRestante: number;
+}
+
+export interface BLListParams extends PaginationParams {
+  status?: BLStatus;
+  clientId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
