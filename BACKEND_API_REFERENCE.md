@@ -174,8 +174,16 @@ interface Client {
 | POST | `/bl/import/json` | Importar BLs desde JSON |
 | PUT | `/bl/:id` | Actualizar BL |
 | POST | `/bl/:id/approve` | Aprobar BL |
-| POST | `/bl/:id/cancel` | Cancelar BL |
-| DELETE | `/bl/:id` | Eliminar BL |
+| POST | `/bl/:id/cancel` | Cancelar BL (requiere reason) |
+
+> **⚠️ IMPORTANTE:** El backend NO tiene endpoint DELETE para BLs. Para "eliminar" un BL, usar `POST /bl/:id/cancel` con `{ "reason": "motivo" }` en el body.
+
+**Cancelar BL:**
+```json
+{
+  "reason": "Cancelación por solicitud del cliente"
+}
+```
 
 **Estructura BL:**
 ```typescript
