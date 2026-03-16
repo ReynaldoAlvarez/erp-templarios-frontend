@@ -155,9 +155,13 @@ const navigation: NavGroup[] = [
     title: 'Administración',
     items: [
       {
-        title: 'Usuarios',
-        href: '/usuarios',
+        title: 'IAM',
         icon: Shield,
+        children: [
+          { title: 'Usuarios', href: '/dashboard/iam/usuarios' },
+          { title: 'Roles', href: '/dashboard/iam/roles' },
+          { title: 'Permisos', href: '/dashboard/iam/permisos' },
+        ],
       },
       {
         title: 'Empresa',

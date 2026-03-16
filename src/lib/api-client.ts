@@ -219,10 +219,35 @@ export const authApi = {
 // ==========================================
 // Users API
 // ==========================================
+// Backend response: { success: true, data: User[], meta: { page, limit, total, totalPages } }
+interface BackendUsersResponse {
+  success: boolean;
+  message: string;
+  data: User[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export const usersApi = {
-  getAll: async (params?: import('@/types/api').PaginationParams) => {
-    const response = await api.get<{ data: import('@/types/api').PaginatedResponse<User> }>('/users', params);
-    return response.data.data;
+  getAll: async (params?: import('@/types/api').PaginationParams): Promise<import('@/types/api').PaginatedResponse<User>> => {
+    const response = await api.get<BackendUsersResponse>('/users', params);
+    const { data: users, meta } = response.data;
+
+    return {
+      data: users,
+      pagination: {
+        page: meta.page,
+        limit: meta.limit,
+        total: meta.total,
+        totalPages: meta.totalPages,
+        hasNext: meta.page < meta.totalPages,
+        hasPrev: meta.page > 1,
+      },
+    };
   },
 
   getById: async (id: string): Promise<User> => {
@@ -242,6 +267,21 @@ export const usersApi = {
 
   delete: async (id: string): Promise<void> => {
     await api.delete(`/users/${id}`);
+  },
+
+  assignRoles: async (id: string, roleIds: string[]): Promise<User> => {
+    const response = await api.post<{ data: User }>(`/users/${id}/roles`, { roleIds });
+    return response.data.data;
+  },
+
+  getPermissions: async (id: string): Promise<string[]> => {
+    const response = await api.get<{ data: string[] }>(`/users/${id}/permissions`);
+    return response.data.data;
+  },
+
+  unlock: async (id: string): Promise<User> => {
+    const response = await api.post<{ data: User }>(`/users/${id}/unlock`);
+    return response.data.data;
   },
 };
 
