@@ -76,18 +76,18 @@ const navigation: NavGroup[] = [
     items: [
       {
         title: 'Viajes',
-        href: '/viajes',
+        href: '/dashboard/viajes',
         icon: Route,
         badge: '12',
       },
       {
         title: 'Manifiestos',
-        href: '/manifiestos',
+        href: '/dashboard/manifiestos',
         icon: FileText,
       },
       {
         title: 'Carga',
-        href: '/carga',
+        href: '/dashboard/carga',
         icon: Package,
       },
       {
@@ -106,23 +106,28 @@ const navigation: NavGroup[] = [
     title: 'Flota',
     items: [
       {
-        title: 'Vehículos',
-        href: '/vehiculos',
+        title: 'Camiones',
+        href: '/dashboard/flota/camiones',
+        icon: Truck,
+      },
+      {
+        title: 'Remolques',
+        href: '/dashboard/flota/remolques',
         icon: Truck,
       },
       {
         title: 'Conductores',
-        href: '/conductores',
+        href: '/dashboard/conductores',
         icon: UserCircle,
       },
       {
         title: 'Checklist',
-        href: '/checklist',
+        href: '/dashboard/checklist',
         icon: ClipboardList,
       },
       {
         title: 'Geolocalización',
-        href: '/geolocalizacion',
+        href: '/dashboard/geolocalizacion',
         icon: MapPin,
       },
     ],
@@ -131,19 +136,19 @@ const navigation: NavGroup[] = [
     title: 'Finanzas',
     items: [
       {
+        title: 'Gastos',
+        href: '/dashboard/gastos',
+        icon: TrendingDown,
+      },
+      {
         title: 'Facturación',
-        href: '/facturacion',
+        href: '/dashboard/facturacion',
         icon: Receipt,
       },
       {
         title: 'Ingresos',
-        href: '/ingresos',
+        href: '/dashboard/ingresos',
         icon: TrendingUp,
-      },
-      {
-        title: 'Egresos',
-        href: '/egresos',
-        icon: TrendingDown,
       },
     ],
   },
@@ -152,7 +157,7 @@ const navigation: NavGroup[] = [
     items: [
       {
         title: 'Reportes',
-        href: '/reportes',
+        href: '/dashboard/reportes',
         icon: BarChart3,
       },
     ],
@@ -171,12 +176,12 @@ const navigation: NavGroup[] = [
       },
       {
         title: 'Empresa',
-        href: '/empresa',
+        href: '/dashboard/empresa',
         icon: Building2,
       },
       {
         title: 'Configuración',
-        href: '/configuracion',
+        href: '/dashboard/configuracion',
         icon: Settings,
       },
     ],
