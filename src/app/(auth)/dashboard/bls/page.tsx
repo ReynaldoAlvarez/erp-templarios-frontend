@@ -9,13 +9,12 @@ import {
   Plus,
   MoreHorizontal,
   Edit,
-  Trash2,
+  XCircle,
   Loader2,
   ChevronLeft,
   ChevronRight,
   Anchor,
-  Package,
-  MapPin,
+  CheckCircle,
 } from 'lucide-react';
 
 import {
@@ -49,16 +48,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -86,7 +75,13 @@ const blSchema = z.object({
   clientId: z.string().min(1, 'El cliente es requerido'),
 });
 
+// Cancel reason schema
+const cancelSchema = z.object({
+  reason: z.string().min(1, 'La razón de cancelación es requerida'),
+});
+
 type BLFormData = z.infer<typeof blSchema>;
+type CancelFormData = z.infer<typeof cancelSchema>;
 
 // Status badge config
 const statusConfig: Record<BLStatus, { label: string; className: string }> = {
@@ -113,7 +108,7 @@ export default function BLsPage() {
   const [clienteFilter, setClienteFilter] = useState<string>('all');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [selectedBL, setSelectedBL] = useState<BillOfLading | null>(null);
 
   // Queries
@@ -147,7 +142,7 @@ export default function BLsPage() {
       setIsCreateOpen(false);
       createForm.reset();
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -178,22 +173,43 @@ export default function BLsPage() {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => blsApi.delete(id),
+  const cancelMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      blsApi.cancel(id, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bls'] });
       toast({
-        title: 'BL eliminado',
-        description: 'El Bill of Lading ha sido eliminado exitosamente.',
+        title: 'BL cancelado',
+        description: 'El Bill of Lading ha sido cancelado exitosamente.',
       });
-      setIsDeleteOpen(false);
+      setIsCancelOpen(false);
       setSelectedBL(null);
+      cancelForm.reset();
+    },
+    onError: (error: Error) => {
+      const message = error?.message || 'No se pudo cancelar el BL. Intente nuevamente.';
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: message,
+      });
+    },
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: (id: string) => blsApi.approve(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bls'] });
+      toast({
+        title: 'BL aprobado',
+        description: 'El Bill of Lading ha sido aprobado exitosamente.',
+      });
     },
     onError: () => {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'No se pudo eliminar el BL. Intente nuevamente.',
+        description: 'No se pudo aprobar el BL. Intente nuevamente.',
       });
     },
   });
@@ -230,6 +246,13 @@ export default function BLsPage() {
       consignee: '',
       deliveryType: 'DIRECT',
       clientId: '',
+    },
+  });
+
+  const cancelForm = useForm<CancelFormData>({
+    resolver: zodResolver(cancelSchema),
+    defaultValues: {
+      reason: '',
     },
   });
 
@@ -270,9 +293,16 @@ export default function BLsPage() {
     });
   };
 
-  const handleDelete = async () => {
+  const handleCancel = async (data: CancelFormData) => {
     if (!selectedBL) return;
-    deleteMutation.mutate(selectedBL.id);
+    cancelMutation.mutate({
+      id: selectedBL.id,
+      reason: data.reason,
+    });
+  };
+
+  const handleApprove = (bl: BillOfLading) => {
+    approveMutation.mutate(bl.id);
   };
 
   const openEditDialog = (bl: BillOfLading) => {
@@ -293,9 +323,10 @@ export default function BLsPage() {
     setIsEditOpen(true);
   };
 
-  const openDeleteDialog = (bl: BillOfLading) => {
+  const openCancelDialog = (bl: BillOfLading) => {
     setSelectedBL(bl);
-    setIsDeleteOpen(true);
+    cancelForm.reset({ reason: '' });
+    setIsCancelOpen(true);
   };
 
   // Pagination helpers
@@ -462,14 +493,27 @@ export default function BLsPage() {
                                   <Edit className="h-4 w-4 mr-2" />
                                   Editar
                                 </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  className="text-red-600"
-                                  onClick={() => openDeleteDialog(bl)}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Eliminar
-                                </DropdownMenuItem>
+                                {bl.status === 'SCHEDULED' && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => handleApprove(bl)}>
+                                      <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                                      Aprobar
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                                {bl.status !== 'CANCELLED' && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      className="text-red-600"
+                                      onClick={() => openCancelDialog(bl)}
+                                    >
+                                      <XCircle className="h-4 w-4 mr-2" />
+                                      Cancelar
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
@@ -900,28 +944,46 @@ export default function BLsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
-      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar BL?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción eliminará el BL {selectedBL?.blNumber} del sistema.
-              Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700"
-              onClick={handleDelete}
-            >
-              {deleteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Cancel BL Dialog */}
+      <Dialog open={isCancelOpen} onOpenChange={setIsCancelOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Cancelar Bill of Lading</DialogTitle>
+            <DialogDescription>
+              Ingresa la razón de cancelación para el BL {selectedBL?.blNumber}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={cancelForm.handleSubmit(handleCancel)}>
+            <div className="space-y-4 py-4">
+              <Controller
+                name="reason"
+                control={cancelForm.control}
+                render={({ field, fieldState }) => (
+                  <div className="space-y-2">
+                    <Label htmlFor="cancel-reason">Razón de cancelación *</Label>
+                    <Input
+                      {...field}
+                      id="cancel-reason"
+                      placeholder="Ej: Cancelación por solicitud del cliente"
+                      className={fieldState.invalid ? 'border-red-500' : ''}
+                    />
+                    {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+                  </div>
+                )}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsCancelOpen(false)}>
+                Cerrar
+              </Button>
+              <Button type="submit" className="bg-red-600 hover:bg-red-700" disabled={cancelMutation.isPending}>
+                {cancelMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Cancelar BL
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

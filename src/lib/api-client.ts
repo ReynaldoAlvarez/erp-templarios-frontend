@@ -446,9 +446,10 @@ export const blsApi = {
     return response.data.data;
   },
 
-  delete: async (id: string): Promise<void> => {
-    await api.delete(`/bl/${id}`);
-  },
+  // NOTA: El backend no tiene endpoint DELETE para BLs, usar cancel() en su lugar
+  // delete: async (id: string): Promise<void> => {
+  //   await api.delete(`/bl/${id}`);
+  // },
 
   approve: async (id: string): Promise<import('@/types/api').BillOfLading> => {
     const response = await api.post<{ data: import('@/types/api').BillOfLading }>(`/bl/${id}/approve`);
