@@ -45,23 +45,29 @@ export default function PermisosPage() {
   );
 
   // Get unique modules
-  const modules = [...new Set(permissions.map((p) => p.module))];
+  const modules = [...new Set(permissions.map((p) => p.module).filter(Boolean))];
 
-  // Filter permissions by search
-  const filteredPermissions = permissions.filter(
-    (permission) =>
-      permission.name.toLowerCase().includes(search.toLowerCase()) ||
-      (permission.description && permission.description.toLowerCase().includes(search.toLowerCase())) ||
-      permission.resource.toLowerCase().includes(search.toLowerCase())
-  );
+  // Filter permissions by search - with null checks
+  const filteredPermissions = permissions.filter((permission) => {
+    const searchLower = search.toLowerCase();
+    const permName = permission.name || '';
+    const permDesc = permission.description || '';
+    const permResource = permission.resource || '';
+    
+    return (
+      permName.toLowerCase().includes(searchLower) ||
+      permDesc.toLowerCase().includes(searchLower) ||
+      permResource.toLowerCase().includes(searchLower)
+    );
+  });
 
   // Group permissions by module
   const groupedPermissions = filteredPermissions.reduce<Record<string, Permission[]>>((acc, permission) => {
-    const module = permission.module;
-    if (!acc[module]) {
-      acc[module] = [];
+    const permModule = permission.module || 'otros';
+    if (!acc[permModule]) {
+      acc[permModule] = [];
     }
-    acc[module].push(permission);
+    acc[permModule].push(permission);
     return acc;
   }, {});
 
@@ -105,9 +111,9 @@ export default function PermisosPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los módulos</SelectItem>
-                {modules.map((module) => (
-                  <SelectItem key={module} value={module}>
-                    {module}
+                {modules.map((mod) => (
+                  <SelectItem key={mod} value={mod}>
+                    {mod}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -131,21 +137,21 @@ export default function PermisosPage() {
           </CardContent>
         </Card>
       ) : (
-        Object.entries(groupedPermissions).map(([module, perms]) => (
-          <Card key={module}>
+        Object.entries(groupedPermissions).map(([permModule, perms]) => (
+          <Card key={permModule}>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Shield className="h-5 w-5 text-[#1B3F66]" />
-                    {module}
+                    {permModule}
                   </CardTitle>
                   <CardDescription>
                     {perms.length} permiso{perms.length !== 1 ? 's' : ''} en este módulo
                   </CardDescription>
                 </div>
                 <Badge variant="outline" className="bg-[#1B3F66]/10 text-[#1B3F66]">
-                  {module}
+                  {permModule}
                 </Badge>
               </div>
             </CardHeader>
@@ -164,17 +170,17 @@ export default function PermisosPage() {
                     {perms.map((permission) => (
                       <TableRow key={permission.id} className="hover:bg-gray-50">
                         <TableCell className="font-medium">
-                          {permission.name}
+                          {permission.name || '-'}
                         </TableCell>
                         <TableCell className="text-gray-600">
-                          {permission.resource}
+                          {permission.resource || '-'}
                         </TableCell>
                         <TableCell>
                           <Badge
                             variant="outline"
                             className={actionColors[permission.action] || 'bg-gray-100 text-gray-800'}
                           >
-                            {permission.action}
+                            {permission.action || '-'}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-gray-600">
