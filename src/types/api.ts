@@ -172,3 +172,107 @@ export interface NavGroup {
   title: string;
   items: NavItem[];
 }
+
+// ============ Cliente Types ============
+export interface Cliente {
+  id: string;
+  razonSocial: string;
+  nit: string;
+  contacto?: string;
+  telefono?: string;
+  email?: string;
+  direccion?: string;
+  credito: boolean;
+  limiteCredito?: number;
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateClienteInput {
+  razonSocial: string;
+  nit: string;
+  contacto?: string;
+  telefono?: string;
+  email?: string;
+  direccion?: string;
+  credito?: boolean;
+  limiteCredito?: number;
+}
+
+export interface UpdateClienteInput {
+  razonSocial?: string;
+  nit?: string;
+  contacto?: string;
+  telefono?: string;
+  email?: string;
+  direccion?: string;
+  credito?: boolean;
+  limiteCredito?: number;
+  activo?: boolean;
+}
+
+export interface ClienteListParams extends PaginationParams {
+  activo?: boolean;
+  credito?: boolean;
+}
+
+// ============ BL Types ============
+export interface BL {
+  id: string;
+  numero: string;
+  pesoTotal: number;
+  unidades: number;
+  tipoCarga?: string;
+  puertoOrigen: string;
+  aduana: string;
+  destinoFinal: string;
+  nave?: string;
+  consignatario?: string;
+  tipoEntrega: 'DIRECTO' | 'INDIRECTO';
+  clienteId: string;
+  cliente?: Cliente;
+  estado: 'PENDIENTE' | 'EN_PROCESO' | 'COMPLETADO';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateBLInput {
+  numero: string;
+  pesoTotal: number;
+  unidades: number;
+  tipoCarga?: string;
+  puertoOrigen: string;
+  aduana: string;
+  destinoFinal: string;
+  nave?: string;
+  consignatario?: string;
+  tipoEntrega?: 'DIRECTO' | 'INDIRECTO';
+  clienteId: string;
+}
+
+export interface UpdateBLInput {
+  numero?: string;
+  pesoTotal?: number;
+  unidades?: number;
+  tipoCarga?: string;
+  puertoOrigen?: string;
+  aduana?: string;
+  destinoFinal?: string;
+  nave?: string;
+  consignatario?: string;
+  tipoEntrega?: 'DIRECTO' | 'INDIRECTO';
+  clienteId?: string;
+  estado?: 'PENDIENTE' | 'EN_PROCESO' | 'COMPLETADO';
+}
+
+export interface CalcularFlotaResult {
+  camionesNecesarios: number;
+  capacidadTotal: number;
+  pesoRestante: number;
+}
+
+export interface BLListParams extends PaginationParams {
+  estado?: 'PENDIENTE' | 'EN_PROCESO' | 'COMPLETADO';
+  clienteId?: string;
+}

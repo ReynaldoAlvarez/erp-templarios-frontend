@@ -319,4 +319,115 @@ export const permissionsApi = {
   },
 };
 
+// ==========================================
+// Clientes API
+// ==========================================
+interface BackendClientesResponse {
+  success: boolean;
+  message: string;
+  data: import('@/types/api').Cliente[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export const clientesApi = {
+  getAll: async (params?: import('@/types/api').ClienteListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').Cliente>> => {
+    const response = await api.get<BackendClientesResponse>('/clientes', params);
+    const { data: clientes, meta } = response.data;
+
+    return {
+      data: clientes,
+      pagination: {
+        page: meta.page,
+        limit: meta.limit,
+        total: meta.total,
+        totalPages: meta.totalPages,
+        hasNext: meta.page < meta.totalPages,
+        hasPrev: meta.page > 1,
+      },
+    };
+  },
+
+  getById: async (id: string): Promise<import('@/types/api').Cliente> => {
+    const response = await api.get<{ data: import('@/types/api').Cliente }>(`/clientes/${id}`);
+    return response.data.data;
+  },
+
+  create: async (data: import('@/types/api').CreateClienteInput): Promise<import('@/types/api').Cliente> => {
+    const response = await api.post<{ data: import('@/types/api').Cliente }>('/clientes', data);
+    return response.data.data;
+  },
+
+  update: async (id: string, data: import('@/types/api').UpdateClienteInput): Promise<import('@/types/api').Cliente> => {
+    const response = await api.put<{ data: import('@/types/api').Cliente }>(`/clientes/${id}`, data);
+    return response.data.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/clientes/${id}`);
+  },
+};
+
+// ==========================================
+// BLs API
+// ==========================================
+interface BackendBLsResponse {
+  success: boolean;
+  message: string;
+  data: import('@/types/api').BL[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export const blsApi = {
+  getAll: async (params?: import('@/types/api').BLListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').BL>> => {
+    const response = await api.get<BackendBLsResponse>('/bls', params);
+    const { data: bls, meta } = response.data;
+
+    return {
+      data: bls,
+      pagination: {
+        page: meta.page,
+        limit: meta.limit,
+        total: meta.total,
+        totalPages: meta.totalPages,
+        hasNext: meta.page < meta.totalPages,
+        hasPrev: meta.page > 1,
+      },
+    };
+  },
+
+  getById: async (id: string): Promise<import('@/types/api').BL> => {
+    const response = await api.get<{ data: import('@/types/api').BL }>(`/bls/${id}`);
+    return response.data.data;
+  },
+
+  create: async (data: import('@/types/api').CreateBLInput): Promise<import('@/types/api').BL> => {
+    const response = await api.post<{ data: import('@/types/api').BL }>('/bls', data);
+    return response.data.data;
+  },
+
+  update: async (id: string, data: import('@/types/api').UpdateBLInput): Promise<import('@/types/api').BL> => {
+    const response = await api.put<{ data: import('@/types/api').BL }>(`/bls/${id}`, data);
+    return response.data.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/bls/${id}`);
+  },
+
+  calcularFlota: async (id: string): Promise<import('@/types/api').CalcularFlotaResult> => {
+    const response = await api.post<{ data: import('@/types/api').CalcularFlotaResult }>(`/bls/${id}/calcular-flota`);
+    return response.data.data;
+  },
+};
+
 export default apiClient;

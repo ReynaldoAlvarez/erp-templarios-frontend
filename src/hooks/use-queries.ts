@@ -5,12 +5,20 @@ import {
   usersApi,
   rolesApi,
   permissionsApi,
+  clientesApi,
+  blsApi,
 } from '@/lib/api-client';
 import {
   UserListParams,
   CreateUserInput,
   UpdateUserInput,
   CreateRoleInput,
+  ClienteListParams,
+  CreateClienteInput,
+  UpdateClienteInput,
+  BLListParams,
+  CreateBLInput,
+  UpdateBLInput,
 } from '@/types/api';
 
 // ==========================================
@@ -145,5 +153,117 @@ export function usePermissions(module?: string) {
   return useQuery({
     queryKey: ['permissions', module],
     queryFn: () => permissionsApi.getAll(),
+  });
+}
+
+// ==========================================
+// Clientes Queries
+// ==========================================
+export function useClientes(params?: ClienteListParams) {
+  return useQuery({
+    queryKey: ['clientes', params],
+    queryFn: () => clientesApi.getAll(params),
+  });
+}
+
+export function useCliente(id: string | undefined) {
+  return useQuery({
+    queryKey: ['clientes', id],
+    queryFn: () => clientesApi.getById(id!),
+    enabled: !!id,
+  });
+}
+
+// ==========================================
+// Clientes Mutations
+// ==========================================
+export function useCreateCliente() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateClienteInput) => clientesApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clientes'] });
+    },
+  });
+}
+
+export function useUpdateCliente() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateClienteInput }) =>
+      clientesApi.update(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['clientes'] });
+      queryClient.invalidateQueries({ queryKey: ['clientes', id] });
+    },
+  });
+}
+
+export function useDeleteCliente() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => clientesApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clientes'] });
+    },
+  });
+}
+
+// ==========================================
+// BLs Queries
+// ==========================================
+export function useBLs(params?: BLListParams) {
+  return useQuery({
+    queryKey: ['bls', params],
+    queryFn: () => blsApi.getAll(params),
+  });
+}
+
+export function useBL(id: string | undefined) {
+  return useQuery({
+    queryKey: ['bls', id],
+    queryFn: () => blsApi.getById(id!),
+    enabled: !!id,
+  });
+}
+
+// ==========================================
+// BLs Mutations
+// ==========================================
+export function useCreateBL() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateBLInput) => blsApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bls'] });
+    },
+  });
+}
+
+export function useUpdateBL() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateBLInput }) =>
+      blsApi.update(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['bls'] });
+      queryClient.invalidateQueries({ queryKey: ['bls', id] });
+    },
+  });
+}
+
+export function useDeleteBL() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => blsApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bls'] });
+    },
+  });
+}
+
+export function useCalcularFlota() {
+  return useMutation({
+    mutationFn: (id: string) => blsApi.calcularFlota(id),
   });
 }
