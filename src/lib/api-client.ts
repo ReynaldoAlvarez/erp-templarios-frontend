@@ -519,4 +519,307 @@ export const blsApi = {
   },
 };
 
+// ==========================================
+// Fleet API - Trucks
+// ==========================================
+interface BackendTrucksResponse {
+  success: boolean;
+  message: string;
+  data: {
+    trucks: import('@/types/api').Truck[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  timestamp: string;
+}
+
+export const trucksApi = {
+  getAll: async (params?: import('@/types/api').TruckListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').Truck>> => {
+    const response = await api.get<BackendTrucksResponse>('/fleet/trucks', params);
+    const { trucks, total, page, limit, totalPages } = response.data.data;
+
+    return {
+      data: trucks,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  },
+
+  getAvailable: async (date?: string): Promise<import('@/types/api').Truck[]> => {
+    const params = date ? { date } : undefined;
+    const response = await api.get<{ data: import('@/types/api').Truck[] }>('/fleet/trucks/available', params);
+    return response.data.data;
+  },
+
+  search: async (query: string): Promise<import('@/types/api').Truck[]> => {
+    const response = await api.get<{ data: import('@/types/api').Truck[] }>('/fleet/trucks/search', { q: query });
+    return response.data.data;
+  },
+
+  getById: async (id: string): Promise<import('@/types/api').Truck> => {
+    const response = await api.get<{ data: import('@/types/api').Truck }>(`/fleet/trucks/${id}`);
+    return response.data.data;
+  },
+
+  create: async (data: import('@/types/api').CreateTruckInput): Promise<import('@/types/api').Truck> => {
+    const response = await api.post<{ data: import('@/types/api').Truck }>('/fleet/trucks', data);
+    return response.data.data;
+  },
+
+  update: async (id: string, data: import('@/types/api').UpdateTruckInput): Promise<import('@/types/api').Truck> => {
+    const response = await api.put<{ data: import('@/types/api').Truck }>(`/fleet/trucks/${id}`, data);
+    return response.data.data;
+  },
+
+  updateMileage: async (id: string, mileage: number): Promise<import('@/types/api').Truck> => {
+    const response = await api.patch<{ data: import('@/types/api').Truck }>(`/fleet/trucks/${id}/mileage`, { mileage });
+    return response.data.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/fleet/trucks/${id}`);
+  },
+
+  restore: async (id: string): Promise<import('@/types/api').Truck> => {
+    const response = await api.post<{ data: import('@/types/api').Truck }>(`/fleet/trucks/${id}/restore`);
+    return response.data.data;
+  },
+};
+
+// ==========================================
+// Fleet API - Trailers
+// ==========================================
+interface BackendTrailersResponse {
+  success: boolean;
+  message: string;
+  data: {
+    trailers: import('@/types/api').Trailer[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  timestamp: string;
+}
+
+export const trailersApi = {
+  getAll: async (params?: import('@/types/api').TrailerListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').Trailer>> => {
+    const response = await api.get<BackendTrailersResponse>('/fleet/trailers', params);
+    const { trailers, total, page, limit, totalPages } = response.data.data;
+
+    return {
+      data: trailers,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  },
+
+  getAvailable: async (): Promise<import('@/types/api').Trailer[]> => {
+    const response = await api.get<{ data: import('@/types/api').Trailer[] }>('/fleet/trailers/available');
+    return response.data.data;
+  },
+
+  search: async (query: string): Promise<import('@/types/api').Trailer[]> => {
+    const response = await api.get<{ data: import('@/types/api').Trailer[] }>('/fleet/trailers/search', { q: query });
+    return response.data.data;
+  },
+
+  getById: async (id: string): Promise<import('@/types/api').Trailer> => {
+    const response = await api.get<{ data: import('@/types/api').Trailer }>(`/fleet/trailers/${id}`);
+    return response.data.data;
+  },
+
+  create: async (data: import('@/types/api').CreateTrailerInput): Promise<import('@/types/api').Trailer> => {
+    const response = await api.post<{ data: import('@/types/api').Trailer }>('/fleet/trailers', data);
+    return response.data.data;
+  },
+
+  update: async (id: string, data: import('@/types/api').UpdateTrailerInput): Promise<import('@/types/api').Trailer> => {
+    const response = await api.put<{ data: import('@/types/api').Trailer }>(`/fleet/trailers/${id}`, data);
+    return response.data.data;
+  },
+
+  assign: async (id: string, truckId: string | null): Promise<import('@/types/api').Trailer> => {
+    const response = await api.patch<{ data: import('@/types/api').Trailer }>(`/fleet/trailers/${id}/assign`, { truckId });
+    return response.data.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/fleet/trailers/${id}`);
+  },
+
+  restore: async (id: string): Promise<import('@/types/api').Trailer> => {
+    const response = await api.post<{ data: import('@/types/api').Trailer }>(`/fleet/trailers/${id}/restore`);
+    return response.data.data;
+  },
+};
+
+// ==========================================
+// Drivers API
+// ==========================================
+interface BackendDriversResponse {
+  success: boolean;
+  message: string;
+  data: {
+    drivers: import('@/types/api').Driver[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  timestamp: string;
+}
+
+export const driversApi = {
+  getAll: async (params?: import('@/types/api').DriverListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').Driver>> => {
+    const response = await api.get<BackendDriversResponse>('/drivers', params);
+    const { drivers, total, page, limit, totalPages } = response.data.data;
+
+    return {
+      data: drivers,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  },
+
+  getAvailable: async (): Promise<import('@/types/api').Driver[]> => {
+    const response = await api.get<{ data: import('@/types/api').Driver[] }>('/drivers/available');
+    return response.data.data;
+  },
+
+  search: async (query: string): Promise<import('@/types/api').Driver[]> => {
+    const response = await api.get<{ data: import('@/types/api').Driver[] }>('/drivers/search', { q: query });
+    return response.data.data;
+  },
+
+  getById: async (id: string): Promise<import('@/types/api').Driver> => {
+    const response = await api.get<{ data: import('@/types/api').Driver }>(`/drivers/${id}`);
+    return response.data.data;
+  },
+
+  getStats: async (id: string): Promise<import('@/types/api').DriverStats> => {
+    const response = await api.get<{ data: import('@/types/api').DriverStats }>(`/drivers/${id}/stats`);
+    return response.data.data;
+  },
+
+  create: async (data: import('@/types/api').CreateDriverInput): Promise<import('@/types/api').Driver> => {
+    const response = await api.post<{ data: import('@/types/api').Driver }>('/drivers', data);
+    return response.data.data;
+  },
+
+  update: async (id: string, data: import('@/types/api').UpdateDriverInput): Promise<import('@/types/api').Driver> => {
+    const response = await api.put<{ data: import('@/types/api').Driver }>(`/drivers/${id}`, data);
+    return response.data.data;
+  },
+
+  setAvailability: async (id: string, isAvailable: boolean): Promise<import('@/types/api').Driver> => {
+    const response = await api.patch<{ data: import('@/types/api').Driver }>(`/drivers/${id}/availability`, { isAvailable });
+    return response.data.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/drivers/${id}`);
+  },
+
+  restore: async (id: string): Promise<import('@/types/api').Driver> => {
+    const response = await api.post<{ data: import('@/types/api').Driver }>(`/drivers/${id}/restore`);
+    return response.data.data;
+  },
+};
+
+// ==========================================
+// Expenses API
+// ==========================================
+interface BackendExpensesResponse {
+  success: boolean;
+  message: string;
+  data: {
+    expenses: import('@/types/api').Expense[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  timestamp: string;
+}
+
+export const expensesApi = {
+  getAll: async (params?: import('@/types/api').ExpenseListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').Expense>> => {
+    const response = await api.get<BackendExpensesResponse>('/expenses', params);
+    const { expenses, total, page, limit, totalPages } = response.data.data;
+
+    return {
+      data: expenses,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  },
+
+  getCategories: async (): Promise<import('@/types/api').ExpenseCategoryOption[]> => {
+    const response = await api.get<{ data: import('@/types/api').ExpenseCategoryOption[] }>('/expenses/categories');
+    return response.data.data;
+  },
+
+  getStats: async (params?: { driverId?: string; dateFrom?: string; dateTo?: string }): Promise<import('@/types/api').ExpenseStats> => {
+    const response = await api.get<{ data: import('@/types/api').ExpenseStats }>('/expenses/stats', params);
+    return response.data.data;
+  },
+
+  getByDriver: async (driverId: string, limit?: number): Promise<import('@/types/api').Expense[]> => {
+    const params = limit ? { limit } : undefined;
+    const response = await api.get<{ data: import('@/types/api').Expense[] }>(`/expenses/driver/${driverId}`, params);
+    return response.data.data;
+  },
+
+  getByTrip: async (tripId: string): Promise<import('@/types/api').Expense[]> => {
+    const response = await api.get<{ data: import('@/types/api').Expense[] }>(`/expenses/trip/${tripId}`);
+    return response.data.data;
+  },
+
+  getById: async (id: string): Promise<import('@/types/api').Expense> => {
+    const response = await api.get<{ data: import('@/types/api').Expense }>(`/expenses/${id}`);
+    return response.data.data;
+  },
+
+  create: async (data: import('@/types/api').CreateExpenseInput): Promise<import('@/types/api').Expense> => {
+    const response = await api.post<{ data: import('@/types/api').Expense }>('/expenses', data);
+    return response.data.data;
+  },
+
+  update: async (id: string, data: import('@/types/api').UpdateExpenseInput): Promise<import('@/types/api').Expense> => {
+    const response = await api.put<{ data: import('@/types/api').Expense }>(`/expenses/${id}`, data);
+    return response.data.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/expenses/${id}`);
+  },
+};
+
 export default apiClient;
