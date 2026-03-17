@@ -22,6 +22,10 @@ import {
   ChevronDown,
   ChevronRight,
   Anchor,
+  Calculator,
+  Navigation,
+  Flag,
+  FileCheck,
 } from 'lucide-react';
 
 import {
@@ -78,17 +82,21 @@ const navigation: NavGroup[] = [
         title: 'Viajes',
         href: '/dashboard/viajes',
         icon: Route,
-        badge: '12',
       },
       {
-        title: 'Manifiestos',
-        href: '/dashboard/manifiestos',
-        icon: FileText,
+        title: 'Fronteras',
+        href: '/dashboard/fronteras',
+        icon: Flag,
       },
       {
-        title: 'Carga',
-        href: '/dashboard/carga',
-        icon: Package,
+        title: 'Rutas',
+        href: '/dashboard/rutas',
+        icon: Navigation,
+      },
+      {
+        title: 'Documentos',
+        href: '/dashboard/documentos',
+        icon: FileCheck,
       },
       {
         title: 'Clientes',
@@ -141,8 +149,13 @@ const navigation: NavGroup[] = [
         icon: TrendingDown,
       },
       {
+        title: 'Liquidaciones',
+        href: '/dashboard/liquidaciones',
+        icon: Calculator,
+      },
+      {
         title: 'Facturación',
-        href: '/dashboard/facturacion',
+        href: '/dashboard/facturas',
         icon: Receipt,
       },
       {
