@@ -450,7 +450,7 @@ export default function GastosPage() {
                                   <TrendingDown className="h-4 w-4" />
                                 </div>
                                 <div>
-                                  <div className="font-medium">{expense.driver?.fullName || `${expense.driver?.firstName} ${expense.driver?.lastName}` || '-'}</div>
+                                  <div className="font-medium">{expense.driverName || '-'}</div>
                                 </div>
                               </div>
                             </TableCell>

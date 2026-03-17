@@ -493,6 +493,7 @@ export interface Expense {
   id: string;
   driverId: string;
   driver?: Driver;
+  driverName?:string;
   tripId?: string;
   category: ExpenseCategory;
   concept: string;
