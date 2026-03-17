@@ -314,3 +314,234 @@ export interface BLListParams extends PaginationParams {
   dateFrom?: string;
   dateTo?: string;
 }
+
+// ============ Truck (Camión) Types ============
+export type TruckStatus = 'AVAILABLE' | 'SCHEDULED' | 'IN_TRANSIT' | 'MAINTENANCE';
+
+export interface Truck {
+  id: string;
+  plateNumber: string;
+  brand: string;
+  model: string;
+  year: number;
+  color?: string;
+  axles?: number;
+  capacityTons: number;
+  operationPermit?: string;
+  operationPermitExpiry?: string;
+  mileage: number;
+  status: TruckStatus;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTruckInput {
+  plateNumber: string;
+  brand: string;
+  model: string;
+  year: number;
+  color?: string;
+  axles?: number;
+  capacityTons: number;
+  operationPermit?: string;
+  operationPermitExpiry?: string;
+  mileage?: number;
+}
+
+export interface UpdateTruckInput {
+  plateNumber?: string;
+  brand?: string;
+  model?: string;
+  year?: number;
+  color?: string;
+  axles?: number;
+  capacityTons?: number;
+  operationPermit?: string;
+  operationPermitExpiry?: string;
+  mileage?: number;
+}
+
+export interface TruckListParams extends PaginationParams {
+  status?: TruckStatus;
+  isActive?: boolean;
+}
+
+// ============ Trailer (Remolque) Types ============
+export interface Trailer {
+  id: string;
+  plateNumber: string;
+  type: string;
+  brand?: string;
+  year?: number;
+  capacityTons: number;
+  operationPermit?: string;
+  operationPermitExpiry?: string;
+  truckId?: string;
+  truck?: Truck;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTrailerInput {
+  plateNumber: string;
+  type: string;
+  brand?: string;
+  year?: number;
+  capacityTons: number;
+  operationPermit?: string;
+  operationPermitExpiry?: string;
+  truckId?: string;
+}
+
+export interface UpdateTrailerInput {
+  plateNumber?: string;
+  type?: string;
+  brand?: string;
+  year?: number;
+  capacityTons?: number;
+  operationPermit?: string;
+  operationPermitExpiry?: string;
+}
+
+export interface TrailerListParams extends PaginationParams {
+  truckId?: string;
+  isActive?: boolean;
+}
+
+// ============ Driver (Conductor) Types ============
+export type ContractType = 'MONTHLY' | 'TRIP';
+
+export interface Driver {
+  id: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  identityCard: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  birthDate?: string;
+  salary?: number;
+  licenseNumber: string;
+  licenseCategory: string;
+  licenseExpiryDate: string;
+  contractType: ContractType;
+  isAvailable: boolean;
+  isActive: boolean;
+  branchId?: string;
+  branch?: { id: string; name: string };
+  totalTrips?: number;
+  totalWeightTransported?: number;
+  avgDeliveryHours?: number;
+  rating?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDriverInput {
+  firstName: string;
+  lastName: string;
+  identityCard: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  birthDate?: string;
+  salary?: number;
+  licenseNumber: string;
+  licenseCategory: string;
+  licenseExpiryDate: string;
+  contractType: ContractType;
+  branchId: string;
+}
+
+export interface UpdateDriverInput {
+  firstName?: string;
+  lastName?: string;
+  identityCard?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  birthDate?: string;
+  salary?: number;
+  licenseNumber?: string;
+  licenseCategory?: string;
+  licenseExpiryDate?: string;
+  contractType?: ContractType;
+  branchId?: string;
+}
+
+export interface DriverListParams extends PaginationParams {
+  isAvailable?: boolean;
+  contractType?: ContractType;
+  isActive?: boolean;
+}
+
+export interface DriverStats {
+  totalTrips: number;
+  totalWeightTransported: number;
+  avgDeliveryHours: number;
+  rating: number;
+  totalGastos: number;
+}
+
+// ============ Expense (Gasto) Types ============
+export type ExpenseCategory = 'FUEL' | 'TOLL' | 'FOOD' | 'MAINTENANCE' | 'OTHER';
+
+export interface Expense {
+  id: string;
+  driverId: string;
+  driver?: Driver;
+  driverName?:string;
+  tripId?: string;
+  category: ExpenseCategory;
+  concept: string;
+  amount: number;
+  expenseDate: string;
+  notes?: string;
+  receiptUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateExpenseInput {
+  driverId: string;
+  tripId?: string;
+  category: ExpenseCategory;
+  concept: string;
+  amount: number;
+  expenseDate: string;
+  notes?: string;
+  receiptUrl?: string;
+}
+
+export interface UpdateExpenseInput {
+  driverId?: string;
+  tripId?: string;
+  category?: ExpenseCategory;
+  concept?: string;
+  amount?: number;
+  expenseDate?: string;
+  notes?: string;
+  receiptUrl?: string;
+}
+
+export interface ExpenseListParams extends PaginationParams {
+  driverId?: string;
+  tripId?: string;
+  category?: ExpenseCategory;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface ExpenseCategoryOption {
+  value: ExpenseCategory;
+  label: string;
+}
+
+export interface ExpenseStats {
+  totalExpenses: number;
+  byCategory: Record<ExpenseCategory, number>;
+  count: number;
+}
