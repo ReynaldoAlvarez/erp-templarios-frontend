@@ -20,6 +20,9 @@ import {
   ToggleLeft,
   ToggleRight,
   BarChart3,
+  Calendar,
+  DollarSign,
+  MapPin,
 } from 'lucide-react';
 
 import {
@@ -83,11 +86,13 @@ const driverSchema = z.object({
   phone: z.string().optional().or(z.literal('')),
   email: z.string().email('Email inválido').optional().or(z.literal('')),
   address: z.string().optional().or(z.literal('')),
+  birthDate: z.string().optional().or(z.literal('')),
+  salary: z.number().min(0, 'El salario debe ser positivo').optional(),
   licenseNumber: z.string().min(1, 'El número de licencia es requerido'),
   licenseCategory: z.string().min(1, 'La categoría es requerida'),
   licenseExpiryDate: z.string().min(1, 'La fecha de vencimiento es requerida'),
   contractType: z.enum(['MONTHLY', 'TRIP']),
-  branchId: z.string().optional().or(z.literal('')),
+  branchId: z.string().min(1, 'La sucursal es requerida'),
 });
 
 type DriverFormData = z.infer<typeof driverSchema>;
@@ -149,6 +154,16 @@ export default function ConductoresPage() {
       contractType: contratoFilter !== 'all' ? contratoFilter as ContractType : undefined,
     }),
   });
+
+  // TODO: Fetch branches from API when available
+  // const { data: branches } = useQuery({
+  //   queryKey: ['branches'],
+  //   queryFn: () => branchesApi.getAll(),
+  // });
+  // Placeholder branches for now
+  const branches = [
+    { id: 'default-branch-id', name: 'Sucursal Principal - La Paz' },
+  ];
 
   // Mutations
   const createMutation = useMutation({
@@ -238,7 +253,9 @@ export default function ConductoresPage() {
     resolver: zodResolver(driverSchema),
     defaultValues: {
       firstName: '', lastName: '', identityCard: '', phone: '', email: '', address: '',
-      licenseNumber: '', licenseCategory: 'A', licenseExpiryDate: '', contractType: 'MONTHLY', branchId: '',
+      birthDate: '', salary: undefined,
+      licenseNumber: '', licenseCategory: 'A', licenseExpiryDate: '', contractType: 'MONTHLY',
+      branchId: 'default-branch-id',
     },
   });
 
@@ -246,7 +263,9 @@ export default function ConductoresPage() {
     resolver: zodResolver(driverSchema),
     defaultValues: {
       firstName: '', lastName: '', identityCard: '', phone: '', email: '', address: '',
-      licenseNumber: '', licenseCategory: 'A', licenseExpiryDate: '', contractType: 'MONTHLY', branchId: '',
+      birthDate: '', salary: undefined,
+      licenseNumber: '', licenseCategory: 'A', licenseExpiryDate: '', contractType: 'MONTHLY',
+      branchId: '',
     },
   });
 
@@ -259,11 +278,13 @@ export default function ConductoresPage() {
       phone: data.phone || undefined,
       email: data.email || undefined,
       address: data.address || undefined,
+      birthDate: data.birthDate || undefined,
+      salary: data.salary || undefined,
       licenseNumber: data.licenseNumber,
       licenseCategory: data.licenseCategory,
       licenseExpiryDate: data.licenseExpiryDate,
       contractType: data.contractType,
-      branchId: data.branchId || undefined,
+      branchId: data.branchId,
     });
   };
 
@@ -278,10 +299,13 @@ export default function ConductoresPage() {
         phone: data.phone || undefined,
         email: data.email || undefined,
         address: data.address || undefined,
+        birthDate: data.birthDate || undefined,
+        salary: data.salary || undefined,
         licenseNumber: data.licenseNumber,
         licenseCategory: data.licenseCategory,
         licenseExpiryDate: data.licenseExpiryDate,
         contractType: data.contractType,
+        branchId: data.branchId,
       },
     });
   };
@@ -308,6 +332,8 @@ export default function ConductoresPage() {
       phone: driver.phone || '',
       email: driver.email || '',
       address: driver.address || '',
+      birthDate: driver.birthDate ? driver.birthDate.split('T')[0] : '',
+      salary: driver.salary || undefined,
       licenseNumber: driver.licenseNumber,
       licenseCategory: driver.licenseCategory,
       licenseExpiryDate: driver.licenseExpiryDate ? driver.licenseExpiryDate.split('T')[0] : '',
@@ -323,7 +349,7 @@ export default function ConductoresPage() {
       const stats = await driversApi.getStats(driver.id);
       setSelectedDriverStats(stats);
       setIsStatsOpen(true);
-    } catch (error) {
+    } catch {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -351,6 +377,23 @@ export default function ConductoresPage() {
     const expiry = new Date(expiryDate);
     const today = new Date();
     return expiry < today;
+  };
+
+  // Calculate age from birthDate
+  const calculateAge = (birthDate: string) => {
+    const birth = new Date(birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  // Format salary
+  const formatSalary = (salary: number) => {
+    return new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB' }).format(salary);
   };
 
   return (
@@ -422,10 +465,10 @@ export default function ConductoresPage() {
                     <TableRow>
                       <TableHead>Nombre</TableHead>
                       <TableHead>Cédula</TableHead>
-                      <TableHead>Teléfono</TableHead>
+                      <TableHead>Contacto</TableHead>
                       <TableHead>Licencia</TableHead>
                       <TableHead>Venc. Licencia</TableHead>
-                      <TableHead>Contrato</TableHead>
+                      <TableHead>Contrato / Salario</TableHead>
                       <TableHead>Disponible</TableHead>
                       <TableHead>Estado</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
@@ -448,12 +491,24 @@ export default function ConductoresPage() {
                               </div>
                               <div>
                                 <div className="font-medium">{driver.fullName || `${driver.firstName} ${driver.lastName}`}</div>
-                                <div className="text-sm text-gray-500">{driver.email || '-'}</div>
+                                <div className="text-sm text-gray-500 flex items-center gap-1">
+                                  {driver.birthDate && (
+                                    <span>{calculateAge(driver.birthDate)} años</span>
+                                  )}
+                                  {driver.branch?.name && (
+                                    <><span className="mx-1">•</span><span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{driver.branch.name}</span></>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </TableCell>
                           <TableCell>{driver.identityCard}</TableCell>
-                          <TableCell>{driver.phone || '-'}</TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="text-sm">{driver.phone || '-'}</div>
+                              <div className="text-xs text-gray-500">{driver.email || '-'}</div>
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <div>
                               <div className="font-medium">{driver.licenseNumber}</div>
@@ -474,9 +529,16 @@ export default function ConductoresPage() {
                             ) : '-'}
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={driver.contractType === 'MONTHLY' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-purple-50 text-purple-700 border-purple-200'}>
-                              {driver.contractType === 'MONTHLY' ? 'Mensual' : 'Por viaje'}
-                            </Badge>
+                            <div>
+                              <Badge variant="outline" className={driver.contractType === 'MONTHLY' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-purple-50 text-purple-700 border-purple-200'}>
+                                {driver.contractType === 'MONTHLY' ? 'Mensual' : 'Por viaje'}
+                              </Badge>
+                              {driver.salary && driver.contractType === 'MONTHLY' && (
+                                <div className="text-sm text-gray-500 mt-1 flex items-center gap-1">
+                                  <DollarSign className="h-3 w-3" />{formatSalary(driver.salary)}
+                                </div>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline" className={driver.isAvailable ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
@@ -562,105 +624,168 @@ export default function ConductoresPage() {
 
       {/* Create Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Crear Conductor</DialogTitle>
-            <DialogDescription>Ingresa los datos del nuevo conductor</DialogDescription>
+            <DialogDescription>Ingresa los datos del nuevo conductor. Se creará también como empleado.</DialogDescription>
           </DialogHeader>
           <form onSubmit={createForm.handleSubmit(handleCreate)} className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Controller name="firstName" control={createForm.control} render={({ field, fieldState }) => (
-                <div className="space-y-2">
-                  <Label>Nombre *</Label>
-                  <Input {...field} placeholder="Juan" className={fieldState.invalid ? 'border-red-500' : ''} />
-                  {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
-                </div>
-              )} />
-              <Controller name="lastName" control={createForm.control} render={({ field, fieldState }) => (
-                <div className="space-y-2">
-                  <Label>Apellido *</Label>
-                  <Input {...field} placeholder="Pérez" className={fieldState.invalid ? 'border-red-500' : ''} />
-                  {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
-                </div>
-              )} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Controller name="identityCard" control={createForm.control} render={({ field, fieldState }) => (
-                <div className="space-y-2">
-                  <Label>Cédula de Identidad *</Label>
-                  <Input {...field} placeholder="12345678 LP" className={fieldState.invalid ? 'border-red-500' : ''} />
-                  {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
-                </div>
-              )} />
-              <Controller name="phone" control={createForm.control} render={({ field }) => (
-                <div className="space-y-2">
-                  <Label>Teléfono</Label>
-                  <Input {...field} placeholder="+591 71234567" />
-                </div>
-              )} />
-            </div>
-            <Controller name="email" control={createForm.control} render={({ field, fieldState }) => (
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input {...field} type="email" placeholder="conductor@ejemplo.com" className={fieldState.invalid ? 'border-red-500' : ''} />
-                {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+            {/* Datos Personales */}
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm text-gray-700 border-b pb-1">Datos Personales</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <Controller name="firstName" control={createForm.control} render={({ field, fieldState }) => (
+                  <div className="space-y-2">
+                    <Label>Nombre *</Label>
+                    <Input {...field} placeholder="Juan" className={fieldState.invalid ? 'border-red-500' : ''} />
+                    {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+                  </div>
+                )} />
+                <Controller name="lastName" control={createForm.control} render={({ field, fieldState }) => (
+                  <div className="space-y-2">
+                    <Label>Apellido *</Label>
+                    <Input {...field} placeholder="Pérez" className={fieldState.invalid ? 'border-red-500' : ''} />
+                    {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+                  </div>
+                )} />
               </div>
-            )} />
-            <Controller name="address" control={createForm.control} render={({ field }) => (
-              <div className="space-y-2">
-                <Label>Dirección</Label>
-                <Input {...field} placeholder="Zona Norte, La Paz" />
+              <div className="grid grid-cols-2 gap-4">
+                <Controller name="identityCard" control={createForm.control} render={({ field, fieldState }) => (
+                  <div className="space-y-2">
+                    <Label>Cédula de Identidad *</Label>
+                    <Input {...field} placeholder="12345678 LP" className={fieldState.invalid ? 'border-red-500' : ''} />
+                    {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+                  </div>
+                )} />
+                <Controller name="birthDate" control={createForm.control} render={({ field }) => (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1"><Calendar className="h-3 w-3" /> Fecha de Nacimiento</Label>
+                    <Input {...field} type="date" />
+                  </div>
+                )} />
               </div>
-            )} />
-            <div className="grid grid-cols-2 gap-4">
-              <Controller name="licenseNumber" control={createForm.control} render={({ field, fieldState }) => (
+              <Controller name="address" control={createForm.control} render={({ field }) => (
                 <div className="space-y-2">
-                  <Label>Número de Licencia *</Label>
-                  <Input {...field} placeholder="LIC-2024-001" className={fieldState.invalid ? 'border-red-500' : ''} />
-                  {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
-                </div>
-              )} />
-              <Controller name="licenseCategory" control={createForm.control} render={({ field, fieldState }) => (
-                <div className="space-y-2">
-                  <Label>Categoría *</Label>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger className={fieldState.invalid ? 'border-red-500' : ''}>
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {licenseCategories.map((cat) => (
-                        <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+                  <Label>Dirección</Label>
+                  <Input {...field} placeholder="Zona Norte, La Paz" />
                 </div>
               )} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Controller name="licenseExpiryDate" control={createForm.control} render={({ field, fieldState }) => (
-                <div className="space-y-2">
-                  <Label>Vencimiento de Licencia *</Label>
-                  <Input {...field} type="date" className={fieldState.invalid ? 'border-red-500' : ''} />
-                  {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
-                </div>
-              )} />
-              <Controller name="contractType" control={createForm.control} render={({ field, fieldState }) => (
-                <div className="space-y-2">
-                  <Label>Tipo de Contrato *</Label>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger className={fieldState.invalid ? 'border-red-500' : ''}>
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="MONTHLY">Mensual</SelectItem>
-                      <SelectItem value="TRIP">Por Viaje</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
-                </div>
-              )} />
+
+            {/* Contacto */}
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm text-gray-700 border-b pb-1">Contacto</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <Controller name="phone" control={createForm.control} render={({ field }) => (
+                  <div className="space-y-2">
+                    <Label>Teléfono</Label>
+                    <Input {...field} placeholder="+591 71234567" />
+                  </div>
+                )} />
+                <Controller name="email" control={createForm.control} render={({ field, fieldState }) => (
+                  <div className="space-y-2">
+                    <Label>Email</Label>
+                    <Input {...field} type="email" placeholder="conductor@ejemplo.com" className={fieldState.invalid ? 'border-red-500' : ''} />
+                    {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+                  </div>
+                )} />
+              </div>
             </div>
+
+            {/* Licencia */}
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm text-gray-700 border-b pb-1">Licencia de Conducir</h4>
+              <div className="grid grid-cols-3 gap-4">
+                <Controller name="licenseNumber" control={createForm.control} render={({ field, fieldState }) => (
+                  <div className="space-y-2">
+                    <Label>Número de Licencia *</Label>
+                    <Input {...field} placeholder="LIC-2024-001" className={fieldState.invalid ? 'border-red-500' : ''} />
+                    {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+                  </div>
+                )} />
+                <Controller name="licenseCategory" control={createForm.control} render={({ field, fieldState }) => (
+                  <div className="space-y-2">
+                    <Label>Categoría *</Label>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className={fieldState.invalid ? 'border-red-500' : ''}>
+                        <SelectValue placeholder="Seleccionar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {licenseCategories.map((cat) => (
+                          <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+                  </div>
+                )} />
+                <Controller name="licenseExpiryDate" control={createForm.control} render={({ field, fieldState }) => (
+                  <div className="space-y-2">
+                    <Label>Vencimiento *</Label>
+                    <Input {...field} type="date" className={fieldState.invalid ? 'border-red-500' : ''} />
+                    {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+                  </div>
+                )} />
+              </div>
+            </div>
+
+            {/* Contrato */}
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm text-gray-700 border-b pb-1">Información Laboral</h4>
+              <div className="grid grid-cols-3 gap-4">
+                <Controller name="contractType" control={createForm.control} render={({ field, fieldState }) => (
+                  <div className="space-y-2">
+                    <Label>Tipo de Contrato *</Label>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className={fieldState.invalid ? 'border-red-500' : ''}>
+                        <SelectValue placeholder="Seleccionar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MONTHLY">Mensual</SelectItem>
+                        <SelectItem value="TRIP">Por Viaje</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+                  </div>
+                )} />
+                <Controller name="salary" control={createForm.control} render={({ field, fieldState }) => (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1"><DollarSign className="h-3 w-3" /> Salario (Bs)</Label>
+                    <Input
+                      {...field}
+                      type="number"
+                      step="0.01"
+                      placeholder="5000.00"
+                      value={field.value || ''}
+                      onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                      className={fieldState.invalid ? 'border-red-500' : ''}
+                      disabled={createForm.watch('contractType') === 'TRIP'}
+                    />
+                    {createForm.watch('contractType') === 'TRIP' && (
+                      <p className="text-xs text-gray-500">Solo para contrato mensual</p>
+                    )}
+                    {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+                  </div>
+                )} />
+                <Controller name="branchId" control={createForm.control} render={({ field, fieldState }) => (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1"><MapPin className="h-3 w-3" /> Sucursal *</Label>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className={fieldState.invalid ? 'border-red-500' : ''}>
+                        <SelectValue placeholder="Seleccionar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {branches.map((branch) => (
+                          <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+                  </div>
+                )} />
+              </div>
+            </div>
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
               <Button type="submit" className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={createMutation.isPending}>
@@ -673,105 +798,167 @@ export default function ConductoresPage() {
 
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Conductor</DialogTitle>
             <DialogDescription>Modifica los datos del conductor</DialogDescription>
           </DialogHeader>
           <form onSubmit={editForm.handleSubmit(handleEdit)} className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Controller name="firstName" control={editForm.control} render={({ field, fieldState }) => (
+            {/* Datos Personales */}
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm text-gray-700 border-b pb-1">Datos Personales</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <Controller name="firstName" control={editForm.control} render={({ field, fieldState }) => (
+                  <div className="space-y-2">
+                    <Label>Nombre *</Label>
+                    <Input {...field} className={fieldState.invalid ? 'border-red-500' : ''} />
+                    {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+                  </div>
+                )} />
+                <Controller name="lastName" control={editForm.control} render={({ field, fieldState }) => (
+                  <div className="space-y-2">
+                    <Label>Apellido *</Label>
+                    <Input {...field} className={fieldState.invalid ? 'border-red-500' : ''} />
+                    {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+                  </div>
+                )} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Controller name="identityCard" control={editForm.control} render={({ field, fieldState }) => (
+                  <div className="space-y-2">
+                    <Label>Cédula de Identidad *</Label>
+                    <Input {...field} className={fieldState.invalid ? 'border-red-500' : ''} />
+                    {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+                  </div>
+                )} />
+                <Controller name="birthDate" control={editForm.control} render={({ field }) => (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1"><Calendar className="h-3 w-3" /> Fecha de Nacimiento</Label>
+                    <Input {...field} type="date" />
+                  </div>
+                )} />
+              </div>
+              <Controller name="address" control={editForm.control} render={({ field }) => (
                 <div className="space-y-2">
-                  <Label>Nombre *</Label>
-                  <Input {...field} className={fieldState.invalid ? 'border-red-500' : ''} />
-                  {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
-                </div>
-              )} />
-              <Controller name="lastName" control={editForm.control} render={({ field, fieldState }) => (
-                <div className="space-y-2">
-                  <Label>Apellido *</Label>
-                  <Input {...field} className={fieldState.invalid ? 'border-red-500' : ''} />
-                  {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
-                </div>
-              )} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Controller name="identityCard" control={editForm.control} render={({ field, fieldState }) => (
-                <div className="space-y-2">
-                  <Label>Cédula de Identidad *</Label>
-                  <Input {...field} className={fieldState.invalid ? 'border-red-500' : ''} />
-                  {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
-                </div>
-              )} />
-              <Controller name="phone" control={editForm.control} render={({ field }) => (
-                <div className="space-y-2">
-                  <Label>Teléfono</Label>
+                  <Label>Dirección</Label>
                   <Input {...field} />
                 </div>
               )} />
             </div>
-            <Controller name="email" control={editForm.control} render={({ field, fieldState }) => (
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input {...field} type="email" className={fieldState.invalid ? 'border-red-500' : ''} />
-                {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+
+            {/* Contacto */}
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm text-gray-700 border-b pb-1">Contacto</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <Controller name="phone" control={editForm.control} render={({ field }) => (
+                  <div className="space-y-2">
+                    <Label>Teléfono</Label>
+                    <Input {...field} />
+                  </div>
+                )} />
+                <Controller name="email" control={editForm.control} render={({ field, fieldState }) => (
+                  <div className="space-y-2">
+                    <Label>Email</Label>
+                    <Input {...field} type="email" className={fieldState.invalid ? 'border-red-500' : ''} />
+                    {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+                  </div>
+                )} />
               </div>
-            )} />
-            <Controller name="address" control={editForm.control} render={({ field }) => (
-              <div className="space-y-2">
-                <Label>Dirección</Label>
-                <Input {...field} />
+            </div>
+
+            {/* Licencia */}
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm text-gray-700 border-b pb-1">Licencia de Conducir</h4>
+              <div className="grid grid-cols-3 gap-4">
+                <Controller name="licenseNumber" control={editForm.control} render={({ field, fieldState }) => (
+                  <div className="space-y-2">
+                    <Label>Número de Licencia *</Label>
+                    <Input {...field} className={fieldState.invalid ? 'border-red-500' : ''} />
+                    {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+                  </div>
+                )} />
+                <Controller name="licenseCategory" control={editForm.control} render={({ field, fieldState }) => (
+                  <div className="space-y-2">
+                    <Label>Categoría *</Label>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className={fieldState.invalid ? 'border-red-500' : ''}>
+                        <SelectValue placeholder="Seleccionar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {licenseCategories.map((cat) => (
+                          <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+                  </div>
+                )} />
+                <Controller name="licenseExpiryDate" control={editForm.control} render={({ field, fieldState }) => (
+                  <div className="space-y-2">
+                    <Label>Vencimiento *</Label>
+                    <Input {...field} type="date" className={fieldState.invalid ? 'border-red-500' : ''} />
+                    {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+                  </div>
+                )} />
               </div>
-            )} />
-            <div className="grid grid-cols-2 gap-4">
-              <Controller name="licenseNumber" control={editForm.control} render={({ field, fieldState }) => (
-                <div className="space-y-2">
-                  <Label>Número de Licencia *</Label>
-                  <Input {...field} className={fieldState.invalid ? 'border-red-500' : ''} />
-                  {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
-                </div>
-              )} />
-              <Controller name="licenseCategory" control={editForm.control} render={({ field, fieldState }) => (
-                <div className="space-y-2">
-                  <Label>Categoría *</Label>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger className={fieldState.invalid ? 'border-red-500' : ''}>
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {licenseCategories.map((cat) => (
-                        <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
-                </div>
-              )} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Controller name="licenseExpiryDate" control={editForm.control} render={({ field, fieldState }) => (
-                <div className="space-y-2">
-                  <Label>Vencimiento de Licencia *</Label>
-                  <Input {...field} type="date" className={fieldState.invalid ? 'border-red-500' : ''} />
-                  {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
-                </div>
-              )} />
-              <Controller name="contractType" control={editForm.control} render={({ field, fieldState }) => (
-                <div className="space-y-2">
-                  <Label>Tipo de Contrato *</Label>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger className={fieldState.invalid ? 'border-red-500' : ''}>
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="MONTHLY">Mensual</SelectItem>
-                      <SelectItem value="TRIP">Por Viaje</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
-                </div>
-              )} />
+
+            {/* Contrato */}
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm text-gray-700 border-b pb-1">Información Laboral</h4>
+              <div className="grid grid-cols-3 gap-4">
+                <Controller name="contractType" control={editForm.control} render={({ field, fieldState }) => (
+                  <div className="space-y-2">
+                    <Label>Tipo de Contrato *</Label>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className={fieldState.invalid ? 'border-red-500' : ''}>
+                        <SelectValue placeholder="Seleccionar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MONTHLY">Mensual</SelectItem>
+                        <SelectItem value="TRIP">Por Viaje</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+                  </div>
+                )} />
+                <Controller name="salary" control={editForm.control} render={({ field, fieldState }) => (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1"><DollarSign className="h-3 w-3" /> Salario (Bs)</Label>
+                    <Input
+                      {...field}
+                      type="number"
+                      step="0.01"
+                      value={field.value || ''}
+                      onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                      className={fieldState.invalid ? 'border-red-500' : ''}
+                      disabled={editForm.watch('contractType') === 'TRIP'}
+                    />
+                    {editForm.watch('contractType') === 'TRIP' && (
+                      <p className="text-xs text-gray-500">Solo para contrato mensual</p>
+                    )}
+                    {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+                  </div>
+                )} />
+                <Controller name="branchId" control={editForm.control} render={({ field, fieldState }) => (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1"><MapPin className="h-3 w-3" /> Sucursal *</Label>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className={fieldState.invalid ? 'border-red-500' : ''}>
+                        <SelectValue placeholder="Seleccionar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {branches.map((branch) => (
+                          <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
+                  </div>
+                )} />
+              </div>
             </div>
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
               <Button type="submit" className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={updateMutation.isPending}>

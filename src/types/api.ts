@@ -422,6 +422,8 @@ export interface Driver {
   phone?: string;
   email?: string;
   address?: string;
+  birthDate?: string;
+  salary?: number;
   licenseNumber: string;
   licenseCategory: string;
   licenseExpiryDate: string;
@@ -429,6 +431,7 @@ export interface Driver {
   isAvailable: boolean;
   isActive: boolean;
   branchId?: string;
+  branch?: { id: string; name: string };
   totalTrips?: number;
   totalWeightTransported?: number;
   avgDeliveryHours?: number;
@@ -444,11 +447,13 @@ export interface CreateDriverInput {
   phone?: string;
   email?: string;
   address?: string;
+  birthDate?: string;
+  salary?: number;
   licenseNumber: string;
   licenseCategory: string;
   licenseExpiryDate: string;
   contractType: ContractType;
-  branchId?: string;
+  branchId: string;
 }
 
 export interface UpdateDriverInput {
@@ -458,10 +463,13 @@ export interface UpdateDriverInput {
   phone?: string;
   email?: string;
   address?: string;
+  birthDate?: string;
+  salary?: number;
   licenseNumber?: string;
   licenseCategory?: string;
   licenseExpiryDate?: string;
   contractType?: ContractType;
+  branchId?: string;
 }
 
 export interface DriverListParams extends PaginationParams {
