@@ -10,7 +10,6 @@ import {
   Plus,
   MoreHorizontal,
   Edit,
-  Trash2,
   Loader2,
   ChevronLeft,
   ChevronRight,
@@ -62,16 +61,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -151,7 +140,6 @@ export default function ViajesPage() {
   const [dateToFilter, setDateToFilter] = useState<string>('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
 
@@ -231,27 +219,12 @@ export default function ViajesPage() {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => tripsApi.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trips'] });
-      toast({ title: 'Viaje eliminado', description: 'El viaje ha sido eliminado.' });
-      setIsDeleteOpen(false);
-      setSelectedTrip(null);
-    },
-    onError: (error: unknown) => {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: getErrorMessage(error, 'No se pudo eliminar el viaje.'),
-      });
-    },
-  });
-
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: TripStatus }) => tripsApi.updateStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trips'] });
+      queryClient.invalidateQueries({ queryKey: ['trucks'] }); // Refresh truck status
+      queryClient.invalidateQueries({ queryKey: ['drivers'] }); // Refresh driver availability
       toast({ title: 'Estado actualizado', description: 'El estado del viaje ha sido actualizado.' });
     },
     onError: (error: unknown) => {
@@ -328,11 +301,6 @@ export default function ViajesPage() {
         notes: data.notes || undefined,
       },
     });
-  };
-
-  const handleDelete = () => {
-    if (!selectedTrip) return;
-    deleteMutation.mutate(selectedTrip.id);
   };
 
   const openEditDialog = (trip: Trip) => {
@@ -595,10 +563,6 @@ export default function ViajesPage() {
                                       <XCircle className="h-4 w-4 mr-2" /> Cancelar
                                     </DropdownMenuItem>
                                   )}
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem className="text-red-600" onClick={() => { setSelectedTrip(trip); setIsDeleteOpen(true); }}>
-                                    <Trash2 className="h-4 w-4 mr-2" /> Eliminar
-                                  </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </TableCell>
@@ -978,25 +942,6 @@ export default function ViajesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Delete Dialog */}
-      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar viaje?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción eliminará permanentemente el viaje &quot;{selectedTrip?.micDta}&quot;.
-              Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={handleDelete}>
-              {deleteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

@@ -974,6 +974,18 @@ export const documentsApi = {
     return response.data.data;
   },
 
+  // Alias for markAsReceived - used in documentos page
+  receive: async (id: string): Promise<import('@/types/api').TripDocument> => {
+    const response = await api.post<{ data: import('@/types/api').TripDocument }>(`/documents/${id}/receive`);
+    return response.data.data;
+  },
+
+  // Alias for markAsVerified - used in documentos page
+  verify: async (id: string): Promise<import('@/types/api').TripDocument> => {
+    const response = await api.post<{ data: import('@/types/api').TripDocument }>(`/documents/${id}/verify`);
+    return response.data.data;
+  },
+
   getStats: async (): Promise<import('@/types/api').DocumentStats> => {
     const response = await api.get<{ data: import('@/types/api').DocumentStats }>('/documents/stats');
     return response.data.data;
