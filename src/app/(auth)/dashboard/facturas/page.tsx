@@ -365,7 +365,7 @@ export default function FacturasPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={clientFilter} onValueChange={(v) => { setClientFilter(v); setPage(1); }}>
+            <Select value={clientFilter || 'all'} onValueChange={(v) => { setClientFilter(v === 'all' ? '' : v); setPage(1); }}>
               <SelectTrigger className="w-full md:w-[200px]"><SelectValue placeholder="Cliente" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
@@ -527,15 +527,21 @@ export default function FacturasPage() {
                     <p className="text-center text-gray-500 py-4">No hay viajes entregados disponibles</p>
                   ) : (
                     tripsList.map((trip) => (
-                      <div 
+                      <label 
                         key={trip.id} 
                         className="flex items-center space-x-3 p-2 rounded hover:bg-gray-50 cursor-pointer"
-                        onClick={() => toggleTripSelection(trip.id)}
                       >
                         <Checkbox 
-                          id={`trip-${trip.id}`}
                           checked={selectedTripIds.includes(trip.id)}
-                          onCheckedChange={() => toggleTripSelection(trip.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedTripIds(prev => [...prev, trip.id]);
+                            } else {
+                              setSelectedTripIds(prev => prev.filter(id => id !== trip.id));
+                            }
+                            setCalculationResult(null);
+                            setCalculationError(null);
+                          }}
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
@@ -551,7 +557,7 @@ export default function FacturasPage() {
                             <span>{trip.billOfLading?.client?.businessName || '-'}</span>
                           </div>
                         </div>
-                      </div>
+                      </label>
                     ))
                   )}
                 </div>
