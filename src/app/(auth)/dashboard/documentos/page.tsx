@@ -277,7 +277,7 @@ export default function DocumentosPage() {
             <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(1); }}>
               <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Tipo" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
                 {DOCUMENT_TYPES.map((type) => (
                   <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}

@@ -435,7 +435,7 @@ export default function ConductoresPage() {
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="MONTHLY">Mensual</SelectItem>
-                <SelectItem value="TRIP">Por viaje</SelectItem>
+                <SelectItem value="PER_TRIP">Por viaje</SelectItem>
               </SelectContent>
             </Select>
             <Select value={activoFilter} onValueChange={(v) => { setActivoFilter(v); setPage(1); }}>
@@ -742,7 +742,7 @@ export default function ConductoresPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="MONTHLY">Mensual</SelectItem>
-                        <SelectItem value="TRIP">Por Viaje</SelectItem>
+                        <SelectItem value="PER_TRIP">Por Viaje</SelectItem>
                       </SelectContent>
                     </Select>
                     {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
@@ -916,7 +916,7 @@ export default function ConductoresPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="MONTHLY">Mensual</SelectItem>
-                        <SelectItem value="TRIP">Por Viaje</SelectItem>
+                        <SelectItem value="PER_TRIP">Por Viaje</SelectItem>
                       </SelectContent>
                     </Select>
                     {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}

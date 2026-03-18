@@ -368,7 +368,7 @@ export default function FacturasPage() {
             <Select value={clientFilter} onValueChange={(v) => { setClientFilter(v); setPage(1); }}>
               <SelectTrigger className="w-full md:w-[200px]"><SelectValue placeholder="Cliente" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
                 {clientesList.map((cliente) => (
                   <SelectItem key={cliente.id} value={cliente.id}>{cliente.businessName}</SelectItem>
                 ))}
