@@ -241,7 +241,18 @@ Se implementó exitosamente el Sprint 3 con los siguientes cambios:
 2. `3114ee8` - feat: Add Sprint 4 API modules to frontend
 
 ### Branch Creado (Frontend)
-- `sprint-4-frontend-automation` en erp-templarios-frontend
+- `feature/sprint-4-automation` en erp-templarios-frontend
+
+### Commits Realizados (Frontend - Sprint 4 Automation)
+1. `a373c6f` - feat(sprint-4): Implement frontend automation for settlements and invoices
+   - Updated BACKEND_API_REFERENCE.md with new endpoints
+   - Added calculation types to types/api.ts
+   - Updated api-client.ts with new API methods
+   - Implemented auto-calculation in liquidaciones page
+   - Implemented multi-trip selection and calculation in facturas page
+
+### Pull Request
+- https://github.com/ReynaldoAlvarez/erp-templarios-frontend/pull/new/feature/sprint-4-automation
 
 ### Endpoints Nuevos
 ```
