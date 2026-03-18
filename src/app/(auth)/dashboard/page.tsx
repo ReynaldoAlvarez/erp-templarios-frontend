@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Truck,
@@ -133,8 +133,8 @@ const dateRangeOptions = [
   { value: 'year', label: 'Este Año' },
 ];
 
-function getDateRange(range: string): { startDate: string; endDate: string } {
-  const now = new Date();
+function getDateRange(range: string, baseDate: Date): { startDate: string; endDate: string } {
+  const now = baseDate;
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   
   switch (range) {
@@ -186,7 +186,13 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   const [dateRange, setDateRange] = useState('month');
   
-  const params = getDateRange(dateRange);
+  // Memoize base date to prevent recalculation on every render
+  const baseDate = useMemo(() => new Date(), []);
+  
+  // Memoize params to prevent infinite loop - only recalculate when dateRange changes
+  const params = useMemo(() => {
+    return getDateRange(dateRange, baseDate);
+  }, [dateRange, baseDate]);
   
   const { data: mainData, isLoading: isLoadingMain, refetch: refetchMain } = useMainDashboard(params);
   const { data: financialData, isLoading: isLoadingFinancial } = useFinancialDashboard(params);

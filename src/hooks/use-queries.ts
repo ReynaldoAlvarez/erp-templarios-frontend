@@ -13,6 +13,8 @@ import {
   invoicesApi,
   borderCrossingsApi,
   routesApi,
+  dashboardApi,
+  reportsApi,
 } from '@/lib/api-client';
 import {
   UserListParams,
@@ -825,28 +827,32 @@ export function useDeleteRoute() {
 export function useMainDashboard(params?: import('@/types/api').DashboardParams) {
   return useQuery({
     queryKey: ['dashboard', 'main', params],
-    queryFn: () => import('@/lib/api-client').then((m) => m.dashboardApi.getMain(params)),
+    queryFn: () => dashboardApi.getMain(params),
+    staleTime: 30000, // 30 seconds - avoid refetching too frequently
   });
 }
 
 export function useFinancialDashboard(params?: import('@/types/api').DashboardParams) {
   return useQuery({
     queryKey: ['dashboard', 'financial', params],
-    queryFn: () => import('@/lib/api-client').then((m) => m.dashboardApi.getFinancial(params)),
+    queryFn: () => dashboardApi.getFinancial(params),
+    staleTime: 30000, // 30 seconds
   });
 }
 
 export function useOperationalDashboard(params?: import('@/types/api').DashboardParams) {
   return useQuery({
     queryKey: ['dashboard', 'operational', params],
-    queryFn: () => import('@/lib/api-client').then((m) => m.dashboardApi.getOperational(params)),
+    queryFn: () => dashboardApi.getOperational(params),
+    staleTime: 30000, // 30 seconds
   });
 }
 
 export function useDashboardSummary(params?: import('@/types/api').DashboardParams) {
   return useQuery({
     queryKey: ['dashboard', 'summary', params],
-    queryFn: () => import('@/lib/api-client').then((m) => m.dashboardApi.getSummary(params)),
+    queryFn: () => dashboardApi.getSummary(params),
+    staleTime: 30000, // 30 seconds
   });
 }
 
@@ -856,14 +862,15 @@ export function useDashboardSummary(params?: import('@/types/api').DashboardPara
 export function useReportTypes() {
   return useQuery({
     queryKey: ['reports', 'types'],
-    queryFn: () => import('@/lib/api-client').then((m) => m.reportsApi.getTypes()),
+    queryFn: () => reportsApi.getTypes(),
+    staleTime: 300000, // 5 minutes - report types rarely change
   });
 }
 
 export function useTripsReport(params?: import('@/types/api').ReportParams) {
   return useQuery({
     queryKey: ['reports', 'trips', params],
-    queryFn: () => import('@/lib/api-client').then((m) => m.reportsApi.getTrips(params)),
+    queryFn: () => reportsApi.getTrips(params),
     enabled: !!params?.startDate && !!params?.endDate,
   });
 }
@@ -871,7 +878,7 @@ export function useTripsReport(params?: import('@/types/api').ReportParams) {
 export function useFinancialReport(params?: import('@/types/api').ReportParams) {
   return useQuery({
     queryKey: ['reports', 'financial', params],
-    queryFn: () => import('@/lib/api-client').then((m) => m.reportsApi.getFinancial(params)),
+    queryFn: () => reportsApi.getFinancial(params),
     enabled: !!params?.startDate && !!params?.endDate,
   });
 }
@@ -879,7 +886,7 @@ export function useFinancialReport(params?: import('@/types/api').ReportParams) 
 export function useClientsReport(params?: import('@/types/api').ReportParams) {
   return useQuery({
     queryKey: ['reports', 'clients', params],
-    queryFn: () => import('@/lib/api-client').then((m) => m.reportsApi.getClients(params)),
+    queryFn: () => reportsApi.getClients(params),
     enabled: !!params?.startDate && !!params?.endDate,
   });
 }
@@ -887,7 +894,7 @@ export function useClientsReport(params?: import('@/types/api').ReportParams) {
 export function useDriversReport(params?: import('@/types/api').ReportParams) {
   return useQuery({
     queryKey: ['reports', 'drivers', params],
-    queryFn: () => import('@/lib/api-client').then((m) => m.reportsApi.getDrivers(params)),
+    queryFn: () => reportsApi.getDrivers(params),
     enabled: !!params?.startDate && !!params?.endDate,
   });
 }
@@ -895,7 +902,7 @@ export function useDriversReport(params?: import('@/types/api').ReportParams) {
 export function useFleetReport(params?: import('@/types/api').ReportParams) {
   return useQuery({
     queryKey: ['reports', 'fleet', params],
-    queryFn: () => import('@/lib/api-client').then((m) => m.reportsApi.getFleet(params)),
+    queryFn: () => reportsApi.getFleet(params),
     enabled: !!params?.startDate && !!params?.endDate,
   });
 }
@@ -903,7 +910,7 @@ export function useFleetReport(params?: import('@/types/api').ReportParams) {
 export function useBordersReport(params?: import('@/types/api').ReportParams) {
   return useQuery({
     queryKey: ['reports', 'borders', params],
-    queryFn: () => import('@/lib/api-client').then((m) => m.reportsApi.getBorders(params)),
+    queryFn: () => reportsApi.getBorders(params),
     enabled: !!params?.startDate && !!params?.endDate,
   });
 }
