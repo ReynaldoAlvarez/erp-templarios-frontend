@@ -923,3 +923,320 @@ export interface UpdateRouteInput {
   rate?: number;
   durationHours?: number;
 }
+
+// ============ Dashboard Types ============
+export interface DashboardOverview {
+  totalTrips: number;
+  totalWeight: number;
+  activeDrivers: number;
+  activeTrucks: number;
+}
+
+export interface TripsByStatus {
+  scheduled: number;
+  inTransit: number;
+  atBorder: number;
+  delivered: number;
+  cancelled: number;
+}
+
+export interface DashboardPending {
+  documents: number;
+  settlements: number;
+  invoices: number;
+}
+
+export interface RecentTrip {
+  id: string;
+  micDta: string;
+  status: string;
+  weight: number;
+  client: string;
+  truck: string;
+  driver: string;
+  departureDate: string;
+}
+
+export interface MainDashboard {
+  overview: DashboardOverview;
+  tripsByStatus: TripsByStatus;
+  pending: DashboardPending;
+  recentTrips: RecentTrip[];
+}
+
+export interface FinancialDashboardSettlements {
+  count: number;
+  totalFreightUsd: number;
+  totalFreightBob: number;
+  totalNetPayment: number;
+  pendingCount: number;
+  pendingAmount: number;
+}
+
+export interface OverdueInvoice {
+  id: string;
+  invoiceNumber: string;
+  clientName: string;
+  totalAmount: number;
+  issuedAt: string;
+  daysOverdue: number;
+}
+
+export interface FinancialDashboardInvoices {
+  count: number;
+  totalAmount: number;
+  overdueCount: number;
+  overdueAmount: number;
+  overdueInvoices: OverdueInvoice[];
+}
+
+export interface ExpenseByCategory {
+  count: number;
+  total: number;
+}
+
+export interface FinancialDashboardExpenses {
+  count: number;
+  total: number;
+  byCategory: Record<string, ExpenseByCategory>;
+}
+
+export interface FinancialDashboard {
+  settlements: FinancialDashboardSettlements;
+  invoices: FinancialDashboardInvoices;
+  expenses: FinancialDashboardExpenses;
+}
+
+export interface ActiveBorderCrossing {
+  id: string;
+  borderName: string;
+  arrivedAt: string;
+  trip: {
+    micDta: string;
+    client: string;
+    driver: string;
+    truck: string;
+  };
+}
+
+export interface OperationalDashboardBorders {
+  totalCrossings: number;
+  activeCrossings: ActiveBorderCrossing[];
+  channelDistribution: Record<BorderChannel, number>;
+}
+
+export interface OperationalDashboardDocuments {
+  byStatus: Record<DocumentStatus, number>;
+}
+
+export interface TopDriver {
+  id: string;
+  name: string;
+  totalTrips: number;
+  rating: number;
+}
+
+export interface TopTruck {
+  id: string;
+  plateNumber: string;
+  brand: string;
+  model: string;
+  totalTrips: number;
+}
+
+export interface TopRoute {
+  origin: string;
+  destination: string;
+  tripCount: number;
+}
+
+export interface OperationalDashboard {
+  borders: OperationalDashboardBorders;
+  documents: OperationalDashboardDocuments;
+  topDrivers: TopDriver[];
+  topTrucks: TopTruck[];
+  topRoutes: TopRoute[];
+}
+
+export interface DashboardParams {
+  startDate?: string;
+  endDate?: string;
+}
+
+// ============ Report Types ============
+export interface ReportType {
+  type: string;
+  label: string;
+  description: string;
+}
+
+export interface TripReportSummary {
+  totalTrips: number;
+  totalWeight: number;
+  byStatus: Record<string, number>;
+  byClient: Record<string, { count: number; weight: number }>;
+  byDriver: Record<string, { count: number; weight: number }>;
+  byTruck: Record<string, { count: number; weight: number }>;
+  averageTripDuration: number;
+  totalBorderCrossings: number;
+  channelDistribution: Record<BorderChannel, number>;
+}
+
+export interface TripReportItem {
+  id: string;
+  micDta: string;
+  status: string;
+  departureDate: string;
+  arrivalDate?: string;
+  weight: number;
+  ratePerTon: number;
+  client: string;
+  blNumber: string;
+  truck: string;
+  trailer: string;
+  driver: string;
+  routeCount: number;
+  borderCrossingCount: number;
+  documentCount: number;
+  hasSettlement: boolean;
+  totalExpenses: number;
+}
+
+export interface TripReport {
+  summary: TripReportSummary;
+  trips: TripReportItem[];
+  generatedAt: string;
+  dateRange: {
+    startDate: string;
+    endDate: string;
+  };
+}
+
+export interface FinancialReportSettlements {
+  count: number;
+  totalFreightUsd: number;
+  totalFreightBob: number;
+  totalNetPayment: number;
+  averageSettlement: number;
+  byStatus: Record<SettlementStatus, { count: number; total: number }>;
+}
+
+export interface FinancialReportInvoices {
+  count: number;
+  totalAmount: number;
+  averageInvoice: number;
+  byStatus: Record<InvoiceStatus, { count: number; total: number }>;
+}
+
+export interface FinancialReportExpenses {
+  count: number;
+  total: number;
+  averageExpense: number;
+  byCategory: Record<string, { count: number; total: number }>;
+}
+
+export interface FinancialReport {
+  settlements: FinancialReportSettlements;
+  invoices: FinancialReportInvoices;
+  expenses: FinancialReportExpenses;
+  generatedAt: string;
+  dateRange: {
+    startDate: string;
+    endDate: string;
+  };
+}
+
+export interface ClientReportItem {
+  id: string;
+  businessName: string;
+  nit: string;
+  totalTrips: number;
+  totalWeight: number;
+  totalInvoiced: number;
+  pendingInvoices: number;
+  tripsDelivered: number;
+  tripsInTransit: number;
+}
+
+export interface ClientReport {
+  clients: ClientReportItem[];
+  totalClients: number;
+  activeClients: number;
+  generatedAt: string;
+  dateRange: {
+    startDate: string;
+    endDate: string;
+  };
+}
+
+export interface DriverReportItem {
+  id: string;
+  name: string;
+  identityCard: string;
+  licenseNumber: string;
+  totalTrips: number;
+  totalWeight: number;
+  avgDeliveryHours: number;
+  rating: number;
+  totalExpenses: number;
+  totalSettlements: number;
+}
+
+export interface DriverReport {
+  drivers: DriverReportItem[];
+  totalDrivers: number;
+  activeDrivers: number;
+  generatedAt: string;
+  dateRange: {
+    startDate: string;
+    endDate: string;
+  };
+}
+
+export interface TruckReportItem {
+  id: string;
+  plateNumber: string;
+  brand: string;
+  model: string;
+  capacityTons: number;
+  totalTrips: number;
+  totalWeight: number;
+  utilizationPercent: number;
+  totalMileage: number;
+  status: TruckStatus;
+}
+
+export interface TruckReport {
+  trucks: TruckReportItem[];
+  totalTrucks: number;
+  activeTrucks: number;
+  averageUtilization: number;
+  generatedAt: string;
+  dateRange: {
+    startDate: string;
+    endDate: string;
+  };
+}
+
+export interface BorderReportItem {
+  borderName: string;
+  totalCrossings: number;
+  avgDurationHours: number;
+  channelDistribution: Record<BorderChannel, number>;
+}
+
+export interface BorderReport {
+  borders: BorderReportItem[];
+  totalCrossings: number;
+  avgDurationOverall: number;
+  generatedAt: string;
+  dateRange: {
+    startDate: string;
+    endDate: string;
+  };
+}
+
+export interface ReportParams {
+  startDate?: string;
+  endDate?: string;
+}
