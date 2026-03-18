@@ -1291,4 +1291,85 @@ export const routesApi = {
   },
 };
 
+// ==========================================
+// Dashboard API
+// ==========================================
+export const dashboardApi = {
+  getMain: async (params?: import('@/types/api').DashboardParams): Promise<import('@/types/api').MainDashboard> => {
+    const response = await api.get<{ data: import('@/types/api').MainDashboard }>('/dashboard/main', params);
+    return response.data.data;
+  },
+
+  getFinancial: async (params?: import('@/types/api').DashboardParams): Promise<import('@/types/api').FinancialDashboard> => {
+    const response = await api.get<{ data: import('@/types/api').FinancialDashboard }>('/dashboard/financial', params);
+    return response.data.data;
+  },
+
+  getOperational: async (params?: import('@/types/api').DashboardParams): Promise<import('@/types/api').OperationalDashboard> => {
+    const response = await api.get<{ data: import('@/types/api').OperationalDashboard }>('/dashboard/operational', params);
+    return response.data.data;
+  },
+
+  getSummary: async (params?: import('@/types/api').DashboardParams): Promise<{
+    main: import('@/types/api').MainDashboard;
+    financial: import('@/types/api').FinancialDashboard;
+    operational: import('@/types/api').OperationalDashboard;
+  }> => {
+    const response = await api.get<{ data: {
+      main: import('@/types/api').MainDashboard;
+      financial: import('@/types/api').FinancialDashboard;
+      operational: import('@/types/api').OperationalDashboard;
+    } }>('/dashboard/summary', params);
+    return response.data.data;
+  },
+};
+
+// ==========================================
+// Reports API
+// ==========================================
+export const reportsApi = {
+  getTypes: async (): Promise<import('@/types/api').ReportType[]> => {
+    const response = await api.get<{ data: import('@/types/api').ReportType[] }>('/reports/types');
+    return response.data.data;
+  },
+
+  getTrips: async (params?: import('@/types/api').ReportParams): Promise<import('@/types/api').TripReport> => {
+    const response = await api.get<{ data: import('@/types/api').TripReport }>('/reports/trips', params);
+    return response.data.data;
+  },
+
+  getFinancial: async (params?: import('@/types/api').ReportParams): Promise<import('@/types/api').FinancialReport> => {
+    const response = await api.get<{ data: import('@/types/api').FinancialReport }>('/reports/financial', params);
+    return response.data.data;
+  },
+
+  getClients: async (params?: import('@/types/api').ReportParams): Promise<import('@/types/api').ClientReport> => {
+    const response = await api.get<{ data: import('@/types/api').ClientReport }>('/reports/clients', params);
+    return response.data.data;
+  },
+
+  getDrivers: async (params?: import('@/types/api').ReportParams): Promise<import('@/types/api').DriverReport> => {
+    const response = await api.get<{ data: import('@/types/api').DriverReport }>('/reports/drivers', params);
+    return response.data.data;
+  },
+
+  getFleet: async (params?: import('@/types/api').ReportParams): Promise<import('@/types/api').TruckReport> => {
+    const response = await api.get<{ data: import('@/types/api').TruckReport }>('/reports/fleet', params);
+    return response.data.data;
+  },
+
+  getBorders: async (params?: import('@/types/api').ReportParams): Promise<import('@/types/api').BorderReport> => {
+    const response = await api.get<{ data: import('@/types/api').BorderReport }>('/reports/borders', params);
+    return response.data.data;
+  },
+
+  exportReport: async (type: string, params?: import('@/types/api').ReportParams): Promise<Blob> => {
+    const response = await apiClient.get(`/reports/export/${type}`, {
+      params,
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+};
+
 export default apiClient;
