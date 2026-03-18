@@ -267,7 +267,7 @@ export default function RutasPage() {
                 <SelectValue placeholder="Filtrar por viaje" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas las rutas</SelectItem>
+                <SelectItem value="all">Todas las rutas</SelectItem>
                 {tripsList.map((trip) => (
                   <SelectItem key={trip.id} value={trip.id}>
                     {trip.micDta} - {trip.billOfLading?.blNumber}

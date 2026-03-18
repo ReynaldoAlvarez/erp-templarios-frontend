@@ -414,11 +414,19 @@ export default function ReportesPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">Monto Total:</span>
-                        <span className="font-medium">${financialReport.invoices.totalAmount.toLocaleString()}</span>
+                        <span className="font-medium">
+  ${financialReport?.invoices?.averageInvoice
+    ? financialReport.invoices.averageInvoice.toLocaleString()
+    : "0"}
+</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">Promedio:</span>
-                        <span className="font-medium">${financialReport.invoices.averageInvoice.toLocaleString()}</span>
+                        <span className="font-medium">
+  ${financialReport?.invoices?.averageInvoice
+    ? financialReport.invoices.averageInvoice.toLocaleString()
+    : "0"}
+</span>
                       </div>
                     </div>
                   </CardContent>
@@ -437,11 +445,11 @@ export default function ReportesPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">Monto Total:</span>
-                        <span className="font-bold text-red-600">Bs {financialReport.expenses.total.toLocaleString()}</span>
+                        <span className="font-bold text-red-600">Bs {financialReport.expenses.total.toLocaleString() ?? "0"}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">Promedio:</span>
-                        <span className="font-medium">Bs {financialReport.expenses.averageExpense.toLocaleString()}</span>
+                        <span className="font-medium">Bs {financialReport.expenses.averageExpense?.toLocaleString() ?? "0"}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -461,7 +469,7 @@ export default function ReportesPage() {
                           <Badge variant="outline">{category}</Badge>
                           <span className="text-sm text-gray-500">{data.count} registros</span>
                         </div>
-                        <span className="font-medium">Bs {data.total.toLocaleString()}</span>
+                        <span className="font-medium">Bs {data.total?.toLocaleString?.() ?? "0"}</span>
                       </div>
                     ))}
                   </div>
@@ -512,7 +520,7 @@ export default function ReportesPage() {
                             <TableCell>{client.nit}</TableCell>
                             <TableCell>{client.totalTrips}</TableCell>
                             <TableCell>{client.totalWeight} tn</TableCell>
-                            <TableCell>${client.totalInvoiced.toLocaleString()}</TableCell>
+                            <TableCell>${client.totalInvoiced?.toLocaleString?.() ?? "0"}</TableCell>
                             <TableCell>
                               {client.pendingInvoices > 0 && (
                                 <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
@@ -605,7 +613,11 @@ export default function ReportesPage() {
                 </Card>
                 <Card>
                   <CardContent className="p-4">
-                    <div className="text-2xl font-bold">{fleetReport.averageUtilization.toFixed(1)}%</div>
+                    <div className="text-2xl font-bold">
+  {fleetReport?.averageUtilization != null
+    ? fleetReport.averageUtilization.toFixed(1)
+    : "0.0"}%
+</div>
                     <div className="text-sm text-gray-500">Utilización Promedio</div>
                   </CardContent>
                 </Card>
@@ -630,22 +642,29 @@ export default function ReportesPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {fleetReport.trucks.slice(0, 10).map((truck) => (
-                          <TableRow key={truck.id}>
-                            <TableCell className="font-medium">{truck.plateNumber}</TableCell>
-                            <TableCell>{truck.brand} {truck.model}</TableCell>
-                            <TableCell>{truck.capacityTons} tn</TableCell>
-                            <TableCell>{truck.totalTrips}</TableCell>
-                            <TableCell>{truck.totalWeight} tn</TableCell>
-                            <TableCell>{truck.utilizationPercent.toFixed(1)}%</TableCell>
-                            <TableCell>
-                              <Badge variant="secondary" className={statusConfig[truck.status]?.className}>
-                                {statusConfig[truck.status]?.label || truck.status}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
+  {(Array.isArray(fleetReport?.trucks) ? fleetReport.trucks : [])
+    .slice(0, 10)
+    .map((truck) => (
+      <TableRow key={truck.id}>
+        <TableCell className="font-medium">{truck.plateNumber}</TableCell>
+        <TableCell>{truck.brand} {truck.model}</TableCell>
+        <TableCell>{truck.capacityTons ?? 0} tn</TableCell>
+        <TableCell>{truck.totalTrips ?? 0}</TableCell>
+        <TableCell>{truck.totalWeight ?? 0} tn</TableCell>
+        <TableCell>
+          {(truck.utilizationPercent ?? 0).toFixed(1)}%
+        </TableCell>
+        <TableCell>
+          <Badge
+            variant="secondary"
+            className={statusConfig[truck.status]?.className}
+          >
+            {statusConfig[truck.status]?.label || truck.status}
+          </Badge>
+        </TableCell>
+      </TableRow>
+    ))}
+</TableBody>
                     </Table>
                   </div>
                 </CardContent>
@@ -665,7 +684,7 @@ export default function ReportesPage() {
                 </Card>
                 <Card>
                   <CardContent className="p-4">
-                    <div className="text-2xl font-bold">{bordersReport.avgDurationOverall.toFixed(1)}h</div>
+                    <div className="text-2xl font-bold">{bordersReport?.avgDurationOverall?.toFixed(1) ?? "0.0"}h</div>
                     <div className="text-sm text-gray-500">Tiempo Promedio</div>
                   </CardContent>
                 </Card>
@@ -677,7 +696,7 @@ export default function ReportesPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {bordersReport.borders.map((border) => (
+                    {(bordersReport?.borders ?? []).map((border) => (
                       <div key={border.borderName} className="p-4 border rounded-lg">
                         <div className="flex items-center justify-between mb-3">
                           <h3 className="font-medium">{border.borderName}</h3>
