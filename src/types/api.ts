@@ -1276,3 +1276,447 @@ export interface BorderReport {
   avgDurationHours: number;
   borders: BorderReportItem[];
 }
+
+// ============ Sprint 7: Assets, Liabilities, Maintenance, Sanctions, Driver History ============
+
+// ============ Asset (Activos) Types ============
+export type AssetCategory = 'VEHICLE' | 'EQUIPMENT' | 'FURNITURE' | 'REAL_ESTATE' | 'OTHER';
+export type AssetStatus = 'ACTIVE' | 'DEPRECIATED' | 'SOLD' | 'DISPOSED';
+
+export interface Asset {
+  id: string;
+  name: string;
+  category: AssetCategory;
+  description?: string;
+  acquisitionDate: string;
+  acquisitionCost: number;
+  currentValue: number;
+  depreciationRate: number;
+  depreciationMethod?: string;
+  usefulLifeYears?: number;
+  residualValue?: number;
+  location?: string;
+  responsiblePerson?: string;
+  invoiceNumber?: string;
+  supplier?: string;
+  status: AssetStatus;
+  notes?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAssetInput {
+  name: string;
+  category: AssetCategory;
+  description?: string;
+  acquisitionDate: string;
+  acquisitionCost: number;
+  depreciationRate?: number;
+  depreciationMethod?: string;
+  usefulLifeYears?: number;
+  residualValue?: number;
+  location?: string;
+  responsiblePerson?: string;
+  invoiceNumber?: string;
+  supplier?: string;
+  notes?: string;
+}
+
+export interface UpdateAssetInput {
+  name?: string;
+  category?: AssetCategory;
+  description?: string;
+  acquisitionDate?: string;
+  acquisitionCost?: number;
+  depreciationRate?: number;
+  depreciationMethod?: string;
+  usefulLifeYears?: number;
+  residualValue?: number;
+  location?: string;
+  responsiblePerson?: string;
+  invoiceNumber?: string;
+  supplier?: string;
+  notes?: string;
+}
+
+export interface AssetListParams extends PaginationParams {
+  category?: AssetCategory;
+  status?: AssetStatus;
+  isActive?: boolean;
+}
+
+export interface AssetStats {
+  total: number;
+  totalValue: number;
+  totalDepreciation: number;
+  byCategory: Record<AssetCategory, { count: number; value: number }>;
+  byStatus: Record<AssetStatus, number>;
+}
+
+export interface AssetCategoryOption {
+  value: AssetCategory;
+  label: string;
+}
+
+// ============ Liability (Pasivos) Types ============
+export type LiabilityType = 'LOAN' | 'MORTGAGE' | 'CREDIT' | 'OTHER';
+export type LiabilityStatus = 'ACTIVE' | 'PAID' | 'DEFAULTED' | 'RESTRUCTURED';
+
+export interface Liability {
+  id: string;
+  name: string;
+  type: LiabilityType;
+  description?: string;
+  lender: string;
+  principalAmount: number;
+  currentBalance: number;
+  interestRate: number;
+  interestType?: string;
+  startDate: string;
+  dueDate: string;
+  monthlyPayment?: number;
+  totalPayments?: number;
+  paymentsMade?: number;
+  remainingPayments?: number;
+  collateral?: string;
+  status: LiabilityStatus;
+  notes?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateLiabilityInput {
+  name: string;
+  type: LiabilityType;
+  description?: string;
+  lender: string;
+  principalAmount: number;
+  interestRate: number;
+  interestType?: string;
+  startDate: string;
+  dueDate: string;
+  monthlyPayment?: number;
+  totalPayments?: number;
+  collateral?: string;
+  notes?: string;
+}
+
+export interface UpdateLiabilityInput {
+  name?: string;
+  type?: LiabilityType;
+  description?: string;
+  lender?: string;
+  principalAmount?: number;
+  currentBalance?: number;
+  interestRate?: number;
+  interestType?: string;
+  startDate?: string;
+  dueDate?: string;
+  monthlyPayment?: number;
+  totalPayments?: number;
+  collateral?: string;
+  notes?: string;
+}
+
+export interface LiabilityListParams extends PaginationParams {
+  type?: LiabilityType;
+  status?: LiabilityStatus;
+  isActive?: boolean;
+}
+
+export interface LiabilityStats {
+  total: number;
+  totalDebt: number;
+  totalMonthlyPayments: number;
+  byType: Record<LiabilityType, { count: number; amount: number }>;
+  byStatus: Record<LiabilityStatus, number>;
+}
+
+export interface LiabilityPayment {
+  id: string;
+  liabilityId: string;
+  amount: number;
+  paymentDate: string;
+  principalAmount: number;
+  interestAmount: number;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface CreateLiabilityPaymentInput {
+  liabilityId: string;
+  amount: number;
+  paymentDate: string;
+  principalAmount?: number;
+  interestAmount?: number;
+  notes?: string;
+}
+
+export interface LiabilityTypeOption {
+  value: LiabilityType;
+  label: string;
+}
+
+// ============ Maintenance (Mantenimientos) Types ============
+export type MaintenanceType = 'PREVENTIVE' | 'CORRECTIVE' | 'EMERGENCY';
+export type MaintenanceStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+
+export interface Maintenance {
+  id: string;
+  truckId: string;
+  truck?: {
+    id: string;
+    plateNumber: string;
+    brand?: string;
+    model?: string;
+  };
+  type: MaintenanceType;
+  description: string;
+  scheduledDate: string;
+  startedAt?: string;
+  completedAt?: string;
+  cost?: number;
+  mileage?: number;
+  workshop?: string;
+  technician?: string;
+  parts?: MaintenancePart[];
+  status: MaintenanceStatus;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MaintenancePart {
+  name: string;
+  quantity: number;
+  unitCost: number;
+  totalCost: number;
+}
+
+export interface CreateMaintenanceInput {
+  truckId: string;
+  type: MaintenanceType;
+  description: string;
+  scheduledDate: string;
+  cost?: number;
+  mileage?: number;
+  workshop?: string;
+  technician?: string;
+  parts?: MaintenancePart[];
+  notes?: string;
+}
+
+export interface UpdateMaintenanceInput {
+  truckId?: string;
+  type?: MaintenanceType;
+  description?: string;
+  scheduledDate?: string;
+  cost?: number;
+  mileage?: number;
+  workshop?: string;
+  technician?: string;
+  parts?: MaintenancePart[];
+  notes?: string;
+}
+
+export interface MaintenanceListParams extends PaginationParams {
+  truckId?: string;
+  type?: MaintenanceType;
+  status?: MaintenanceStatus;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface MaintenanceStats {
+  total: number;
+  totalCost: number;
+  avgCost: number;
+  byType: Record<MaintenanceType, { count: number; cost: number }>;
+  byStatus: Record<MaintenanceStatus, number>;
+  upcomingCount: number;
+}
+
+export interface UpcomingMaintenance {
+  id: string;
+  truckId: string;
+  truck?: { plateNumber: string };
+  scheduledDate: string;
+  type: MaintenanceType;
+  description: string;
+  daysUntilDue: number;
+}
+
+export interface MaintenanceTypeOption {
+  value: MaintenanceType;
+  label: string;
+}
+
+// ============ Sanction (Sanciones) Types ============
+export type SanctionType = 'WARNING' | 'FINE' | 'SUSPENSION' | 'DISMISSAL';
+export type SanctionStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'APPEALED';
+
+export interface Sanction {
+  id: string;
+  driverId: string;
+  driver?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    fullName: string;
+  };
+  type: SanctionType;
+  description: string;
+  incidentDate: string;
+  severity?: string;
+  fineAmount?: number;
+  suspensionDays?: number;
+  suspensionStartDate?: string;
+  suspensionEndDate?: string;
+  reason?: string;
+  evidenceUrl?: string;
+  status: SanctionStatus;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSanctionInput {
+  driverId: string;
+  type: SanctionType;
+  description: string;
+  incidentDate: string;
+  severity?: string;
+  fineAmount?: number;
+  suspensionDays?: number;
+  suspensionStartDate?: string;
+  suspensionEndDate?: string;
+  reason?: string;
+  evidenceUrl?: string;
+  notes?: string;
+}
+
+export interface UpdateSanctionInput {
+  type?: SanctionType;
+  description?: string;
+  incidentDate?: string;
+  severity?: string;
+  fineAmount?: number;
+  suspensionDays?: number;
+  suspensionStartDate?: string;
+  suspensionEndDate?: string;
+  reason?: string;
+  evidenceUrl?: string;
+  notes?: string;
+}
+
+export interface SanctionListParams extends PaginationParams {
+  driverId?: string;
+  type?: SanctionType;
+  status?: SanctionStatus;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface SanctionStats {
+  total: number;
+  activeCount: number;
+  totalFines: number;
+  byType: Record<SanctionType, number>;
+  byStatus: Record<SanctionStatus, number>;
+}
+
+export interface SanctionTypeOption {
+  value: SanctionType;
+  label: string;
+}
+
+// ============ Driver History (Historial de Conductores) Types ============
+export type DriverEventType = 'INCIDENT' | 'ACCIDENT' | 'AWARD' | 'STATUS_CHANGE' | 'TRAINING';
+
+export interface DriverHistory {
+  id: string;
+  driverId: string;
+  driver?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    fullName: string;
+  };
+  eventType: DriverEventType;
+  title: string;
+  description: string;
+  eventDate: string;
+  severity?: string;
+  location?: string;
+  involvedParties?: string;
+  outcome?: string;
+  attachments?: string[];
+  points?: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDriverHistoryInput {
+  driverId: string;
+  eventType: DriverEventType;
+  title: string;
+  description: string;
+  eventDate: string;
+  severity?: string;
+  location?: string;
+  involvedParties?: string;
+  outcome?: string;
+  attachments?: string[];
+  points?: number;
+  notes?: string;
+}
+
+export interface DriverHistoryListParams extends PaginationParams {
+  driverId?: string;
+  eventType?: DriverEventType;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface DriverHistoryStats {
+  total: number;
+  byEventType: Record<DriverEventType, number>;
+  totalIncidents: number;
+  totalAccidents: number;
+  totalAwards: number;
+  totalTraining: number;
+}
+
+export interface DriverTimeline {
+  driverId: string;
+  driverName: string;
+  events: DriverHistory[];
+  summary: {
+    totalEvents: number;
+    incidents: number;
+    accidents: number;
+    awards: number;
+    trainingCount: number;
+  };
+}
+
+export interface DriverSummary {
+  driverId: string;
+  driverName: string;
+  totalTrips: number;
+  totalWeight: number;
+  avgRating: number;
+  incidents: number;
+  accidents: number;
+  awards: number;
+  trainings: number;
+  sanctions: number;
+}
+
+export interface DriverEventTypeOption {
+  value: DriverEventType;
+  label: string;
+}

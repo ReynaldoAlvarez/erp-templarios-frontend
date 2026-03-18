@@ -26,6 +26,11 @@ import {
   Navigation,
   Flag,
   FileCheck,
+  Building,
+  CreditCard,
+  Wrench,
+  AlertTriangle,
+  History,
 } from 'lucide-react';
 
 import {
@@ -162,6 +167,41 @@ const navigation: NavGroup[] = [
         title: 'Ingresos',
         href: '/dashboard/ingresos',
         icon: TrendingUp,
+      },
+    ],
+  },
+  {
+    title: 'Contabilidad',
+    items: [
+      {
+        title: 'Activos',
+        href: '/dashboard/activos',
+        icon: Building,
+      },
+      {
+        title: 'Pasivos',
+        href: '/dashboard/pasivos',
+        icon: CreditCard,
+      },
+    ],
+  },
+  {
+    title: 'Mantenimiento',
+    items: [
+      {
+        title: 'Mantenimientos',
+        href: '/dashboard/mantenimientos',
+        icon: Wrench,
+      },
+      {
+        title: 'Sanciones',
+        href: '/dashboard/sanciones',
+        icon: AlertTriangle,
+      },
+      {
+        title: 'Historial Conductores',
+        href: '/dashboard/historial',
+        icon: History,
       },
     ],
   },
