@@ -262,3 +262,26 @@ GET  /settlements/calculate/:tripId      - Cálculo automático
 GET  /settlements/pending                - Liquidaciones pendientes
 POST /invoices/calculate                 - Cálculo desde viajes
 ```
+
+---
+## Task ID: Sprint 6 - Dashboard y Reports - Merge Final
+### Agent: Main Agent
+### Task: Merge de Sprint 6 a master
+
+### Work Log:
+- Se identificó que el branch `feature/sprint-6-dashboard-reports` tenía historial no relacionado con master
+- Se creó nuevo branch `feature/sprint-6-dashboard-reports-v2` desde master
+- Se agregaron tipos de Dashboard y Reports a `src/types/api.ts`
+- Se agregaron `dashboardApi` y `reportsApi` a `src/lib/api-client.ts`
+- Se agregaron hooks de Dashboard y Reports a `src/hooks/use-queries.ts`
+- Se trajo la página de Dashboard actualizada con fix de bucle infinito
+- Se trajo la página de Reportes completa
+- Build verificado exitosamente
+- Merge fast-forward completado a master
+
+### Stage Summary:
+- Master actualizado con Sprint 6 completo
+- Dashboard con KPIs, estados, pendientes, resumen financiero
+- Reportes de viajes, financiero, clientes, conductores, flota, fronteras
+- Fix de bucle infinito aplicado correctamente
+- Commit: 51219e0
