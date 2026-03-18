@@ -8,7 +8,7 @@ import axios from 'axios';
 import {
   Search, Plus, MoreHorizontal, Edit, Loader2, ChevronLeft, ChevronRight,
   DollarSign, FileText, Truck, User, Calendar, CheckCircle, Clock, Banknote,
-  AlertTriangle, Calculator, TrendingUp, Receipt,
+  AlertTriangle, Calculator, TrendingUp, Receipt, Info,
 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,10 +23,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { settlementsApi, tripsApi } from '@/lib/api-client';
-import { Settlement, CreateSettlementInput, UpdateSettlementInput, SettlementStatus } from '@/types/api';
+import { Settlement, CreateSettlementInput, UpdateSettlementInput, SettlementStatus, SettlementCalculation } from '@/types/api';
 
 // Form schema
 const settlementSchema = z.object({
@@ -76,6 +77,8 @@ export default function LiquidacionesPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [selectedSettlement, setSelectedSettlement] = useState<Settlement | null>(null);
+  const [calculationResult, setCalculationResult] = useState<SettlementCalculation | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
 
   // Queries
   const { data: settlementsData, isLoading } = useQuery({
@@ -208,6 +211,32 @@ export default function LiquidacionesPage() {
       notes: settlement.notes || '',
     });
     setIsEditOpen(true);
+  };
+
+  // Handle calculate from trip
+  const handleCalculateFromTrip = async () => {
+    const tripId = createForm.getValues('tripId');
+    if (!tripId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Seleccione un viaje primero.' });
+      return;
+    }
+
+    setIsCalculating(true);
+    try {
+      const result = await settlementsApi.calculateFromTrip(tripId);
+      setCalculationResult(result);
+      
+      // Auto-fill form fields based on calculation
+      createForm.setValue('freightBob', result.grossAmount);
+      createForm.setValue('taxIt3Percent', result.itAmount);
+      createForm.setValue('retention7Percent', result.retentionAmount);
+      
+      toast({ title: 'Cálculo completado', description: 'Los valores han sido auto-completados.' });
+    } catch (error: unknown) {
+      toast({ variant: 'destructive', title: 'Error al calcular', description: getErrorMessage(error, 'No se pudo calcular la liquidación.') });
+    } finally {
+      setIsCalculating(false);
+    }
   };
 
   // Pagination
@@ -383,7 +412,10 @@ export default function LiquidacionesPage() {
       </Card>
 
       {/* Create Dialog */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+      <Dialog open={isCreateOpen} onOpenChange={(open) => { 
+        setIsCreateOpen(open); 
+        if (!open) setCalculationResult(null);
+      }}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Crear Liquidación</DialogTitle>
@@ -393,19 +425,53 @@ export default function LiquidacionesPage() {
             <Controller name="tripId" control={createForm.control} render={({ field, fieldState }) => (
               <div className="space-y-2">
                 <Label>Viaje *</Label>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger className={fieldState.invalid ? 'border-red-500' : ''}>
-                    <SelectValue placeholder="Seleccionar viaje" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tripsList.map((trip) => (
-                      <SelectItem key={trip.id} value={trip.id}>{trip.micDta} - {trip.billOfLading?.blNumber}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <Select value={field.value} onValueChange={(value) => { field.onChange(value); setCalculationResult(null); }}>
+                    <SelectTrigger className={`flex-1 ${fieldState.invalid ? 'border-red-500' : ''}`}>
+                      <SelectValue placeholder="Seleccionar viaje" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tripsList.map((trip) => (
+                        <SelectItem key={trip.id} value={trip.id}>{trip.micDta} - {trip.billOfLading?.blNumber}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={handleCalculateFromTrip}
+                    disabled={isCalculating || !field.value}
+                    className="shrink-0"
+                  >
+                    {isCalculating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Calculator className="h-4 w-4" />}
+                    <span className="ml-2 hidden sm:inline">Calcular</span>
+                  </Button>
+                </div>
                 {fieldState.error && <p className="text-sm text-red-500">{fieldState.error.message}</p>}
               </div>
             )} />
+            
+            {/* Calculation Preview */}
+            {calculationResult && (
+              <Alert className="bg-[#1B3F66]/5 border-[#1B3F66]/20">
+                <Info className="h-4 w-4 text-[#1B3F66]" />
+                <AlertDescription>
+                  <div className="space-y-1">
+                    <p className="font-medium text-[#1B3F66]">Vista previa del cálculo:</p>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <span className="text-gray-600">Monto Bruto:</span>
+                      <span className="font-medium">{formatCurrency(calculationResult.grossAmount)}</span>
+                      <span className="text-gray-600">IT 3%:</span>
+                      <span className="font-medium">{formatCurrency(calculationResult.itAmount)}</span>
+                      <span className="text-gray-600">Retención 7%:</span>
+                      <span className="font-medium">{formatCurrency(calculationResult.retentionAmount)}</span>
+                      <span className="text-gray-600 font-semibold">Pago Neto:</span>
+                      <span className="font-bold text-[#1B3F66]">{formatCurrency(calculationResult.netAmount)}</span>
+                    </div>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="grid grid-cols-3 gap-4">
               <Controller name="freightUsd" control={createForm.control} render={({ field, fieldState }) => (
                 <div className="space-y-2">

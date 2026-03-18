@@ -1,6 +1,81 @@
 # TEMPLARIOS S.R.L. - ERP Development Worklog
 
 ---
+## Task ID: Sprint 4 Frontend Automation - Auto-Calculation Features
+### Work Task
+Implement automatic calculation features for Liquidaciones and Facturas pages using new API endpoints.
+
+### Work Summary
+
+#### 1. Liquidaciones Page (`src/app/(auth)/dashboard/liquidaciones/page.tsx`)
+**Added Features:**
+- Added "Calcular" button next to the trip selector in create dialog
+- When clicked, calls `settlementsApi.calculateFromTrip(tripId)`
+- Auto-fills form fields with calculated values:
+  - `freightBob` = grossAmount
+  - `taxIt3Percent` = itAmount (IT 3%)
+  - `retention7Percent` = retentionAmount (Retention 7%)
+- Shows calculation preview in an Alert component with:
+  - Monto Bruto (Gross Amount)
+  - IT 3%
+  - Retención 7%
+  - Pago Neto (Net Payment)
+- Handles loading states and errors properly
+- Clears calculation when trip changes
+
+**New State Variables:**
+- `calculationResult: SettlementCalculation | null`
+- `isCalculating: boolean`
+
+**New Imports:**
+- `Info` icon from lucide-react
+- `Alert, AlertDescription` from '@/components/ui/alert'
+- `SettlementCalculation` type from '@/types/api'
+
+#### 2. Facturas Page (`src/app/(auth)/dashboard/facturas/page.tsx`)
+**Added Features:**
+- Multi-select for trips in create dialog using Checkbox components in a ScrollArea
+- Each trip displays: MIC/DTA, BL Number, Driver name, Client name
+- "Calcular desde Viajes" button to trigger calculation
+- When clicked, calls `invoicesApi.calculateFromTrips(selectedTripIds)`
+- Auto-fills:
+  - `clientId` from calculation result
+  - `totalAmount` = subtotal
+- Shows calculation summary in Alert component with:
+  - Client name
+  - Trip count
+  - Total weight
+  - Total amount
+- Validates and shows errors for:
+  - Trips from different clients
+  - Trips not all delivered (DELIVERED status)
+- Passes `tripIds` (selectedTripIds) to the create mutation
+
+**New State Variables:**
+- `selectedTripIds: string[]`
+- `calculationResult: InvoiceCalculation | null`
+- `isCalculating: boolean`
+- `calculationError: string | null`
+
+**New Imports:**
+- `Calculator, Info, Truck` icons from lucide-react
+- `Checkbox` from '@/components/ui/checkbox'
+- `Alert, AlertDescription` from '@/components/ui/alert'
+- `ScrollArea` from '@/components/ui/scroll-area'
+- `InvoiceCalculation, Trip` types from '@/types/api'
+
+#### 3. Lint Check
+- Ran `bun run lint`
+- Pre-existing error in `src/hooks/use-auth.ts` (unrelated to changes)
+- No new lint errors introduced by the changes
+
+### UI/UX Consistency
+- Used corporate color #1B3F66 for primary buttons and accents
+- Used shadcn/ui components (Alert, Button, Checkbox, ScrollArea, Badge)
+- Maintained existing form styling and layout patterns
+- Responsive design maintained
+
+---
 ## Task ID: Sprint 3 - Clientes y BLs - Main Agent
 ### Work Task
 Implementación del Sprint 3: Módulo de Clientes y Bill of Lading (BLs)

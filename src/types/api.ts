@@ -923,3 +923,47 @@ export interface UpdateRouteInput {
   rate?: number;
   durationHours?: number;
 }
+
+// ============ Calculation Types (Sprint 4 Automation) ============
+
+// Settlement calculation response
+export interface SettlementCalculation {
+  tripId: string;
+  tripNumber?: string;
+  grossAmount: number;
+  itPercentage: number;
+  itAmount: number;
+  retentionPercentage: number;
+  retentionAmount: number;
+  netAmount: number;
+  calculations: {
+    formula: string;
+    itFormula: string;
+    retentionFormula: string;
+  };
+}
+
+// Invoice calculation response
+export interface InvoiceCalculation {
+  clientId: string;
+  clientName: string;
+  tripIds: string[];
+  totalWeight: number;
+  subtotal: number;
+  calculations: {
+    tripCount: number;
+    allDelivered: boolean;
+    sameClient: boolean;
+  };
+}
+
+// Invoice calculation input
+export interface CalculateInvoiceInput {
+  tripIds: string[];
+}
+
+// Border names list response
+export interface BorderName {
+  name: string;
+  count?: number;
+}

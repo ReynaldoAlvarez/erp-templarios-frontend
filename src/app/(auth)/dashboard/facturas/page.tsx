@@ -8,13 +8,14 @@ import axios from 'axios';
 import {
   Search, Plus, MoreHorizontal, Edit, Loader2, ChevronLeft, ChevronRight,
   Receipt, CheckCircle, Clock, XCircle, Send, DollarSign, Building, FileText,
-  TrendingUp, CreditCard, AlertTriangle,
+  TrendingUp, CreditCard, AlertTriangle, Calculator, Info, Truck,
 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -23,10 +24,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { invoicesApi, clientesApi, tripsApi } from '@/lib/api-client';
-import { Invoice, CreateInvoiceInput, UpdateInvoiceInput, InvoiceStatus } from '@/types/api';
+import { Invoice, CreateInvoiceInput, UpdateInvoiceInput, InvoiceStatus, InvoiceCalculation, Trip } from '@/types/api';
 
 // Form schema
 const invoiceSchema = z.object({
@@ -82,6 +85,10 @@ export default function FacturasPage() {
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [cancelReason, setCancelReason] = useState('');
+  const [selectedTripIds, setSelectedTripIds] = useState<string[]>([]);
+  const [calculationResult, setCalculationResult] = useState<InvoiceCalculation | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [calculationError, setCalculationError] = useState<string | null>(null);
 
   // Queries
   const { data: invoicesData, isLoading } = useQuery({
@@ -199,7 +206,7 @@ export default function FacturasPage() {
       amountUsd: data.amountUsd,
       exchangeRate: data.exchangeRate,
       notes: data.notes || undefined,
-      tripIds: data.tripIds,
+      tripIds: selectedTripIds,
     });
   };
 
@@ -232,6 +239,51 @@ export default function FacturasPage() {
       tripIds: invoice.invoiceTrips?.map(it => it.trip.id) || [],
     });
     setIsEditOpen(true);
+  };
+
+  // Toggle trip selection
+  const toggleTripSelection = (tripId: string) => {
+    setSelectedTripIds(prev => {
+      if (prev.includes(tripId)) {
+        return prev.filter(id => id !== tripId);
+      }
+      return [...prev, tripId];
+    });
+    setCalculationResult(null);
+    setCalculationError(null);
+  };
+
+  // Handle calculate from trips
+  const handleCalculateFromTrips = async () => {
+    if (selectedTripIds.length === 0) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Seleccione al menos un viaje.' });
+      return;
+    }
+
+    setIsCalculating(true);
+    setCalculationError(null);
+    try {
+      const result = await invoicesApi.calculateFromTrips(selectedTripIds);
+      setCalculationResult(result);
+      
+      // Check for validation issues
+      if (!result.calculations.sameClient) {
+        setCalculationError('Los viajes seleccionados pertenecen a diferentes clientes.');
+      } else if (!result.calculations.allDelivered) {
+        setCalculationError('No todos los viajes seleccionados están entregados (DELIVERED).');
+      } else {
+        // Auto-fill client and total amount
+        createForm.setValue('clientId', result.clientId);
+        createForm.setValue('totalAmount', result.subtotal);
+        toast({ title: 'Cálculo completado', description: `Cliente: ${result.clientName}, Total: ${formatCurrency(result.subtotal)}` });
+      }
+    } catch (error: unknown) {
+      const errorMsg = getErrorMessage(error, 'No se pudo calcular la factura.');
+      setCalculationError(errorMsg);
+      toast({ variant: 'destructive', title: 'Error al calcular', description: errorMsg });
+    } finally {
+      setIsCalculating(false);
+    }
   };
 
   // Pagination
@@ -434,13 +486,108 @@ export default function FacturasPage() {
       </Card>
 
       {/* Create Dialog */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <Dialog open={isCreateOpen} onOpenChange={(open) => { 
+        setIsCreateOpen(open);
+        if (!open) {
+          setSelectedTripIds([]);
+          setCalculationResult(null);
+          setCalculationError(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Crear Factura</DialogTitle>
             <DialogDescription>Ingresa los datos de la factura</DialogDescription>
           </DialogHeader>
           <form onSubmit={createForm.handleSubmit(handleCreate)} className="space-y-4 py-4">
+            {/* Trip Selection Section */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-semibold">Seleccionar Viajes</Label>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleCalculateFromTrips}
+                  disabled={isCalculating || selectedTripIds.length === 0}
+                  className="bg-[#1B3F66]/10 hover:bg-[#1B3F66]/20 text-[#1B3F66] border-[#1B3F66]/30"
+                >
+                  {isCalculating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Calculator className="h-4 w-4" />}
+                  <span className="ml-2">Calcular desde Viajes</span>
+                </Button>
+              </div>
+              
+              {selectedTripIds.length > 0 && (
+                <p className="text-sm text-gray-500">{selectedTripIds.length} viaje(s) seleccionado(s)</p>
+              )}
+              
+              <ScrollArea className="h-48 w-full rounded-md border">
+                <div className="p-2 space-y-1">
+                  {tripsList.length === 0 ? (
+                    <p className="text-center text-gray-500 py-4">No hay viajes entregados disponibles</p>
+                  ) : (
+                    tripsList.map((trip) => (
+                      <div 
+                        key={trip.id} 
+                        className="flex items-center space-x-3 p-2 rounded hover:bg-gray-50 cursor-pointer"
+                        onClick={() => toggleTripSelection(trip.id)}
+                      >
+                        <Checkbox 
+                          id={`trip-${trip.id}`}
+                          checked={selectedTripIds.includes(trip.id)}
+                          onCheckedChange={() => toggleTripSelection(trip.id)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <Truck className="h-4 w-4 text-gray-400" />
+                            <span className="font-medium text-sm truncate">{trip.micDta}</span>
+                            {trip.billOfLading?.blNumber && (
+                              <Badge variant="secondary" className="text-xs">{trip.billOfLading.blNumber}</Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <span>{trip.driver?.fullName || `${trip.driver?.firstName || ''} ${trip.driver?.lastName || ''}`}</span>
+                            <span>•</span>
+                            <span>{trip.billOfLading?.client?.businessName || '-'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+
+            {/* Calculation Error */}
+            {calculationError && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>{calculationError}</AlertDescription>
+              </Alert>
+            )}
+
+            {/* Calculation Result */}
+            {calculationResult && !calculationError && (
+              <Alert className="bg-[#1B3F66]/5 border-[#1B3F66]/20">
+                <Info className="h-4 w-4 text-[#1B3F66]" />
+                <AlertDescription>
+                  <div className="space-y-1">
+                    <p className="font-medium text-[#1B3F66]">Resumen del cálculo:</p>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <span className="text-gray-600">Cliente:</span>
+                      <span className="font-medium">{calculationResult.clientName}</span>
+                      <span className="text-gray-600">Viajes:</span>
+                      <span className="font-medium">{calculationResult.calculations.tripCount}</span>
+                      <span className="text-gray-600">Peso Total:</span>
+                      <span className="font-medium">{calculationResult.totalWeight.toLocaleString('es-BO')} kg</span>
+                      <span className="text-gray-600 font-semibold">Monto Total:</span>
+                      <span className="font-bold text-[#1B3F66]">{formatCurrency(calculationResult.subtotal)}</span>
+                    </div>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <Controller name="invoiceNumber" control={createForm.control} render={({ field, fieldState }) => (
                 <div className="space-y-2">

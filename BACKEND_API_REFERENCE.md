@@ -407,10 +407,21 @@ interface Driver {
 - `DELIVERED` - Entregado
 - `CANCELLED` - Cancelado
 
+> **🔄 Automatización de Estados:**
+> - `SCHEDULED → IN_TRANSIT`: El camión cambia a `IN_TRANSIT`, el conductor queda no disponible, y el remolque se asigna temporalmente.
+> - `IN_TRANSIT → AT_BORDER`: Se crea automáticamente un BorderCrossing.
+> - `AT_BORDER → IN_TRANSIT`: Al registrar salida del cruce fronterizo.
+> - `* → DELIVERED`: El camión vuelve a `AVAILABLE`, el conductor queda disponible.
+> - `* → CANCELLED`: Todos los recursos quedan disponibles.
+
+> **⚠️ Validación:** No se puede crear un viaje si los recursos (camión, conductor, remolque) están ocupados en otro viaje activo.
+
 ### Border Crossings (Crucés de Frontera)
 
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
+| GET | `/border-crossings` | Listar cruces (paginado) 🆕 |
+| GET | `/border-crossings/names` | Lista de nombres de fronteras 🆕 |
 | GET | `/border-crossings/active` | Fronteras activas |
 | GET | `/border-crossings/stats` | Estadísticas |
 | GET | `/border-crossings/trip/:tripId` | Cruces por viaje |
@@ -420,10 +431,39 @@ interface Driver {
 | POST | `/border-crossings/:id/exit` | Registrar salida |
 | POST | `/border-crossings/:id/channel` | Cambiar canal |
 
+**Estructura BorderCrossing:**
+```typescript
+interface BorderCrossing {
+  id: string;
+  tripId: string;
+  borderName: string;         // Nombre de la frontera
+  entryTime?: string;         // Fecha/hora de entrada
+  exitTime?: string;          // Fecha/hora de salida
+  channel?: 'GREEN' | 'YELLOW' | 'RED';
+  notes?: string;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  trip?: {
+    id: string;
+    tripNumber: string;
+    driver?: { fullName: string };
+    truck?: { plateNumber: string };
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+**Filtros disponibles (GET /border-crossings):**
+- `page`, `limit` - Paginación
+- `borderName` - Filtrar por nombre de frontera
+- `status` - Filtrar por estado
+
 **Canales:**
 - `GREEN` - Verde (sin inspección)
 - `YELLOW` - Amarillo (revisión documental)
 - `RED` - Rojo (inspección física)
+
+> **🔄 Automatización:** Cuando un viaje cambia a estado `AT_BORDER`, se crea automáticamente un BorderCrossing. Al registrar la salida, el viaje vuelve a `IN_TRANSIT`.
 
 ### Documents (Documentos)
 
@@ -459,12 +499,64 @@ interface Driver {
 | GET | `/settlements` | Listar liquidaciones |
 | GET | `/settlements/pending` | Liquidaciones pendientes |
 | GET | `/settlements/stats` | Estadísticas |
+| GET | `/settlements/calculate/:tripId` | Calcular liquidación automáticamente 🆕 |
 | GET | `/settlements/trip/:tripId` | Liquidación por viaje |
 | GET | `/settlements/:id` | Obtener liquidación |
 | POST | `/settlements` | Crear liquidación |
 | PUT | `/settlements/:id` | Actualizar liquidación |
 | POST | `/settlements/:id/approve` | Aprobar liquidación |
 | POST | `/settlements/:id/pay` | Marcar como pagada |
+
+**Estructura Settlement:**
+```typescript
+interface Settlement {
+  id: string;
+  tripId: string;
+  driverId: string;
+  grossAmount: string;        // Monto bruto
+  itPercentage: number;       // Porcentaje IT (default: 3%)
+  itAmount: string;           // Monto IT
+  retentionPercentage: number; // Porcentaje retención (default: 7%)
+  retentionAmount: string;    // Monto retención
+  netAmount: string;          // Monto neto a pagar
+  status: 'PENDING' | 'APPROVED' | 'PAID' | 'CANCELLED';
+  notes?: string;
+  trip?: {
+    id: string;
+    tripNumber: string;
+    weight: string;
+    client?: { businessName: string };
+  };
+  driver?: {
+    id: string;
+    fullName: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+**Respuesta de GET /settlements/calculate/:tripId:**
+```json
+{
+  "success": true,
+  "data": {
+    "tripId": "uuid",
+    "tripNumber": "VIA-001",
+    "grossAmount": 5000,
+    "itPercentage": 3,
+    "itAmount": 150,
+    "retentionPercentage": 7,
+    "retentionAmount": 350,
+    "netAmount": 4500,
+    "calculations": {
+      "formula": "grossAmount - itAmount - retentionAmount = netAmount",
+      "itFormula": "grossAmount * (itPercentage / 100)",
+      "retentionFormula": "grossAmount * (retentionPercentage / 100)"
+    }
+  }
+}
+```
 
 **Estados:**
 - `PENDING` - Pendiente
@@ -483,12 +575,74 @@ interface Driver {
 | GET | `/invoices/number/:invoiceNumber` | Por número |
 | GET | `/invoices/:id` | Obtener factura |
 | POST | `/invoices` | Crear factura |
+| POST | `/invoices/calculate` | Calcular factura desde múltiples viajes 🆕 |
 | PUT | `/invoices/:id` | Actualizar factura |
 | POST | `/invoices/:id/approve` | Emitir factura |
 | POST | `/invoices/:id/pay` | Marcar como pagada |
 | POST | `/invoices/:id/cancel` | Cancelar factura |
 | POST | `/invoices/:invoiceId/trips` | Agregar viaje |
 | DELETE | `/invoices/:invoiceId/trips/:tripId` | Remover viaje |
+
+**Estructura Invoice:**
+```typescript
+interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  clientId: string;
+  totalAmount: string;
+  taxAmount?: string;
+  status: 'DRAFT' | 'ISSUED' | 'PAID' | 'CANCELLED';
+  issueDate?: string;
+  dueDate?: string;
+  notes?: string;
+  client?: {
+    id: string;
+    businessName: string;
+    nit: string;
+  };
+  trips?: Trip[];
+  tripIds?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+**Body de POST /invoices/calculate:**
+```json
+{
+  "tripIds": ["uuid-1", "uuid-2", "uuid-3"]
+}
+```
+
+**Respuesta de POST /invoices/calculate:**
+```json
+{
+  "success": true,
+  "data": {
+    "clientId": "uuid",
+    "clientName": "EMPRESA S.R.L.",
+    "tripIds": ["uuid-1", "uuid-2"],
+    "totalWeight": 45000,
+    "subtotal": 15000,
+    "calculations": {
+      "tripCount": 2,
+      "allDelivered": true,
+      "sameClient": true
+    }
+  }
+}
+```
+
+> **⚠️ Validaciones para calcular factura:**
+> - Todos los viajes deben pertenecer al mismo cliente
+> - Todos los viajes deben estar en estado `DELIVERED`
+> - Retorna error si no se cumplen las validaciones
+
+**Estados:**
+- `DRAFT` - Borrador
+- `ISSUED` - Emitida
+- `PAID` - Pagada
+- `CANCELLED` - Cancelada
 
 ---
 

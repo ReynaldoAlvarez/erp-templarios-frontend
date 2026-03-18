@@ -1064,6 +1064,12 @@ export const settlementsApi = {
     const response = await api.get<{ data: import('@/types/api').SettlementStats }>('/settlements/stats', params);
     return response.data.data;
   },
+
+  // 🆕 Sprint 4 Automation - Calculate settlement from trip
+  calculateFromTrip: async (tripId: string): Promise<import('@/types/api').SettlementCalculation> => {
+    const response = await api.get<{ data: import('@/types/api').SettlementCalculation }>(`/settlements/calculate/${tripId}`);
+    return response.data.data;
+  },
 };
 
 // ==========================================
@@ -1153,6 +1159,12 @@ export const invoicesApi = {
     const response = await api.get<{ data: import('@/types/api').Invoice[] }>('/invoices/search', { q: query });
     return response.data.data;
   },
+
+  // 🆕 Sprint 4 Automation - Calculate invoice from multiple trips
+  calculateFromTrips: async (tripIds: string[]): Promise<import('@/types/api').InvoiceCalculation> => {
+    const response = await api.post<{ data: import('@/types/api').InvoiceCalculation }>('/invoices/calculate', { tripIds });
+    return response.data.data;
+  },
 };
 
 // ==========================================
@@ -1201,6 +1213,12 @@ export const borderCrossingsApi = {
 
   getActive: async (): Promise<import('@/types/api').BorderCrossing[]> => {
     const response = await api.get<{ data: import('@/types/api').BorderCrossing[] }>('/border-crossings/active');
+    return response.data.data;
+  },
+
+  // 🆕 Sprint 4 Automation - Get border names for dropdowns
+  getBorderNames: async (): Promise<import('@/types/api').BorderName[]> => {
+    const response = await api.get<{ data: import('@/types/api').BorderName[] }>('/border-crossings/names');
     return response.data.data;
   },
 
