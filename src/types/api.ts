@@ -545,3 +545,425 @@ export interface ExpenseStats {
   byCategory: Record<ExpenseCategory, number>;
   count: number;
 }
+
+// ============ Trip Types ============
+export type TripStatus = 'SCHEDULED' | 'IN_TRANSIT' | 'AT_BORDER' | 'DELIVERED' | 'CANCELLED';
+
+export interface Trip {
+  id: string;
+  micDta: string;
+  departureDate: string;
+  arrivalDate?: string | null;
+  billOfLadingId: string;
+  truckId: string;
+  driverId: string;
+  trailerId?: string | null;
+  weight: string;  // STRING del backend
+  ratePerTon?: string;  // STRING del backend
+  notes?: string;
+  status: TripStatus;
+  billOfLading?: {
+    id: string;
+    blNumber: string;
+    client?: { id: string; businessName: string };
+  };
+  truck?: { id: string; plateNumber: string; brand?: string; model?: string };
+  driver?: {
+    id: string;
+    employeeId?: string;
+    licenseNumber: string;
+    licenseCategory: string;
+    licenseExpiryDate: string;
+    contractType: 'MONTHLY' | 'TRIP';
+    isAvailable: boolean;
+    rating?: string;
+    totalTrips: number;
+    isActive: boolean;
+    employee?: {
+      firstName: string;
+      lastName: string;
+    };
+    firstName?: string;
+    lastName?: string;
+    fullName?: string;
+    phone?: string;
+  };
+  trailer?: { id: string; plateNumber: string; type: string };
+  routes?: Route[];
+  borderCrossingsCount?: number;
+  documentsCount?: number;
+  routesCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTripInput {
+  micDta: string;
+  departureDate: string;
+  arrivalDate?: string;
+  billOfLadingId: string;
+  truckId: string;
+  driverId: string;
+  trailerId?: string;
+  weight: number;
+  ratePerTon?: number;
+  notes?: string;
+}
+
+export interface UpdateTripInput {
+  micDta?: string;
+  departureDate?: string;
+  arrivalDate?: string;
+  truckId?: string;
+  driverId?: string;
+  trailerId?: string;
+  weight?: number;
+  ratePerTon?: number;
+  notes?: string;
+}
+
+export interface TripListParams extends PaginationParams {
+  status?: TripStatus;
+  blId?: string;
+  driverId?: string;
+  truckId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface TripStats {
+  total: number;
+  byStatus: Record<TripStatus, number>;
+  totalWeight: number;
+}
+
+// Available Resources for Trip Creation
+export interface AvailableResources {
+  trucks: Array<{ id: string; plateNumber: string; brand: string; model: string; capacityTons: number }>;
+  drivers: Array<{ id: string; licenseNumber: string; firstName: string; lastName: string; fullName: string }>;
+  trailers: Array<{ id: string; plateNumber: string; type: string; capacityTons: number }>;
+}
+
+// ============ Document Types ============
+export type DocumentStatus = 'PENDING' | 'RECEIVED' | 'VERIFIED';
+
+export interface TripDocument {
+  id: string;
+  tripId: string;
+  documentType: string;
+  documentNumber?: string;
+  documentDate: string;
+  status: DocumentStatus;
+  fileUrl?: string;
+  isLocalFile: boolean;
+  notes?: string;
+  receivedById?: string;
+  receivedAt?: string;
+  trip?: {
+    id: string;
+    micDta: string;
+    billOfLading?: { blNumber: string };
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDocumentInput {
+  tripId: string;
+  documentType: string;
+  documentNumber?: string;
+  documentDate?: string;
+  fileUrl?: string;
+  isLocalFile?: boolean;
+  notes?: string;
+}
+
+export interface UpdateDocumentInput {
+  documentType?: string;
+  documentNumber?: string;
+  documentDate?: string;
+  fileUrl?: string;
+  isLocalFile?: boolean;
+  notes?: string;
+}
+
+export interface DocumentListParams extends PaginationParams {
+  tripId?: string;
+  status?: DocumentStatus;
+  documentType?: string;
+}
+
+export interface DocumentStats {
+  total: number;
+  pending: number;
+  byStatus: Record<DocumentStatus, number>;
+}
+
+// ============ Settlement Types ============
+export type SettlementStatus = 'PENDING' | 'APPROVED' | 'PAID';
+
+export interface Settlement {
+  id: string;
+  tripId: string;
+  freightUsd: number;
+  freightBob: number;
+  exchangeRate: number;
+  pricePerTon: number;
+  taxIt3Percent: number;
+  retention7Percent: number;
+  externalCommission?: number;
+  advance: number;
+  netPayment: number;
+  status: SettlementStatus;
+  approvedById?: string;
+  approvedAt?: string;
+  paidById?: string;
+  paidAt?: string;
+  notes?: string;
+  trip?: {
+    id: string;
+    micDta?: string;
+    billOfLading?: { blNumber: string };
+    driver?: { firstName?: string; lastName?: string; fullName?: string };
+    truck?: { plateNumber: string };
+  };
+  approvedBy?: { firstName: string; lastName: string };
+  paidBy?: { firstName: string; lastName: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSettlementInput {
+  tripId: string;
+  freightUsd: number;
+  freightBob: number;
+  exchangeRate: number;
+  pricePerTon: number;
+  taxIt3Percent: number;
+  retention7Percent: number;
+  externalCommission?: number;
+  advance?: number;
+  notes?: string;
+}
+
+export interface UpdateSettlementInput {
+  freightUsd?: number;
+  freightBob?: number;
+  exchangeRate?: number;
+  pricePerTon?: number;
+  taxIt3Percent?: number;
+  retention7Percent?: number;
+  externalCommission?: number;
+  advance?: number;
+  notes?: string;
+}
+
+export interface SettlementListParams extends PaginationParams {
+  status?: SettlementStatus;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface SettlementStats {
+  total: number;
+  byStatus: Record<SettlementStatus, { count: number; total: number }>;
+  totals: {
+    freightBob: number;
+    taxIt3: number;
+    retention: number;
+    netPayment: number;
+  };
+}
+
+// ============ Invoice Types ============
+export type InvoiceStatus = 'PENDING' | 'ISSUED' | 'PAID' | 'CANCELLED';
+
+export interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  clientId: string;
+  invoiceDate: string;
+  totalAmount: number;
+  amountUsd?: number;
+  exchangeRate?: number;
+  status: InvoiceStatus;
+  approvedById?: string;
+  approvedAt?: string;
+  issuedAt?: string;
+  paidAt?: string;
+  notes?: string;
+  client?: { id: string; businessName: string; nit: string };
+  approvedBy?: { firstName: string; lastName: string };
+  invoiceTrips?: Array<{
+    trip: {
+      id: string;
+      micDta?: string;
+      billOfLading?: { blNumber: string };
+    };
+  }>;
+  tripsCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateInvoiceInput {
+  invoiceNumber: string;
+  clientId: string;
+  invoiceDate?: string;
+  totalAmount: number;
+  amountUsd?: number;
+  exchangeRate?: number;
+  notes?: string;
+  tripIds?: string[];
+}
+
+export interface UpdateInvoiceInput {
+  invoiceNumber?: string;
+  clientId?: string;
+  invoiceDate?: string;
+  totalAmount?: number;
+  amountUsd?: number;
+  exchangeRate?: number;
+  notes?: string;
+  tripIds?: string[];
+}
+
+export interface InvoiceListParams extends PaginationParams {
+  status?: InvoiceStatus;
+  clientId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface InvoiceStats {
+  total: number;
+  byStatus: Record<InvoiceStatus, { count: number; total: number }>;
+  totalAmount: number;
+}
+
+// ============ Border Crossing Types ============
+export type BorderChannel = 'GREEN' | 'YELLOW' | 'RED';
+
+export interface BorderChannelHistory {
+  id: string;
+  borderCrossingId: string;
+  channel: BorderChannel;
+  changedAt: string;
+  reason?: string;
+  notes?: string;
+  responsible?: string;
+}
+
+export interface BorderCrossing {
+  id: string;
+  tripId: string;
+  borderName: string;
+  arrivedAt: string;
+  exitedAt?: string;
+  channel?: BorderChannel;
+  channelHistory?: BorderChannelHistory[];
+  trip?: {
+    id: string;
+    micDta: string;
+    billOfLading?: { blNumber: string };
+  };
+  createdAt: string;
+}
+
+export interface CreateBorderCrossingInput {
+  tripId: string;
+  borderName: string;
+  arrivedAt?: string;
+}
+
+export interface UpdateBorderCrossingInput {
+  borderName?: string;
+  arrivedAt?: string;
+  exitedAt?: string;
+  channel?: BorderChannel;
+}
+
+export interface BorderCrossingListParams extends PaginationParams {
+  tripId?: string;
+  active?: boolean;
+}
+
+export interface BorderCrossingStats {
+  total: number;
+  active: number;
+  byBorder: Record<string, number>;
+  avgDurationHours: number;
+}
+
+// ============ Route Types ============
+export interface Route {
+  id: string;
+  tripId: string;
+  origin: string;
+  destination: string;
+  distanceKm?: number;
+  rate?: number;
+  durationHours?: number;
+  createdAt: string;
+}
+
+export interface CreateRouteInput {
+  tripId: string;
+  origin: string;
+  destination: string;
+  distanceKm?: number;
+  rate?: number;
+  durationHours?: number;
+}
+
+export interface UpdateRouteInput {
+  origin?: string;
+  destination?: string;
+  distanceKm?: number;
+  rate?: number;
+  durationHours?: number;
+}
+
+// ============ Calculation Types (Sprint 4 Automation) ============
+
+// Settlement calculation response
+export interface SettlementCalculation {
+  tripId: string;
+  tripNumber?: string;
+  grossAmount: number;
+  itPercentage: number;
+  itAmount: number;
+  retentionPercentage: number;
+  retentionAmount: number;
+  netAmount: number;
+  calculations: {
+    formula: string;
+    itFormula: string;
+    retentionFormula: string;
+  };
+}
+
+// Invoice calculation response
+export interface InvoiceCalculation {
+  clientId: string;
+  clientName: string;
+  tripIds: string[];
+  totalWeight: number;
+  subtotal: number;
+  calculations: {
+    tripCount: number;
+    allDelivered: boolean;
+    sameClient: boolean;
+  };
+}
+
+// Invoice calculation input
+export interface CalculateInvoiceInput {
+  tripIds: string[];
+}
+
+// Border names list response
+export interface BorderName {
+  name: string;
+  count?: number;
+}

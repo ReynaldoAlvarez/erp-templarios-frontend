@@ -822,4 +822,473 @@ export const expensesApi = {
   },
 };
 
+// ==========================================
+// Trips API
+// ==========================================
+interface BackendTripsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    trips: import('@/types/api').Trip[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  timestamp: string;
+}
+
+export const tripsApi = {
+  getAll: async (params?: import('@/types/api').TripListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').Trip>> => {
+    const response = await api.get<BackendTripsResponse>('/trips', params);
+    const { trips, total, page, limit, totalPages } = response.data.data;
+
+    return {
+      data: trips,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  },
+
+  getById: async (id: string): Promise<import('@/types/api').Trip> => {
+    const response = await api.get<{ data: import('@/types/api').Trip }>(`/trips/${id}`);
+    return response.data.data;
+  },
+
+  getByMicDta: async (micDta: string): Promise<import('@/types/api').Trip> => {
+    const response = await api.get<{ data: import('@/types/api').Trip }>(`/trips/mic-dta/${micDta}`);
+    return response.data.data;
+  },
+
+  create: async (data: import('@/types/api').CreateTripInput): Promise<import('@/types/api').Trip> => {
+    const response = await api.post<{ data: import('@/types/api').Trip }>('/trips', data);
+    return response.data.data;
+  },
+
+  update: async (id: string, data: import('@/types/api').UpdateTripInput): Promise<import('@/types/api').Trip> => {
+    const response = await api.put<{ data: import('@/types/api').Trip }>(`/trips/${id}`, data);
+    return response.data.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/trips/${id}`);
+  },
+
+  updateStatus: async (id: string, status: import('@/types/api').TripStatus): Promise<import('@/types/api').Trip> => {
+    const response = await api.patch<{ data: import('@/types/api').Trip }>(`/trips/${id}/status`, { status });
+    return response.data.data;
+  },
+
+  getStats: async (): Promise<import('@/types/api').TripStats> => {
+    const response = await api.get<{ data: import('@/types/api').TripStats }>('/trips/stats');
+    return response.data.data;
+  },
+
+  getAvailableResources: async (): Promise<import('@/types/api').AvailableResources> => {
+    const response = await api.get<{ data: import('@/types/api').AvailableResources }>('/trips/available-resources');
+    return response.data.data;
+  },
+
+  search: async (query: string): Promise<import('@/types/api').Trip[]> => {
+    const response = await api.get<{ data: import('@/types/api').Trip[] }>('/trips/search', { q: query });
+    return response.data.data;
+  },
+};
+
+// ==========================================
+// Documents API
+// ==========================================
+interface BackendDocumentsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    documents: import('@/types/api').TripDocument[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  timestamp: string;
+}
+
+export const documentsApi = {
+  getAll: async (params?: import('@/types/api').DocumentListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').TripDocument>> => {
+    const response = await api.get<BackendDocumentsResponse>('/documents', params);
+    const { documents, total, page, limit, totalPages } = response.data.data;
+
+    return {
+      data: documents,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  },
+
+  getById: async (id: string): Promise<import('@/types/api').TripDocument> => {
+    const response = await api.get<{ data: import('@/types/api').TripDocument }>(`/documents/${id}`);
+    return response.data.data;
+  },
+
+  getByTrip: async (tripId: string): Promise<import('@/types/api').TripDocument[]> => {
+    const response = await api.get<{ data: import('@/types/api').TripDocument[] }>(`/documents/trip/${tripId}`);
+    return response.data.data;
+  },
+
+  create: async (data: import('@/types/api').CreateDocumentInput): Promise<import('@/types/api').TripDocument> => {
+    const response = await api.post<{ data: import('@/types/api').TripDocument }>('/documents', data);
+    return response.data.data;
+  },
+
+  update: async (id: string, data: import('@/types/api').UpdateDocumentInput): Promise<import('@/types/api').TripDocument> => {
+    const response = await api.put<{ data: import('@/types/api').TripDocument }>(`/documents/${id}`, data);
+    return response.data.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/documents/${id}`);
+  },
+
+  updateStatus: async (id: string, status: import('@/types/api').DocumentStatus): Promise<import('@/types/api').TripDocument> => {
+    const response = await api.patch<{ data: import('@/types/api').TripDocument }>(`/documents/${id}/status`, { status });
+    return response.data.data;
+  },
+
+  markAsReceived: async (id: string): Promise<import('@/types/api').TripDocument> => {
+    const response = await api.post<{ data: import('@/types/api').TripDocument }>(`/documents/${id}/receive`);
+    return response.data.data;
+  },
+
+  markAsVerified: async (id: string): Promise<import('@/types/api').TripDocument> => {
+    const response = await api.post<{ data: import('@/types/api').TripDocument }>(`/documents/${id}/verify`);
+    return response.data.data;
+  },
+
+  // Alias for markAsReceived - used in documentos page
+  receive: async (id: string): Promise<import('@/types/api').TripDocument> => {
+    const response = await api.post<{ data: import('@/types/api').TripDocument }>(`/documents/${id}/receive`);
+    return response.data.data;
+  },
+
+  // Alias for markAsVerified - used in documentos page
+  verify: async (id: string): Promise<import('@/types/api').TripDocument> => {
+    const response = await api.post<{ data: import('@/types/api').TripDocument }>(`/documents/${id}/verify`);
+    return response.data.data;
+  },
+
+  getStats: async (): Promise<import('@/types/api').DocumentStats> => {
+    const response = await api.get<{ data: import('@/types/api').DocumentStats }>('/documents/stats');
+    return response.data.data;
+  },
+};
+
+// ==========================================
+// Settlements API
+// ==========================================
+interface BackendSettlementsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    settlements: import('@/types/api').Settlement[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  timestamp: string;
+}
+
+export const settlementsApi = {
+  getAll: async (params?: import('@/types/api').SettlementListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').Settlement>> => {
+    const response = await api.get<BackendSettlementsResponse>('/settlements', params);
+    const { settlements, total, page, limit, totalPages } = response.data.data;
+
+    return {
+      data: settlements,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  },
+
+  getById: async (id: string): Promise<import('@/types/api').Settlement> => {
+    const response = await api.get<{ data: import('@/types/api').Settlement }>(`/settlements/${id}`);
+    return response.data.data;
+  },
+
+  getByTrip: async (tripId: string): Promise<import('@/types/api').Settlement | null> => {
+    const response = await api.get<{ data: import('@/types/api').Settlement | null }>(`/settlements/trip/${tripId}`);
+    return response.data.data;
+  },
+
+  create: async (data: import('@/types/api').CreateSettlementInput): Promise<import('@/types/api').Settlement> => {
+    const response = await api.post<{ data: import('@/types/api').Settlement }>('/settlements', data);
+    return response.data.data;
+  },
+
+  update: async (id: string, data: import('@/types/api').UpdateSettlementInput): Promise<import('@/types/api').Settlement> => {
+    const response = await api.put<{ data: import('@/types/api').Settlement }>(`/settlements/${id}`, data);
+    return response.data.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/settlements/${id}`);
+  },
+
+  approve: async (id: string): Promise<import('@/types/api').Settlement> => {
+    const response = await api.post<{ data: import('@/types/api').Settlement }>(`/settlements/${id}/approve`);
+    return response.data.data;
+  },
+
+  markAsPaid: async (id: string): Promise<import('@/types/api').Settlement> => {
+    const response = await api.post<{ data: import('@/types/api').Settlement }>(`/settlements/${id}/pay`);
+    return response.data.data;
+  },
+
+  getStats: async (params?: { dateFrom?: string; dateTo?: string }): Promise<import('@/types/api').SettlementStats> => {
+    const response = await api.get<{ data: import('@/types/api').SettlementStats }>('/settlements/stats', params);
+    return response.data.data;
+  },
+
+  // 🆕 Sprint 4 Automation - Calculate settlement from trip
+  calculateFromTrip: async (tripId: string): Promise<import('@/types/api').SettlementCalculation> => {
+    const response = await api.get<{ data: import('@/types/api').SettlementCalculation }>(`/settlements/calculate/${tripId}`);
+    return response.data.data;
+  },
+};
+
+// ==========================================
+// Invoices API
+// ==========================================
+interface BackendInvoicesResponse {
+  success: boolean;
+  message: string;
+  data: {
+    invoices: import('@/types/api').Invoice[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  timestamp: string;
+}
+
+export const invoicesApi = {
+  getAll: async (params?: import('@/types/api').InvoiceListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').Invoice>> => {
+    const response = await api.get<BackendInvoicesResponse>('/invoices', params);
+    const { invoices, total, page, limit, totalPages } = response.data.data;
+
+    return {
+      data: invoices,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  },
+
+  getById: async (id: string): Promise<import('@/types/api').Invoice> => {
+    const response = await api.get<{ data: import('@/types/api').Invoice }>(`/invoices/${id}`);
+    return response.data.data;
+  },
+
+  getByNumber: async (invoiceNumber: string): Promise<import('@/types/api').Invoice> => {
+    const response = await api.get<{ data: import('@/types/api').Invoice }>(`/invoices/number/${invoiceNumber}`);
+    return response.data.data;
+  },
+
+  create: async (data: import('@/types/api').CreateInvoiceInput): Promise<import('@/types/api').Invoice> => {
+    const response = await api.post<{ data: import('@/types/api').Invoice }>('/invoices', data);
+    return response.data.data;
+  },
+
+  update: async (id: string, data: import('@/types/api').UpdateInvoiceInput): Promise<import('@/types/api').Invoice> => {
+    const response = await api.put<{ data: import('@/types/api').Invoice }>(`/invoices/${id}`, data);
+    return response.data.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/invoices/${id}`);
+  },
+
+  approve: async (id: string): Promise<import('@/types/api').Invoice> => {
+    const response = await api.post<{ data: import('@/types/api').Invoice }>(`/invoices/${id}/approve`);
+    return response.data.data;
+  },
+
+  issue: async (id: string): Promise<import('@/types/api').Invoice> => {
+    const response = await api.post<{ data: import('@/types/api').Invoice }>(`/invoices/${id}/issue`);
+    return response.data.data;
+  },
+
+  markAsPaid: async (id: string): Promise<import('@/types/api').Invoice> => {
+    const response = await api.post<{ data: import('@/types/api').Invoice }>(`/invoices/${id}/pay`);
+    return response.data.data;
+  },
+
+  cancel: async (id: string, reason: string): Promise<import('@/types/api').Invoice> => {
+    const response = await api.post<{ data: import('@/types/api').Invoice }>(`/invoices/${id}/cancel`, { reason });
+    return response.data.data;
+  },
+
+  getStats: async (params?: { clientId?: string; dateFrom?: string; dateTo?: string }): Promise<import('@/types/api').InvoiceStats> => {
+    const response = await api.get<{ data: import('@/types/api').InvoiceStats }>('/invoices/stats', params);
+    return response.data.data;
+  },
+
+  search: async (query: string): Promise<import('@/types/api').Invoice[]> => {
+    const response = await api.get<{ data: import('@/types/api').Invoice[] }>('/invoices/search', { q: query });
+    return response.data.data;
+  },
+
+  // 🆕 Sprint 4 Automation - Calculate invoice from multiple trips
+  calculateFromTrips: async (tripIds: string[]): Promise<import('@/types/api').InvoiceCalculation> => {
+    const response = await api.post<{ data: import('@/types/api').InvoiceCalculation }>('/invoices/calculate', { tripIds });
+    return response.data.data;
+  },
+};
+
+// ==========================================
+// Border Crossings API
+// ==========================================
+interface BackendBorderCrossingsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    borderCrossings: import('@/types/api').BorderCrossing[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  timestamp: string;
+}
+
+export const borderCrossingsApi = {
+  getAll: async (params?: import('@/types/api').BorderCrossingListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').BorderCrossing>> => {
+    const response = await api.get<BackendBorderCrossingsResponse>('/border-crossings', params);
+    const { borderCrossings, total, page, limit, totalPages } = response.data.data;
+
+    return {
+      data: borderCrossings,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  },
+
+  getById: async (id: string): Promise<import('@/types/api').BorderCrossing> => {
+    const response = await api.get<{ data: import('@/types/api').BorderCrossing }>(`/border-crossings/${id}`);
+    return response.data.data;
+  },
+
+  getByTrip: async (tripId: string): Promise<import('@/types/api').BorderCrossing[]> => {
+    const response = await api.get<{ data: import('@/types/api').BorderCrossing[] }>(`/border-crossings/trip/${tripId}`);
+    return response.data.data;
+  },
+
+  getActive: async (): Promise<import('@/types/api').BorderCrossing[]> => {
+    const response = await api.get<{ data: import('@/types/api').BorderCrossing[] }>('/border-crossings/active');
+    return response.data.data;
+  },
+
+  // 🆕 Sprint 4 Automation - Get border names for dropdowns
+  getBorderNames: async (): Promise<import('@/types/api').BorderName[]> => {
+    const response = await api.get<{ data: import('@/types/api').BorderName[] }>('/border-crossings/names');
+    return response.data.data;
+  },
+
+  create: async (data: import('@/types/api').CreateBorderCrossingInput): Promise<import('@/types/api').BorderCrossing> => {
+    const response = await api.post<{ data: import('@/types/api').BorderCrossing }>('/border-crossings', data);
+    return response.data.data;
+  },
+
+  update: async (id: string, data: import('@/types/api').UpdateBorderCrossingInput): Promise<import('@/types/api').BorderCrossing> => {
+    const response = await api.put<{ data: import('@/types/api').BorderCrossing }>(`/border-crossings/${id}`, data);
+    return response.data.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/border-crossings/${id}`);
+  },
+
+  registerExit: async (id: string): Promise<import('@/types/api').BorderCrossing> => {
+    const response = await api.post<{ data: import('@/types/api').BorderCrossing }>(`/border-crossings/${id}/exit`);
+    return response.data.data;
+  },
+
+  updateChannel: async (id: string, channel: import('@/types/api').BorderChannel, reason?: string): Promise<import('@/types/api').BorderCrossing> => {
+    const response = await api.patch<{ data: import('@/types/api').BorderCrossing }>(`/border-crossings/${id}/channel`, { channel, reason });
+    return response.data.data;
+  },
+
+  addChannelHistory: async (id: string, data: { channel: import('@/types/api').BorderChannel; reason?: string }): Promise<import('@/types/api').BorderCrossing> => {
+    const response = await api.post<{ data: import('@/types/api').BorderCrossing }>(`/border-crossings/${id}/channel`, data);
+    return response.data.data;
+  },
+
+  getStats: async (): Promise<import('@/types/api').BorderCrossingStats> => {
+    const response = await api.get<{ data: import('@/types/api').BorderCrossingStats }>('/border-crossings/stats');
+    return response.data.data;
+  },
+};
+
+// ==========================================
+// Routes API
+// ==========================================
+export const routesApi = {
+  getCommon: async (): Promise<import('@/types/api').Route[]> => {
+    const response = await api.get<{ data: import('@/types/api').Route[] }>('/routes/common');
+    return response.data.data;
+  },
+
+  getByTrip: async (tripId: string): Promise<import('@/types/api').Route[]> => {
+    const response = await api.get<{ data: import('@/types/api').Route[] }>(`/routes/trip/${tripId}`);
+    return response.data.data;
+  },
+
+  getById: async (id: string): Promise<import('@/types/api').Route> => {
+    const response = await api.get<{ data: import('@/types/api').Route }>(`/routes/${id}`);
+    return response.data.data;
+  },
+
+  create: async (data: import('@/types/api').CreateRouteInput): Promise<import('@/types/api').Route> => {
+    const response = await api.post<{ data: import('@/types/api').Route }>('/routes', data);
+    return response.data.data;
+  },
+
+  update: async (id: string, data: import('@/types/api').UpdateRouteInput): Promise<import('@/types/api').Route> => {
+    const response = await api.put<{ data: import('@/types/api').Route }>(`/routes/${id}`, data);
+    return response.data.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/routes/${id}`);
+  },
+};
+
 export default apiClient;
