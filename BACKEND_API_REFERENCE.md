@@ -411,19 +411,68 @@ interface Driver {
 
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
+| GET | `/border-crossings` | Listar cruces (paginado) **[NUEVO]** |
 | GET | `/border-crossings/active` | Fronteras activas |
+| GET | `/border-crossings/names` | Nombres de fronteras **[NUEVO]** |
 | GET | `/border-crossings/stats` | Estadísticas |
 | GET | `/border-crossings/trip/:tripId` | Cruces por viaje |
 | GET | `/border-crossings/:id` | Obtener cruce |
 | GET | `/border-crossings/:id/history` | Historial de canales |
 | POST | `/border-crossings` | Registrar llegada |
-| POST | `/border-crossings/:id/exit` | Registrar salida |
+| POST | `/border-crossings/:id/exit` | Registrar salida (auto-actualiza estados) |
 | POST | `/border-crossings/:id/channel` | Cambiar canal |
+
+**Filtros disponibles (GET /border-crossings):**
+- `page`, `limit` - Paginación
+- `status` - 'active' | 'completed'
+- `borderName` - Filtrar por nombre de frontera
+
+**Estructura BorderCrossing:**
+```typescript
+interface BorderCrossing {
+  id: string;
+  tripId: string;
+  borderName: string;
+  arrivedAt: string;
+  exitedAt?: string;
+  currentChannel?: 'GREEN' | 'YELLOW' | 'RED';
+  duration?: number; // Horas de espera
+  trip?: {
+    id: string;
+    micDta: string;
+    blNumber: string;
+    truck: {
+      id: string;
+      plateNumber: string;
+      status: string;
+    };
+    driver: {
+      name: string;
+      phone?: string;
+    };
+  };
+  channelHistory?: BorderChannelHistory[];
+  createdAt: string;
+}
+
+interface BorderChannelHistory {
+  id: string;
+  borderCrossingId: string;
+  channel: 'GREEN' | 'YELLOW' | 'RED';
+  changedAt: string;
+  reason?: string;
+  notes?: string;
+  responsible?: string;
+}
+```
 
 **Canales:**
 - `GREEN` - Verde (sin inspección)
 - `YELLOW` - Amarillo (revisión documental)
 - `RED` - Rojo (inspección física)
+
+**Automatizaciones:**
+- Al registrar salida (`/exit`): Actualiza automáticamente `trip.status` y `truck.status` a `IN_TRANSIT`
 
 ### Documents (Documentos)
 
@@ -458,6 +507,7 @@ interface Driver {
 |--------|----------|-------------|
 | GET | `/settlements` | Listar liquidaciones |
 | GET | `/settlements/pending` | Liquidaciones pendientes |
+| GET | `/settlements/calculate/:tripId` | Calcular liquidación **[NUEVO]** |
 | GET | `/settlements/stats` | Estadísticas |
 | GET | `/settlements/trip/:tripId` | Liquidación por viaje |
 | GET | `/settlements/:id` | Obtener liquidación |
@@ -466,11 +516,55 @@ interface Driver {
 | POST | `/settlements/:id/approve` | Aprobar liquidación |
 | POST | `/settlements/:id/pay` | Marcar como pagada |
 
+**Cálculo Automático (GET /settlements/calculate/:tripId):**
+
+Parámetros opcionales:
+- `exchangeRate` - Tipo de cambio (default: 6.93)
+- `freightUsd` - Flete en USD (default: weight × ratePerTon)
+- `externalCommission` - Comisión externa
+- `advance` - Anticipo
+
+Respuesta:
+```json
+{
+  "trip": {
+    "id": "uuid",
+    "micDta": "MIC-001",
+    "weight": 30.5,
+    "ratePerTon": 150.00,
+    "blNumber": "BL-2024-001",
+    "client": "Cliente S.R.L.",
+    "driver": "Juan Pérez",
+    "truck": "ABC-123"
+  },
+  "calculated": {
+    "freightUsd": 4575.00,
+    "freightBob": 31704.75,
+    "exchangeRate": 6.93,
+    "pricePerTon": 150.00,
+    "taxIt3Percent": 951.14,
+    "retention7Percent": 2219.33,
+    "externalCommission": 0,
+    "advance": 0,
+    "netPayment": 28534.28,
+    "totalExpenses": 0
+  },
+  "formulas": {
+    "freightBob": "freightUsd × exchangeRate",
+    "taxIt3Percent": "freightBob × 3%",
+    "retention7Percent": "freightBob × 7%",
+    "netPayment": "freightBob - taxIt3 - retention - commission - advance"
+  }
+}
+```
+
+**Validaciones:**
+- El viaje debe estar en estado `DELIVERED` para crear liquidación
+
 **Estados:**
 - `PENDING` - Pendiente
 - `APPROVED` - Aprobada
 - `PAID` - Pagada
-- `CANCELLED` - Cancelada
 
 ### Invoices (Facturas)
 
@@ -478,6 +572,7 @@ interface Driver {
 |--------|----------|-------------|
 | GET | `/invoices` | Listar facturas |
 | GET | `/invoices/pending` | Facturas pendientes |
+| POST | `/invoices/calculate` | Calcular desde viajes **[NUEVO]** |
 | GET | `/invoices/stats` | Estadísticas |
 | GET | `/invoices/client/:clientId` | Facturas por cliente |
 | GET | `/invoices/number/:invoiceNumber` | Por número |
@@ -489,6 +584,59 @@ interface Driver {
 | POST | `/invoices/:id/cancel` | Cancelar factura |
 | POST | `/invoices/:invoiceId/trips` | Agregar viaje |
 | DELETE | `/invoices/:invoiceId/trips/:tripId` | Remover viaje |
+
+**Cálculo desde Viajes (POST /invoices/calculate):**
+
+Body:
+```json
+{
+  "tripIds": ["trip-uuid-1", "trip-uuid-2"],
+  "exchangeRate": 6.93
+}
+```
+
+Respuesta:
+```json
+{
+  "client": {
+    "id": "uuid",
+    "businessName": "Cliente S.R.L.",
+    "nit": "123456789"
+  },
+  "calculated": {
+    "totalAmount": 63409.50,
+    "amountUsd": 9150.00,
+    "exchangeRate": 6.93,
+    "tripsCount": 2
+  },
+  "trips": [
+    {
+      "id": "uuid",
+      "micDta": "MIC-001",
+      "blNumber": "BL-2024-001",
+      "weight": 30.5,
+      "ratePerTon": 150.00,
+      "freightUsd": 4575.00,
+      "freightBob": 31704.75,
+      "driver": "Juan Pérez",
+      "truck": "ABC-123",
+      "routes": [],
+      "hasSettlement": true
+    }
+  ]
+}
+```
+
+**Validaciones:**
+- Todos los viajes deben pertenecer al mismo cliente
+- Todos los viajes deben estar en estado `DELIVERED`
+- No se pueden facturar viajes ya facturados
+
+**Estados:**
+- `PENDING` - Pendiente
+- `ISSUED` - Emitida
+- `PAID` - Pagada
+- `CANCELLED` - Cancelada |
 
 ---
 
@@ -741,3 +889,35 @@ interface Driver {
 3. **Fechas**: Formato ISO 8601 (`YYYY-MM-DD` o `YYYY-MM-DDTHH:mm:ssZ`)
 4. **Montos**: El backend devuelve algunos montos como `string` (decimales)
 5. **Enums**: Usar valores en mayúsculas y en inglés (ej: `ACTIVE`, `SCHEDULED`)
+
+---
+
+## AUTOMATIZACIONES SPRINT 4
+
+### Gestión Automática de Estados de Recursos
+
+El backend actualiza automáticamente los estados de truck, driver y trailer según el estado del viaje:
+
+| Transición | Acción Automática |
+|------------|-------------------|
+| SCHEDULED → IN_TRANSIT | `truck.status = IN_TRANSIT`, `driver.isAvailable = false`, vincula trailer |
+| IN_TRANSIT → AT_BORDER | `truck.status = AT_BORDER`, **auto-crea BorderCrossing** |
+| AT_BORDER → IN_TRANSIT | `truck.status = IN_TRANSIT` (al salir de frontera) |
+| * → DELIVERED | `truck.status = SCHEDULED`, `driver.isAvailable = true`, desvincula trailer |
+| * → CANCELLED | Libera todos los recursos |
+
+### Validaciones de Disponibilidad
+
+Al crear un viaje, el backend valida:
+- El camión NO debe estar `IN_TRANSIT` o `AT_BORDER`
+- El conductor debe estar `isAvailable = true`
+- El trailer NO debe estar asignado a un camión en uso
+
+### Auto-creación de Border Crossing
+
+Cuando un viaje cambia a `AT_BORDER`, se crea automáticamente un registro de `BorderCrossing` si no existe uno activo.
+
+### Cálculos Automáticos
+
+- **Liquidaciones**: `IT 3% = freightBob × 0.03`, `Retención 7% = freightBob × 0.07`
+- **Facturas**: Suma automática de montos de liquidaciones existentes o cálculo desde datos del viaje
