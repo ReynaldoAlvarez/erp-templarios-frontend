@@ -51,27 +51,20 @@ import {
   PowerOff,
   Loader2,
 } from 'lucide-react';
-import type { Asset, AssetCategory, AssetStatus, CreateAssetInput, UpdateAssetInput } from '@/types/api';
+import type { Asset, AssetCategory, CreateAssetInput, UpdateAssetInput } from '@/types/api';
 
-const statusConfig: Record<AssetStatus, { label: string; className: string }> = {
-  ACTIVE: { label: 'Activo', className: 'bg-green-100 text-green-800' },
-  DEPRECIATED: { label: 'Depreciado', className: 'bg-yellow-100 text-yellow-800' },
-  SOLD: { label: 'Vendido', className: 'bg-blue-100 text-blue-800' },
-  DISPOSED: { label: 'Dado de baja', className: 'bg-red-100 text-red-800' },
-};
-
+// Labels para categorías según schema: VEHICLE, EQUIPMENT, PROPERTY, OTHER
 const categoryLabels: Record<AssetCategory, string> = {
   VEHICLE: 'Vehículos',
   EQUIPMENT: 'Equipos',
-  FURNITURE: 'Mobiliario',
-  REAL_ESTATE: 'Inmuebles',
+  PROPERTY: 'Propiedades',
   OTHER: 'Otros',
 };
 
 export default function ActivosPage() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [activeFilter, setActiveFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
@@ -83,8 +76,8 @@ export default function ActivosPage() {
     limit: 10,
     search: debouncedSearch || undefined,
     category: categoryFilter !== 'all' ? categoryFilter as AssetCategory : undefined,
-    status: statusFilter !== 'all' ? statusFilter as AssetStatus : undefined,
-  }), [page, debouncedSearch, categoryFilter, statusFilter]);
+    isActive: activeFilter !== 'all' ? activeFilter === 'active' : undefined,
+  }), [page, debouncedSearch, categoryFilter, activeFilter]);
 
   const { data: assetsData, isLoading } = useAssets(params);
   const { data: categories } = useAssetCategories();
@@ -113,16 +106,10 @@ export default function ActivosPage() {
       name: formData.get('name') as string,
       category: formData.get('category') as AssetCategory,
       description: formData.get('description') as string || undefined,
-      acquisitionDate: formData.get('acquisitionDate') as string,
-      acquisitionCost: parseFloat(formData.get('acquisitionCost') as string),
-      depreciationRate: parseFloat(formData.get('depreciationRate') as string) || 0,
-      usefulLifeYears: parseInt(formData.get('usefulLifeYears') as string) || undefined,
-      residualValue: parseFloat(formData.get('residualValue') as string) || undefined,
-      location: formData.get('location') as string || undefined,
-      responsiblePerson: formData.get('responsiblePerson') as string || undefined,
-      invoiceNumber: formData.get('invoiceNumber') as string || undefined,
-      supplier: formData.get('supplier') as string || undefined,
-      notes: formData.get('notes') as string || undefined,
+      value: parseFloat(formData.get('value') as string),
+      acquisitionDate: formData.get('acquisitionDate') as string || undefined,
+      usefulLifeMonths: parseInt(formData.get('usefulLifeMonths') as string) || undefined,
+      depreciation: parseFloat(formData.get('depreciation') as string) || 0,
     };
 
     if (editingAsset) {
@@ -144,7 +131,8 @@ export default function ActivosPage() {
     return new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB' }).format(value);
   };
 
-  const formatDate = (date: string) => {
+  const formatDate = (date: string | undefined) => {
+    if (!date) return '-';
     return new Date(date).toLocaleDateString('es-BO');
   };
 
@@ -194,7 +182,7 @@ export default function ActivosPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Valor Actual</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">Valor Neto</CardTitle>
               <BarChart3 className="h-4 w-4 text-[#1B3F66]" />
             </CardHeader>
             <CardContent>
@@ -230,17 +218,14 @@ export default function ActivosPage() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={activeFilter} onValueChange={setActiveFilter}>
           <SelectTrigger className="w-full md:w-48">
             <SelectValue placeholder="Estado" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos los estados</SelectItem>
-            {Object.entries(statusConfig).map(([value, config]) => (
-              <SelectItem key={value} value={value}>
-                {config.label}
-              </SelectItem>
-            ))}
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="active">Activos</SelectItem>
+            <SelectItem value="inactive">Inactivos</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -252,9 +237,9 @@ export default function ActivosPage() {
             <TableRow>
               <TableHead>Nombre</TableHead>
               <TableHead>Categoría</TableHead>
-              <TableHead>Costo Adquisición</TableHead>
-              <TableHead>Valor Actual</TableHead>
+              <TableHead>Valor</TableHead>
               <TableHead>Depreciación</TableHead>
+              <TableHead>Valor Neto</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Acciones</TableHead>
             </TableRow>
@@ -283,13 +268,16 @@ export default function ActivosPage() {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>{categoryLabels[asset.category]}</TableCell>
-                  <TableCell>{formatCurrency(asset.acquisitionCost)}</TableCell>
-                  <TableCell>{formatCurrency(asset.currentValue)}</TableCell>
-                  <TableCell>{asset.depreciationRate}%</TableCell>
+                  <TableCell>{categoryLabels[asset.category] || asset.category}</TableCell>
+                  <TableCell>{formatCurrency(asset.value)}</TableCell>
+                  <TableCell>{formatCurrency(asset.depreciation)}</TableCell>
+                  <TableCell>{formatCurrency(asset.value - asset.depreciation)}</TableCell>
                   <TableCell>
-                    <Badge className={statusConfig[asset.status].className}>
-                      {statusConfig[asset.status].label}
+                    <Badge className={asset.isActive 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-red-100 text-red-800'
+                    }>
+                      {asset.isActive ? 'Activo' : 'Inactivo'}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -393,93 +381,42 @@ export default function ActivosPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="acquisitionDate">Fecha de Adquisición *</Label>
+                <Label htmlFor="value">Valor (BOB) *</Label>
+                <Input
+                  id="value"
+                  name="value"
+                  type="number"
+                  step="0.01"
+                  defaultValue={editingAsset?.value}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="acquisitionDate">Fecha de Adquisición</Label>
                 <Input
                   id="acquisitionDate"
                   name="acquisitionDate"
                   type="date"
                   defaultValue={editingAsset?.acquisitionDate?.split('T')[0]}
-                  required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="acquisitionCost">Costo de Adquisición (BOB) *</Label>
+                <Label htmlFor="usefulLifeMonths">Vida Útil (meses)</Label>
                 <Input
-                  id="acquisitionCost"
-                  name="acquisitionCost"
+                  id="usefulLifeMonths"
+                  name="usefulLifeMonths"
+                  type="number"
+                  defaultValue={editingAsset?.usefulLifeMonths || ''}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="depreciation">Depreciación Acumulada (BOB)</Label>
+                <Input
+                  id="depreciation"
+                  name="depreciation"
                   type="number"
                   step="0.01"
-                  defaultValue={editingAsset?.acquisitionCost}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="depreciationRate">Tasa de Depreciación (%)</Label>
-                <Input
-                  id="depreciationRate"
-                  name="depreciationRate"
-                  type="number"
-                  step="0.01"
-                  defaultValue={editingAsset?.depreciationRate || 0}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="usefulLifeYears">Vida Útil (años)</Label>
-                <Input
-                  id="usefulLifeYears"
-                  name="usefulLifeYears"
-                  type="number"
-                  defaultValue={editingAsset?.usefulLifeYears || ''}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="residualValue">Valor Residual (BOB)</Label>
-                <Input
-                  id="residualValue"
-                  name="residualValue"
-                  type="number"
-                  step="0.01"
-                  defaultValue={editingAsset?.residualValue || ''}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="location">Ubicación</Label>
-                <Input
-                  id="location"
-                  name="location"
-                  defaultValue={editingAsset?.location || ''}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="responsiblePerson">Responsable</Label>
-                <Input
-                  id="responsiblePerson"
-                  name="responsiblePerson"
-                  defaultValue={editingAsset?.responsiblePerson || ''}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="invoiceNumber">Nº Factura</Label>
-                <Input
-                  id="invoiceNumber"
-                  name="invoiceNumber"
-                  defaultValue={editingAsset?.invoiceNumber || ''}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="supplier">Proveedor</Label>
-                <Input
-                  id="supplier"
-                  name="supplier"
-                  defaultValue={editingAsset?.supplier || ''}
-                />
-              </div>
-              <div className="space-y-2 col-span-2">
-                <Label htmlFor="notes">Notas</Label>
-                <Input
-                  id="notes"
-                  name="notes"
-                  defaultValue={editingAsset?.notes || ''}
+                  defaultValue={editingAsset?.depreciation || 0}
                 />
               </div>
             </div>
