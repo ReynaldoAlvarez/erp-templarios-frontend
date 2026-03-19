@@ -6,12 +6,10 @@ import {
   useMaintenance,
   useMaintenanceTypes,
   useMaintenanceStats,
-  useUpcomingMaintenance,
   useCreateMaintenance,
   useUpdateMaintenance,
   useStartMaintenance,
   useCompleteMaintenance,
-  useCancelMaintenance,
   useTrucksList,
 } from '@/hooks/use-queries';
 import { Button } from '@/components/ui/button';
@@ -52,23 +50,22 @@ import {
   Edit,
   Play,
   CheckCircle,
-  XCircle,
   Loader2,
   Truck,
 } from 'lucide-react';
 import type { Maintenance, MaintenanceType, MaintenanceStatus, CreateMaintenanceInput, UpdateMaintenanceInput } from '@/types/api';
 
+// Según schema.prisma: PENDING, IN_PROGRESS, COMPLETED
 const statusConfig: Record<MaintenanceStatus, { label: string; className: string }> = {
-  SCHEDULED: { label: 'Programado', className: 'bg-blue-100 text-blue-800' },
-  IN_PROGRESS: { label: 'En Progreso', className: 'bg-yellow-100 text-yellow-800' },
+  PENDING: { label: 'Pendiente', className: 'bg-yellow-100 text-yellow-800' },
+  IN_PROGRESS: { label: 'En Progreso', className: 'bg-blue-100 text-blue-800' },
   COMPLETED: { label: 'Completado', className: 'bg-green-100 text-green-800' },
-  CANCELLED: { label: 'Cancelado', className: 'bg-red-100 text-red-800' },
 };
 
+// Según schema.prisma: PREVENTIVE, CORRECTIVE
 const typeLabels: Record<MaintenanceType, string> = {
   PREVENTIVE: 'Preventivo',
   CORRECTIVE: 'Correctivo',
-  EMERGENCY: 'Emergencia',
 };
 
 export default function MantenimientosPage() {
@@ -94,14 +91,12 @@ export default function MantenimientosPage() {
   const { data: maintenanceData, isLoading } = useMaintenance(params);
   const { data: types } = useMaintenanceTypes();
   const { data: stats } = useMaintenanceStats();
-  const { data: upcoming } = useUpcomingMaintenance();
   const { data: trucksData } = useTrucksList({ limit: 100 });
 
   const createMutation = useCreateMaintenance();
   const updateMutation = useUpdateMaintenance();
   const startMutation = useStartMaintenance();
   const completeMutation = useCompleteMaintenance();
-  const cancelMutation = useCancelMaintenance();
 
   const handleOpenDialog = (maintenance?: Maintenance) => {
     setEditingMaintenance(maintenance || null);
@@ -121,11 +116,10 @@ export default function MantenimientosPage() {
       truckId: formData.get('truckId') as string,
       type: formData.get('type') as MaintenanceType,
       description: formData.get('description') as string,
-      scheduledDate: formData.get('scheduledDate') as string,
-      cost: parseFloat(formData.get('cost') as string) || undefined,
+      startDate: formData.get('startDate') as string || undefined,
       mileage: parseInt(formData.get('mileage') as string) || undefined,
+      cost: parseFloat(formData.get('cost') as string) || undefined,
       workshop: formData.get('workshop') as string || undefined,
-      technician: formData.get('technician') as string || undefined,
       notes: formData.get('notes') as string || undefined,
     };
 
@@ -140,9 +134,14 @@ export default function MantenimientosPage() {
     return new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB' }).format(value);
   };
 
-  const formatDate = (date: string) => {
+  const formatDate = (date: string | undefined) => {
+    if (!date) return '-';
     return new Date(date).toLocaleDateString('es-BO');
   };
+
+  // Obtener datos de forma segura
+  const maintenanceList = maintenanceData?.data || [];
+  const pagination = maintenanceData?.pagination;
 
   return (
     <div className="space-y-6">
@@ -185,7 +184,7 @@ export default function MantenimientosPage() {
               <Clock className="h-4 w-4 text-yellow-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.byStatus.IN_PROGRESS || 0}</div>
+              <div className="text-2xl font-bold">{stats.byStatus?.IN_PROGRESS || 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -194,30 +193,10 @@ export default function MantenimientosPage() {
               <Calendar className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.upcomingCount}</div>
+              <div className="text-2xl font-bold">{stats.upcomingCount || 0}</div>
             </CardContent>
           </Card>
         </div>
-      )}
-
-      {/* Upcoming Maintenance Alert */}
-      {upcoming && upcoming.length > 0 && (
-        <Card className="border-yellow-200 bg-yellow-50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-yellow-800">
-              Mantenimientos Próximos ({upcoming.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {upcoming.slice(0, 5).map((m) => (
-                <Badge key={m.id} variant="outline" className="bg-white">
-                  {m.truck?.plateNumber} - {m.description} ({m.daysUntilDue} días)
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
       )}
 
       {/* Filters */}
@@ -237,7 +216,7 @@ export default function MantenimientosPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los camiones</SelectItem>
-            {trucksData?.data.map((truck) => (
+            {(trucksData?.data || []).map((truck) => (
               <SelectItem key={truck.id} value={truck.id}>
                 {truck.plateNumber}
               </SelectItem>
@@ -250,8 +229,8 @@ export default function MantenimientosPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los tipos</SelectItem>
-            {types?.map((type) => (
-              <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+            {Object.entries(typeLabels).map(([value, label]) => (
+              <SelectItem key={value} value={value}>{label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -276,7 +255,7 @@ export default function MantenimientosPage() {
               <TableHead>Camión</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Descripción</TableHead>
-              <TableHead>Fecha Programada</TableHead>
+              <TableHead>Fecha Inicio</TableHead>
               <TableHead>Costo</TableHead>
               <TableHead>Taller</TableHead>
               <TableHead>Estado</TableHead>
@@ -290,29 +269,29 @@ export default function MantenimientosPage() {
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-[#1B3F66]" />
                 </TableCell>
               </TableRow>
-            ) : maintenanceData?.data.length === 0 ? (
+            ) : maintenanceList.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                   No se encontraron mantenimientos
                 </TableCell>
               </TableRow>
             ) : (
-              maintenanceData?.data.map((maintenance) => (
+              maintenanceList.map((maintenance) => (
                 <TableRow key={maintenance.id}>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Truck className="h-4 w-4 text-gray-400" />
-                      {maintenance.truck?.plateNumber}
+                      {maintenance.truck?.plateNumber || '-'}
                     </div>
                   </TableCell>
-                  <TableCell>{typeLabels[maintenance.type]}</TableCell>
+                  <TableCell>{typeLabels[maintenance.type] || maintenance.type}</TableCell>
                   <TableCell className="max-w-xs truncate">{maintenance.description}</TableCell>
-                  <TableCell>{formatDate(maintenance.scheduledDate)}</TableCell>
+                  <TableCell>{formatDate(maintenance.startDate)}</TableCell>
                   <TableCell>{maintenance.cost ? formatCurrency(maintenance.cost) : '-'}</TableCell>
                   <TableCell>{maintenance.workshop || '-'}</TableCell>
                   <TableCell>
-                    <Badge className={statusConfig[maintenance.status].className}>
-                      {statusConfig[maintenance.status].label}
+                    <Badge className={statusConfig[maintenance.status]?.className || 'bg-gray-100 text-gray-800'}>
+                      {statusConfig[maintenance.status]?.label || maintenance.status}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -320,7 +299,7 @@ export default function MantenimientosPage() {
                       <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(maintenance)}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      {maintenance.status === 'SCHEDULED' && (
+                      {maintenance.status === 'PENDING' && (
                         <Button variant="ghost" size="icon" onClick={() => startMutation.mutate(maintenance.id)} title="Iniciar">
                           <Play className="h-4 w-4 text-green-600" />
                         </Button>
@@ -328,11 +307,6 @@ export default function MantenimientosPage() {
                       {maintenance.status === 'IN_PROGRESS' && (
                         <Button variant="ghost" size="icon" onClick={() => completeMutation.mutate({ id: maintenance.id })} title="Completar">
                           <CheckCircle className="h-4 w-4 text-blue-600" />
-                        </Button>
-                      )}
-                      {(maintenance.status === 'SCHEDULED' || maintenance.status === 'IN_PROGRESS') && (
-                        <Button variant="ghost" size="icon" onClick={() => cancelMutation.mutate({ id: maintenance.id })} title="Cancelar">
-                          <XCircle className="h-4 w-4 text-red-600" />
                         </Button>
                       )}
                     </div>
@@ -345,16 +319,16 @@ export default function MantenimientosPage() {
       </div>
 
       {/* Pagination */}
-      {maintenanceData && maintenanceData.pagination.totalPages > 1 && (
+      {pagination && pagination.totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-gray-500">
-            Mostrando {((page - 1) * 10) + 1} - {Math.min(page * 10, maintenanceData.pagination.total)} de {maintenanceData.pagination.total}
+            Mostrando {((page - 1) * 10) + 1} - {Math.min(page * 10, pagination.total)} de {pagination.total}
           </p>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setPage(page - 1)} disabled={!maintenanceData.pagination.hasPrev}>
+            <Button variant="outline" size="sm" onClick={() => setPage(page - 1)} disabled={!pagination.hasPrev}>
               Anterior
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setPage(page + 1)} disabled={!maintenanceData.pagination.hasNext}>
+            <Button variant="outline" size="sm" onClick={() => setPage(page + 1)} disabled={!pagination.hasNext}>
               Siguiente
             </Button>
           </div>
@@ -376,7 +350,7 @@ export default function MantenimientosPage() {
               <Select name="truckId" defaultValue={editingMaintenance?.truckId} required>
                 <SelectTrigger><SelectValue placeholder="Seleccionar camión" /></SelectTrigger>
                 <SelectContent>
-                  {trucksData?.data.map((truck) => (
+                  {(trucksData?.data || []).map((truck) => (
                     <SelectItem key={truck.id} value={truck.id}>
                       {truck.plateNumber} - {truck.brand} {truck.model}
                     </SelectItem>
@@ -401,8 +375,8 @@ export default function MantenimientosPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="scheduledDate">Fecha Programada *</Label>
-                <Input id="scheduledDate" name="scheduledDate" type="date" defaultValue={editingMaintenance?.scheduledDate?.split('T')[0]} required />
+                <Label htmlFor="startDate">Fecha de Inicio</Label>
+                <Input id="startDate" name="startDate" type="date" defaultValue={editingMaintenance?.startDate?.split('T')[0]} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="mileage">Kilometraje</Label>
@@ -411,17 +385,13 @@ export default function MantenimientosPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="cost">Costo Estimado (BOB)</Label>
+                <Label htmlFor="cost">Costo (BOB)</Label>
                 <Input id="cost" name="cost" type="number" step="0.01" defaultValue={editingMaintenance?.cost || ''} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="workshop">Taller</Label>
                 <Input id="workshop" name="workshop" defaultValue={editingMaintenance?.workshop || ''} />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="technician">Técnico</Label>
-              <Input id="technician" name="technician" defaultValue={editingMaintenance?.technician || ''} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="notes">Notas</Label>
