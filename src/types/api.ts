@@ -1478,13 +1478,19 @@ export interface Sanction {
   driverId: string;
   driver?: {
     id: string;
+    employeeId?: string;
+    employee?: {
+      firstName?: string;
+      lastName?: string;
+      phone?: string;
+    };
     firstName?: string;
     lastName?: string;
     fullName?: string;
   };
   type: SanctionType;
   reason: string;
-  amount?: number;
+  amount?: number | string;
   startDate: string;
   endDate?: string;
   status: SanctionStatus;

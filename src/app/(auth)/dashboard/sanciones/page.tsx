@@ -55,18 +55,44 @@ import {
 } from 'lucide-react';
 import type { Sanction, SanctionType, SanctionStatus, CreateSanctionInput, UpdateSanctionInput } from '@/types/api';
 
+// Según el backend: PENDING, COMPLETED, CANCELLED
 const statusConfig: Record<SanctionStatus, { label: string; className: string }> = {
-  ACTIVE: { label: 'Activa', className: 'bg-red-100 text-red-800' },
+  PENDING: { label: 'Pendiente', className: 'bg-yellow-100 text-yellow-800' },
   COMPLETED: { label: 'Completada', className: 'bg-green-100 text-green-800' },
   CANCELLED: { label: 'Cancelada', className: 'bg-gray-100 text-gray-800' },
-  APPEALED: { label: 'Apelada', className: 'bg-yellow-100 text-yellow-800' },
 };
 
+// Según el backend: FINE, SUSPENSION, WARNING
 const typeConfig: Record<SanctionType, { label: string; className: string }> = {
   WARNING: { label: 'Amonestación', className: 'bg-yellow-100 text-yellow-800' },
   FINE: { label: 'Multa', className: 'bg-orange-100 text-orange-800' },
   SUSPENSION: { label: 'Suspensión', className: 'bg-red-100 text-red-800' },
-  DISMISSAL: { label: 'Despido', className: 'bg-red-200 text-red-900' },
+};
+
+// Helper functions para manejar la estructura del backend
+const getStatusValue = (value: unknown): number => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'object' && value !== null && 'count' in value) {
+    return (value as { count: number }).count;
+  }
+  return 0;
+};
+
+const getStatusAmount = (value: unknown): number => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'object' && value !== null && 'amount' in value) {
+    return (value as { amount: number }).amount;
+  }
+  return 0;
+};
+
+// Helper para obtener nombre completo del driver
+const getDriverName = (driver: { employee?: { firstName?: string; lastName?: string } } | null | undefined): string => {
+  if (!driver) return '-';
+  if (driver.employee?.firstName && driver.employee?.lastName) {
+    return `${driver.employee.firstName} ${driver.employee.lastName}`;
+  }
+  return driver.employee?.firstName || driver.employee?.lastName || '-';
 };
 
 export default function SancionesPage() {
@@ -117,12 +143,9 @@ export default function SancionesPage() {
     const data: CreateSanctionInput | UpdateSanctionInput = {
       driverId: formData.get('driverId') as string,
       type: formData.get('type') as SanctionType,
-      description: formData.get('description') as string,
-      incidentDate: formData.get('incidentDate') as string,
-      severity: formData.get('severity') as string || undefined,
-      fineAmount: parseFloat(formData.get('fineAmount') as string) || undefined,
-      suspensionDays: parseInt(formData.get('suspensionDays') as string) || undefined,
-      reason: formData.get('reason') as string || undefined,
+      reason: formData.get('reason') as string,
+      amount: parseFloat(formData.get('amount') as string) || undefined,
+      startDate: formData.get('startDate') as string || undefined,
       notes: formData.get('notes') as string || undefined,
     };
 
@@ -133,13 +156,20 @@ export default function SancionesPage() {
     }
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB' }).format(value);
+  const formatCurrency = (value: number | string) => {
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(num)) return '-';
+    return new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB' }).format(num);
   };
 
-  const formatDate = (date: string) => {
+  const formatDate = (date: string | undefined) => {
+    if (!date) return '-';
     return new Date(date).toLocaleDateString('es-BO');
   };
+
+  // Obtener datos de forma segura
+  const sanctionList = sanctionsData?.data || [];
+  const pagination = sanctionsData?.pagination;
 
   return (
     <div className="space-y-6">
@@ -164,16 +194,16 @@ export default function SancionesPage() {
               <AlertTriangle className="h-4 w-4 text-[#1B3F66]" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
+              <div className="text-2xl font-bold">{getStatusValue(stats.total)}</div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Activas</CardTitle>
-              <AlertOctagon className="h-4 w-4 text-red-600" />
+              <CardTitle className="text-sm font-medium text-gray-600">Pendientes</CardTitle>
+              <AlertOctagon className="h-4 w-4 text-yellow-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">{stats.activeCount}</div>
+              <div className="text-2xl font-bold text-yellow-600">{getStatusValue(stats.byStatus?.PENDING)}</div>
             </CardContent>
           </Card>
           <Card>
@@ -182,7 +212,7 @@ export default function SancionesPage() {
               <DollarSign className="h-4 w-4 text-orange-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(stats.totalFines)}</div>
+              <div className="text-2xl font-bold">{formatCurrency(getStatusAmount(stats.totalFines) || getStatusAmount(stats.byType?.FINE))}</div>
             </CardContent>
           </Card>
           <Card>
@@ -191,7 +221,7 @@ export default function SancionesPage() {
               <Users className="h-4 w-4 text-yellow-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.byType.WARNING || 0}</div>
+              <div className="text-2xl font-bold">{getStatusValue(stats.byType?.WARNING)}</div>
             </CardContent>
           </Card>
         </div>
@@ -209,7 +239,7 @@ export default function SancionesPage() {
             <div className="flex flex-wrap gap-2">
               {active.slice(0, 5).map((s) => (
                 <Badge key={s.id} variant="outline" className="bg-white">
-                  {s.driver?.fullName} - {typeConfig[s.type].label}
+                  {getDriverName(s.driver)} - {typeConfig[s.type]?.label || s.type}
                 </Badge>
               ))}
             </div>
@@ -222,7 +252,7 @@ export default function SancionesPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input
-            placeholder="Buscar por conductor o descripción..."
+            placeholder="Buscar por conductor o motivo..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10"
@@ -234,9 +264,9 @@ export default function SancionesPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los conductores</SelectItem>
-            {driversData?.data.map((driver) => (
+            {(driversData?.data || []).map((driver) => (
               <SelectItem key={driver.id} value={driver.id}>
-                {driver.fullName}
+                {getDriverName(driver)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -247,8 +277,8 @@ export default function SancionesPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los tipos</SelectItem>
-            {types?.map((type) => (
-              <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+            {Object.entries(typeConfig).map(([value, config]) => (
+              <SelectItem key={value} value={value}>{config.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -272,9 +302,9 @@ export default function SancionesPage() {
             <TableRow>
               <TableHead>Conductor</TableHead>
               <TableHead>Tipo</TableHead>
-              <TableHead>Descripción</TableHead>
-              <TableHead>Fecha Incidente</TableHead>
-              <TableHead>Multa</TableHead>
+              <TableHead>Motivo</TableHead>
+              <TableHead>Fecha Inicio</TableHead>
+              <TableHead>Monto</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Acciones</TableHead>
             </TableRow>
@@ -286,27 +316,27 @@ export default function SancionesPage() {
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-[#1B3F66]" />
                 </TableCell>
               </TableRow>
-            ) : sanctionsData?.data.length === 0 ? (
+            ) : sanctionList.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                   No se encontraron sanciones
                 </TableCell>
               </TableRow>
             ) : (
-              sanctionsData?.data.map((sanction) => (
+              sanctionList.map((sanction) => (
                 <TableRow key={sanction.id}>
-                  <TableCell className="font-medium">{sanction.driver?.fullName}</TableCell>
+                  <TableCell className="font-medium">{getDriverName(sanction.driver)}</TableCell>
                   <TableCell>
-                    <Badge className={typeConfig[sanction.type].className}>
-                      {typeConfig[sanction.type].label}
+                    <Badge className={typeConfig[sanction.type]?.className || 'bg-gray-100 text-gray-800'}>
+                      {typeConfig[sanction.type]?.label || sanction.type}
                     </Badge>
                   </TableCell>
-                  <TableCell className="max-w-xs truncate">{sanction.description}</TableCell>
-                  <TableCell>{formatDate(sanction.incidentDate)}</TableCell>
-                  <TableCell>{sanction.fineAmount ? formatCurrency(sanction.fineAmount) : '-'}</TableCell>
+                  <TableCell className="max-w-xs truncate">{sanction.reason}</TableCell>
+                  <TableCell>{formatDate(sanction.startDate)}</TableCell>
+                  <TableCell>{sanction.amount ? formatCurrency(sanction.amount) : '-'}</TableCell>
                   <TableCell>
-                    <Badge className={statusConfig[sanction.status].className}>
-                      {statusConfig[sanction.status].label}
+                    <Badge className={statusConfig[sanction.status]?.className || 'bg-gray-100 text-gray-800'}>
+                      {statusConfig[sanction.status]?.label || sanction.status}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -314,7 +344,7 @@ export default function SancionesPage() {
                       <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(sanction)}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      {sanction.status === 'ACTIVE' && (
+                      {sanction.status === 'PENDING' && (
                         <>
                           <Button variant="ghost" size="icon" onClick={() => completeMutation.mutate(sanction.id)} title="Completar">
                             <CheckCircle className="h-4 w-4 text-green-600" />
@@ -334,16 +364,16 @@ export default function SancionesPage() {
       </div>
 
       {/* Pagination */}
-      {sanctionsData && sanctionsData.pagination.totalPages > 1 && (
+      {pagination && pagination.totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-gray-500">
-            Mostrando {((page - 1) * 10) + 1} - {Math.min(page * 10, sanctionsData.pagination.total)} de {sanctionsData.pagination.total}
+            Mostrando {((page - 1) * 10) + 1} - {Math.min(page * 10, pagination.total)} de {pagination.total}
           </p>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setPage(page - 1)} disabled={!sanctionsData.pagination.hasPrev}>
+            <Button variant="outline" size="sm" onClick={() => setPage(page - 1)} disabled={!pagination.hasPrev}>
               Anterior
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setPage(page + 1)} disabled={!sanctionsData.pagination.hasNext}>
+            <Button variant="outline" size="sm" onClick={() => setPage(page + 1)} disabled={!pagination.hasNext}>
               Siguiente
             </Button>
           </div>
@@ -365,8 +395,8 @@ export default function SancionesPage() {
               <Select name="driverId" defaultValue={editingSanction?.driverId} required>
                 <SelectTrigger><SelectValue placeholder="Seleccionar conductor" /></SelectTrigger>
                 <SelectContent>
-                  {driversData?.data.map((driver) => (
-                    <SelectItem key={driver.id} value={driver.id}>{driver.fullName}</SelectItem>
+                  {(driversData?.data || []).map((driver) => (
+                    <SelectItem key={driver.id} value={driver.id}>{getDriverName(driver)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -383,39 +413,18 @@ export default function SancionesPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="description">Descripción *</Label>
-              <Input id="description" name="description" defaultValue={editingSanction?.description} required />
+              <Label htmlFor="reason">Motivo *</Label>
+              <Input id="reason" name="reason" defaultValue={editingSanction?.reason} required />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="incidentDate">Fecha del Incidente *</Label>
-                <Input id="incidentDate" name="incidentDate" type="date" defaultValue={editingSanction?.incidentDate?.split('T')[0]} required />
+                <Label htmlFor="startDate">Fecha de Inicio</Label>
+                <Input id="startDate" name="startDate" type="date" defaultValue={editingSanction?.startDate?.split('T')[0]} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="severity">Severidad</Label>
-                <Select name="severity" defaultValue={editingSanction?.severity || 'MEDIA'}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="LEVE">Leve</SelectItem>
-                    <SelectItem value="MEDIA">Media</SelectItem>
-                    <SelectItem value="GRAVE">Grave</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="amount">Monto (BOB)</Label>
+                <Input id="amount" name="amount" type="number" step="0.01" defaultValue={editingSanction?.amount || ''} />
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="fineAmount">Monto Multa (BOB)</Label>
-                <Input id="fineAmount" name="fineAmount" type="number" step="0.01" defaultValue={editingSanction?.fineAmount || ''} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="suspensionDays">Días Suspensión</Label>
-                <Input id="suspensionDays" name="suspensionDays" type="number" defaultValue={editingSanction?.suspensionDays || ''} />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="reason">Motivo</Label>
-              <Input id="reason" name="reason" defaultValue={editingSanction?.reason || ''} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="notes">Notas</Label>

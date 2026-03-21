@@ -21,6 +21,7 @@ import {
   sanctionsApi,
   driverHistoryApi,
   trucksApi,
+  driversApi,
 } from '@/lib/api-client';
 import {
   UserListParams,

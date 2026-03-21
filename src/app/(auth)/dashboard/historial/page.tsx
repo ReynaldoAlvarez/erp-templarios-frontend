@@ -44,20 +44,36 @@ import {
   FileText,
   AlertCircle,
   Award,
-  GraduationCap,
   Trash2,
   Loader2,
   User,
-  Calendar,
 } from 'lucide-react';
-import type { DriverHistory, DriverEventType, CreateDriverHistoryInput } from '@/types/api';
+import type { DriverHistory, HistoryEventType, CreateDriverHistoryInput } from '@/types/api';
 
-const eventTypeConfig: Record<DriverEventType, { label: string; className: string; icon: typeof FileText }> = {
+// Según el backend: INCIDENT, ACCIDENT, AWARD, STATUS_CHANGE
+const eventTypeConfig: Record<HistoryEventType, { label: string; className: string; icon: typeof FileText }> = {
   INCIDENT: { label: 'Incidente', className: 'bg-yellow-100 text-yellow-800', icon: AlertCircle },
   ACCIDENT: { label: 'Accidente', className: 'bg-red-100 text-red-800', icon: AlertCircle },
   AWARD: { label: 'Reconocimiento', className: 'bg-green-100 text-green-800', icon: Award },
   STATUS_CHANGE: { label: 'Cambio de Estado', className: 'bg-blue-100 text-blue-800', icon: User },
-  TRAINING: { label: 'Capacitación', className: 'bg-purple-100 text-purple-800', icon: GraduationCap },
+};
+
+// Helper function para manejar la estructura del backend
+const getStatusValue = (value: unknown): number => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'object' && value !== null && 'count' in value) {
+    return (value as { count: number }).count;
+  }
+  return 0;
+};
+
+// Helper para obtener nombre completo del driver
+const getDriverName = (driver: { employee?: { firstName?: string; lastName?: string } } | null | undefined): string => {
+  if (!driver) return '-';
+  if (driver.employee?.firstName && driver.employee?.lastName) {
+    return `${driver.employee.firstName} ${driver.employee.lastName}`;
+  }
+  return driver.employee?.firstName || driver.employee?.lastName || '-';
 };
 
 export default function HistorialPage() {
@@ -73,7 +89,7 @@ export default function HistorialPage() {
     page,
     limit: 10,
     search: debouncedSearch || undefined,
-    eventType: typeFilter !== 'all' ? typeFilter as DriverEventType : undefined,
+    eventType: typeFilter !== 'all' ? typeFilter as HistoryEventType : undefined,
     driverId: driverFilter !== 'all' ? driverFilter : undefined,
   }), [page, debouncedSearch, typeFilter, driverFilter]);
 
@@ -99,24 +115,28 @@ export default function HistorialPage() {
     
     const data: CreateDriverHistoryInput = {
       driverId: formData.get('driverId') as string,
-      eventType: formData.get('eventType') as DriverEventType,
-      title: formData.get('title') as string,
+      eventType: formData.get('eventType') as HistoryEventType,
       description: formData.get('description') as string,
-      eventDate: formData.get('eventDate') as string,
-      severity: formData.get('severity') as string || undefined,
-      location: formData.get('location') as string || undefined,
-      involvedParties: formData.get('involvedParties') as string || undefined,
-      outcome: formData.get('outcome') as string || undefined,
-      points: parseInt(formData.get('points') as string) || undefined,
       notes: formData.get('notes') as string || undefined,
+      occurredAt: formData.get('occurredAt') as string || undefined,
     };
 
     createMutation.mutate(data, { onSuccess: handleCloseDialog });
   };
 
   const formatDate = (date: string) => {
+    if (!date) return '-';
     return new Date(date).toLocaleDateString('es-BO');
   };
+
+  const formatDateTime = (date: string) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleString('es-BO');
+  };
+
+  // Obtener datos de forma segura
+  const historyList = historyData?.data || [];
+  const pagination = historyData?.pagination;
 
   return (
     <div className="space-y-6">
@@ -134,14 +154,14 @@ export default function HistorialPage() {
 
       {/* Stats Cards */}
       {stats && (
-        <div className="grid gap-4 md:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">Total Eventos</CardTitle>
               <FileText className="h-4 w-4 text-[#1B3F66]" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
+              <div className="text-2xl font-bold">{getStatusValue(stats.total)}</div>
             </CardContent>
           </Card>
           <Card>
@@ -150,7 +170,7 @@ export default function HistorialPage() {
               <AlertCircle className="h-4 w-4 text-yellow-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalIncidents}</div>
+              <div className="text-2xl font-bold">{getStatusValue(stats.byEventType?.INCIDENT)}</div>
             </CardContent>
           </Card>
           <Card>
@@ -159,7 +179,7 @@ export default function HistorialPage() {
               <AlertCircle className="h-4 w-4 text-red-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalAccidents}</div>
+              <div className="text-2xl font-bold">{getStatusValue(stats.byEventType?.ACCIDENT)}</div>
             </CardContent>
           </Card>
           <Card>
@@ -168,16 +188,7 @@ export default function HistorialPage() {
               <Award className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalAwards}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Capacitaciones</CardTitle>
-              <GraduationCap className="h-4 w-4 text-purple-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalTraining}</div>
+              <div className="text-2xl font-bold">{getStatusValue(stats.byEventType?.AWARD)}</div>
             </CardContent>
           </Card>
         </div>
@@ -188,7 +199,7 @@ export default function HistorialPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input
-            placeholder="Buscar por título, descripción o conductor..."
+            placeholder="Buscar por descripción o conductor..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10"
@@ -200,9 +211,9 @@ export default function HistorialPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los conductores</SelectItem>
-            {driversData?.data.map((driver) => (
+            {(driversData?.data || []).map((driver) => (
               <SelectItem key={driver.id} value={driver.id}>
-                {driver.fullName}
+                {getDriverName(driver)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -213,8 +224,8 @@ export default function HistorialPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los tipos</SelectItem>
-            {eventTypes?.map((type) => (
-              <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+            {Object.entries(eventTypeConfig).map(([value, config]) => (
+              <SelectItem key={value} value={value}>{config.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -227,49 +238,42 @@ export default function HistorialPage() {
             <TableRow>
               <TableHead>Conductor</TableHead>
               <TableHead>Tipo</TableHead>
-              <TableHead>Título</TableHead>
+              <TableHead>Descripción</TableHead>
               <TableHead>Fecha</TableHead>
-              <TableHead>Ubicación</TableHead>
-              <TableHead>Puntos</TableHead>
+              <TableHead>Notas</TableHead>
               <TableHead>Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
+                <TableCell colSpan={6} className="text-center py-8">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-[#1B3F66]" />
                 </TableCell>
               </TableRow>
-            ) : historyData?.data.length === 0 ? (
+            ) : historyList.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                   No se encontraron registros
                 </TableCell>
               </TableRow>
             ) : (
-              historyData?.data.map((record) => {
-                const EventTypeIcon = eventTypeConfig[record.eventType].icon;
+              historyList.map((record) => {
+                const EventTypeIcon = eventTypeConfig[record.eventType]?.icon || FileText;
                 return (
                   <TableRow key={record.id}>
-                    <TableCell className="font-medium">{record.driver?.fullName}</TableCell>
+                    <TableCell className="font-medium">{getDriverName(record.driver)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <EventTypeIcon className="h-4 w-4" />
-                        <Badge className={eventTypeConfig[record.eventType].className}>
-                          {eventTypeConfig[record.eventType].label}
+                        <Badge className={eventTypeConfig[record.eventType]?.className || 'bg-gray-100 text-gray-800'}>
+                          {eventTypeConfig[record.eventType]?.label || record.eventType}
                         </Badge>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{record.title}</div>
-                        <div className="text-sm text-gray-500 truncate max-w-xs">{record.description}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{formatDate(record.eventDate)}</TableCell>
-                    <TableCell>{record.location || '-'}</TableCell>
-                    <TableCell>{record.points ?? '-'}</TableCell>
+                    <TableCell className="max-w-xs truncate">{record.description}</TableCell>
+                    <TableCell>{formatDateTime(record.occurredAt)}</TableCell>
+                    <TableCell className="max-w-xs truncate">{record.notes || '-'}</TableCell>
                     <TableCell>
                       <Button
                         variant="ghost"
@@ -289,16 +293,16 @@ export default function HistorialPage() {
       </div>
 
       {/* Pagination */}
-      {historyData && historyData.pagination.totalPages > 1 && (
+      {pagination && pagination.totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-gray-500">
-            Mostrando {((page - 1) * 10) + 1} - {Math.min(page * 10, historyData.pagination.total)} de {historyData.pagination.total}
+            Mostrando {((page - 1) * 10) + 1} - {Math.min(page * 10, pagination.total)} de {pagination.total}
           </p>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setPage(page - 1)} disabled={!historyData.pagination.hasPrev}>
+            <Button variant="outline" size="sm" onClick={() => setPage(page - 1)} disabled={!pagination.hasPrev}>
               Anterior
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setPage(page + 1)} disabled={!historyData.pagination.hasNext}>
+            <Button variant="outline" size="sm" onClick={() => setPage(page + 1)} disabled={!pagination.hasNext}>
               Siguiente
             </Button>
           </div>
@@ -320,8 +324,8 @@ export default function HistorialPage() {
               <Select name="driverId" required>
                 <SelectTrigger><SelectValue placeholder="Seleccionar conductor" /></SelectTrigger>
                 <SelectContent>
-                  {driversData?.data.map((driver) => (
-                    <SelectItem key={driver.id} value={driver.id}>{driver.fullName}</SelectItem>
+                  {(driversData?.data || []).map((driver) => (
+                    <SelectItem key={driver.id} value={driver.id}>{getDriverName(driver)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -338,47 +342,12 @@ export default function HistorialPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="title">Título *</Label>
-              <Input id="title" name="title" required />
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="description">Descripción *</Label>
               <Input id="description" name="description" required />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="eventDate">Fecha del Evento *</Label>
-                <Input id="eventDate" name="eventDate" type="date" defaultValue={new Date().toISOString().split('T')[0]} required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="severity">Severidad</Label>
-                <Select name="severity" defaultValue="MEDIA">
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="LEVE">Leve</SelectItem>
-                    <SelectItem value="MEDIA">Media</SelectItem>
-                    <SelectItem value="GRAVE">Grave</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="location">Ubicación</Label>
-                <Input id="location" name="location" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="points">Puntos</Label>
-                <Input id="points" name="points" type="number" />
-              </div>
-            </div>
             <div className="space-y-2">
-              <Label htmlFor="involvedParties">Partes Involucradas</Label>
-              <Input id="involvedParties" name="involvedParties" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="outcome">Resultado</Label>
-              <Input id="outcome" name="outcome" />
+              <Label htmlFor="occurredAt">Fecha del Evento</Label>
+              <Input id="occurredAt" name="occurredAt" type="datetime-local" defaultValue={new Date().toISOString().slice(0, 16)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="notes">Notas</Label>
