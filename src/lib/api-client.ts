@@ -1529,7 +1529,7 @@ interface BackendMaintenanceResponse {
   success: boolean;
   message: string;
   data: {
-    maintenance: import('@/types/api').Maintenance[];
+    maintenances: import('@/types/api').Maintenance[];
     total: number;
     page: number;
     limit: number;
@@ -1541,10 +1541,10 @@ interface BackendMaintenanceResponse {
 export const maintenanceApi = {
   getAll: async (params?: import('@/types/api').MaintenanceListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').Maintenance>> => {
     const response = await api.get<BackendMaintenanceResponse>('/maintenance', params);
-    const { maintenance, total, page, limit, totalPages } = response.data.data;
+    const { maintenances, total, page, limit, totalPages } = response.data.data;
 
     return {
-      data: maintenance,
+      data: maintenances,
       pagination: {
         page,
         limit,
