@@ -1276,3 +1276,318 @@ export interface BorderReport {
   avgDurationHours: number;
   borders: BorderReportItem[];
 }
+
+// ============ Sprint 7: Assets, Liabilities, Maintenance, Sanctions, Driver History ============
+
+// ============ Asset (Activos) Types ============
+// Según schema.prisma: VEHICLE, EQUIPMENT, PROPERTY, OTHER
+export type AssetCategory = 'VEHICLE' | 'EQUIPMENT' | 'PROPERTY' | 'OTHER';
+
+export interface Asset {
+  id: string;
+  companyId: string;
+  name: string;
+  description?: string;
+  category: AssetCategory;
+  value: number;                // Valor del activo
+  acquisitionDate?: string;     // Fecha de adquisición
+  usefulLifeMonths?: number;    // Vida útil en meses
+  depreciation: number;         // Depreciación acumulada
+  isActive: boolean;            // Estado activo/inactivo (NO hay status enum)
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAssetInput {
+  name: string;
+  category: AssetCategory;
+  description?: string;
+  value: number;                // Backend espera 'value'
+  acquisitionDate?: string;
+  usefulLifeMonths?: number;    // Backend usa meses
+  depreciation?: number;
+}
+
+export interface UpdateAssetInput {
+  name?: string;
+  category?: AssetCategory;
+  description?: string;
+  value?: number;
+  acquisitionDate?: string;
+  usefulLifeMonths?: number;
+  depreciation?: number;
+  isActive?: boolean;
+}
+
+export interface AssetListParams extends PaginationParams {
+  category?: AssetCategory;
+  isActive?: boolean;
+}
+
+export interface AssetStats {
+  total: number;
+  totalValue: number;
+  totalDepreciation: number;
+  byCategory: Record<AssetCategory, { count: number; value: number }>;
+}
+
+export interface AssetCategoryOption {
+  value: AssetCategory;
+  label: string;
+}
+
+// ============ Liability (Pasivos) Types ============
+// Según schema.prisma: LOAN, ACCOUNTS_PAYABLE, MORTGAGE, OTHER
+export type LiabilityType = 'LOAN' | 'ACCOUNTS_PAYABLE' | 'MORTGAGE' | 'OTHER';
+// Según schema.prisma: PENDING, PARTIAL, PAID
+export type LiabilityStatus = 'PENDING' | 'PARTIAL' | 'PAID';
+
+export interface Liability {
+  id: string;
+  companyId: string;
+  name: string;
+  description?: string;
+  type: LiabilityType;
+  amount: number;               // Monto total
+  interestRate?: number;        // Tasa de interés
+  startDate?: string;           // Fecha de inicio
+  dueDate?: string;             // Fecha de vencimiento
+  status: LiabilityStatus;      // PENDING, PARTIAL, PAID
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateLiabilityInput {
+  name: string;
+  type: LiabilityType;
+  description?: string;
+  amount: number;               // Backend espera 'amount'
+  interestRate?: number;
+  startDate?: string;
+  dueDate?: string;
+}
+
+export interface UpdateLiabilityInput {
+  name?: string;
+  type?: LiabilityType;
+  description?: string;
+  amount?: number;
+  interestRate?: number;
+  startDate?: string;
+  dueDate?: string;
+  status?: LiabilityStatus;
+}
+
+export interface LiabilityListParams extends PaginationParams {
+  type?: LiabilityType;
+  status?: LiabilityStatus;
+}
+
+export interface LiabilityStats {
+  total: number;
+  totalDebt: number;
+  byType: Record<LiabilityType, { count: number; amount: number }>;
+  byStatus: Record<LiabilityStatus, number>;
+}
+
+export interface LiabilityTypeOption {
+  value: LiabilityType;
+  label: string;
+}
+
+// ============ Maintenance (Mantenimientos) Types ============
+// Según schema.prisma
+export type MaintenanceType = 'PREVENTIVE' | 'CORRECTIVE';
+export type MaintenanceStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+
+export interface Maintenance {
+  id: string;
+  truckId: string;
+  truck?: {
+    id: string;
+    plateNumber: string;
+    brand?: string;
+    model?: string;
+  };
+  type: MaintenanceType;
+  description: string;
+  mileage?: number;
+  startDate: string;
+  endDate?: string;
+  cost?: number;
+  workshop?: string;
+  status: MaintenanceStatus;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateMaintenanceInput {
+  truckId: string;
+  type: MaintenanceType;
+  description: string;
+  mileage?: number;
+  startDate?: string;
+  cost?: number;
+  workshop?: string;
+  notes?: string;
+}
+
+export interface UpdateMaintenanceInput {
+  truckId?: string;
+  type?: MaintenanceType;
+  description?: string;
+  mileage?: number;
+  startDate?: string;
+  endDate?: string;
+  cost?: number;
+  workshop?: string;
+  notes?: string;
+  status?: MaintenanceStatus;
+}
+
+export interface MaintenanceListParams extends PaginationParams {
+  truckId?: string;
+  type?: MaintenanceType;
+  status?: MaintenanceStatus;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface MaintenanceStats {
+  total: number;
+  totalCost: number;
+  avgCost: number;
+  byType: Record<MaintenanceType, { count: number; cost: number }>;
+  byStatus: Record<MaintenanceStatus, number>;
+  upcomingCount: number;
+}
+
+export interface MaintenanceTypeOption {
+  value: MaintenanceType;
+  label: string;
+}
+
+// ============ Sanction (Sanciones) Types ============
+// Según schema.prisma
+export type SanctionType = 'FINE' | 'SUSPENSION' | 'WARNING';
+export type SanctionStatus = 'PENDING' | 'COMPLETED' | 'CANCELLED';
+
+export interface Sanction {
+  id: string;
+  driverId: string;
+  driver?: {
+    id: string;
+    employeeId?: string;
+    employee?: {
+      firstName?: string;
+      lastName?: string;
+      phone?: string;
+    };
+    firstName?: string;
+    lastName?: string;
+    fullName?: string;
+  };
+  type: SanctionType;
+  reason: string;
+  amount?: number | string;
+  startDate: string;
+  endDate?: string;
+  status: SanctionStatus;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSanctionInput {
+  driverId: string;
+  type: SanctionType;
+  reason: string;
+  amount?: number;
+  startDate?: string;
+  endDate?: string;
+  notes?: string;
+}
+
+export interface UpdateSanctionInput {
+  type?: SanctionType;
+  reason?: string;
+  amount?: number;
+  startDate?: string;
+  endDate?: string;
+  status?: SanctionStatus;
+  notes?: string;
+}
+
+export interface SanctionListParams extends PaginationParams {
+  driverId?: string;
+  type?: SanctionType;
+  status?: SanctionStatus;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface SanctionStats {
+  total: number;
+  activeCount: number;
+  totalFines: number;
+  byType: Record<SanctionType, number>;
+  byStatus: Record<SanctionStatus, number>;
+}
+
+export interface SanctionTypeOption {
+  value: SanctionType;
+  label: string;
+}
+
+// ============ Driver History (Historial de Conductores) Types ============
+// Según schema.prisma
+export type HistoryEventType = 'INCIDENT' | 'ACCIDENT' | 'AWARD' | 'STATUS_CHANGE';
+
+export interface DriverHistory {
+  id: string;
+  driverId: string;
+  driver?: {
+    id: string;
+    firstName?: string;
+    lastName?: string;
+    fullName?: string;
+  };
+  eventType: HistoryEventType;
+  description: string;
+  notes?: string;
+  occurredAt: string;
+  createdAt: string;
+}
+
+export interface CreateDriverHistoryInput {
+  driverId: string;
+  eventType: HistoryEventType;
+  description: string;
+  notes?: string;
+  occurredAt?: string;
+}
+
+export interface UpdateDriverHistoryInput {
+  eventType?: HistoryEventType;
+  description?: string;
+  notes?: string;
+  occurredAt?: string;
+}
+
+export interface DriverHistoryListParams extends PaginationParams {
+  driverId?: string;
+  eventType?: HistoryEventType;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface DriverHistoryStats {
+  total: number;
+  byEventType: Record<HistoryEventType, number>;
+}
+
+export interface HistoryEventTypeOption {
+  value: HistoryEventType;
+  label: string;
+}

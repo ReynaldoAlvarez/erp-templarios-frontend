@@ -15,6 +15,13 @@ import {
   routesApi,
   dashboardApi,
   reportsApi,
+  assetsApi,
+  liabilitiesApi,
+  maintenanceApi,
+  sanctionsApi,
+  driverHistoryApi,
+  trucksApi,
+  driversApi,
 } from '@/lib/api-client';
 import {
   UserListParams,
@@ -912,5 +919,468 @@ export function useBordersReport(params?: import('@/types/api').ReportParams) {
     queryKey: ['reports', 'borders', params],
     queryFn: () => reportsApi.getBorders(params),
     enabled: !!params?.startDate && !!params?.endDate,
+  });
+}
+
+// ==========================================
+// Sprint 7: Assets, Liabilities, Maintenance, Sanctions, Driver History
+// ==========================================
+
+// ============ Assets Hooks ============
+export function useAssets(params?: import('@/types/api').AssetListParams) {
+  return useQuery({
+    queryKey: ['assets', params],
+    queryFn: () => assetsApi.getAll(params),
+  });
+}
+
+export function useAsset(id: string | undefined) {
+  return useQuery({
+    queryKey: ['assets', id],
+    queryFn: () => assetsApi.getById(id!),
+    enabled: !!id,
+  });
+}
+
+export function useAssetCategories() {
+  return useQuery({
+    queryKey: ['assets', 'categories'],
+    queryFn: () => assetsApi.getCategories(),
+    staleTime: 300000, // 5 minutes
+  });
+}
+
+export function useAssetStats() {
+  return useQuery({
+    queryKey: ['assets', 'stats'],
+    queryFn: () => assetsApi.getStats(),
+  });
+}
+
+export function useCreateAsset() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: import('@/types/api').CreateAssetInput) => assetsApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['assets'] });
+    },
+  });
+}
+
+export function useUpdateAsset() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: import('@/types/api').UpdateAssetInput }) =>
+      assetsApi.update(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['assets'] });
+      queryClient.invalidateQueries({ queryKey: ['assets', id] });
+    },
+  });
+}
+
+export function useUpdateAssetDepreciation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, depreciationRate, currentValue }: { id: string; depreciationRate: number; currentValue: number }) =>
+      assetsApi.updateDepreciation(id, depreciationRate, currentValue),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['assets'] });
+      queryClient.invalidateQueries({ queryKey: ['assets', id] });
+    },
+  });
+}
+
+export function useDeactivateAsset() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => assetsApi.deactivate(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['assets'] });
+      queryClient.invalidateQueries({ queryKey: ['assets', id] });
+    },
+  });
+}
+
+export function useActivateAsset() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => assetsApi.activate(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['assets'] });
+      queryClient.invalidateQueries({ queryKey: ['assets', id] });
+    },
+  });
+}
+
+// ============ Liabilities Hooks ============
+export function useLiabilities(params?: import('@/types/api').LiabilityListParams) {
+  return useQuery({
+    queryKey: ['liabilities', params],
+    queryFn: () => liabilitiesApi.getAll(params),
+  });
+}
+
+export function useLiability(id: string | undefined) {
+  return useQuery({
+    queryKey: ['liabilities', id],
+    queryFn: () => liabilitiesApi.getById(id!),
+    enabled: !!id,
+  });
+}
+
+export function useLiabilityTypes() {
+  return useQuery({
+    queryKey: ['liabilities', 'types'],
+    queryFn: () => liabilitiesApi.getTypes(),
+    staleTime: 300000, // 5 minutes
+  });
+}
+
+export function useLiabilityStats() {
+  return useQuery({
+    queryKey: ['liabilities', 'stats'],
+    queryFn: () => liabilitiesApi.getStats(),
+  });
+}
+
+export function useOverdueLiabilities() {
+  return useQuery({
+    queryKey: ['liabilities', 'overdue'],
+    queryFn: () => liabilitiesApi.getOverdue(),
+  });
+}
+
+export function useCreateLiability() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: import('@/types/api').CreateLiabilityInput) => liabilitiesApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['liabilities'] });
+    },
+  });
+}
+
+export function useUpdateLiability() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: import('@/types/api').UpdateLiabilityInput }) =>
+      liabilitiesApi.update(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['liabilities'] });
+      queryClient.invalidateQueries({ queryKey: ['liabilities', id] });
+    },
+  });
+}
+
+export function useUpdateLiabilityStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: import('@/types/api').LiabilityStatus }) =>
+      liabilitiesApi.updateStatus(id, status),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['liabilities'] });
+      queryClient.invalidateQueries({ queryKey: ['liabilities', id] });
+    },
+  });
+}
+
+export function useRegisterLiabilityPayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: import('@/types/api').CreateLiabilityPaymentInput }) =>
+      liabilitiesApi.registerPayment(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['liabilities'] });
+      queryClient.invalidateQueries({ queryKey: ['liabilities', id] });
+    },
+  });
+}
+
+// ============ Maintenance Hooks ============
+export function useMaintenance(params?: import('@/types/api').MaintenanceListParams) {
+  return useQuery({
+    queryKey: ['maintenance', params],
+    queryFn: () => maintenanceApi.getAll(params),
+  });
+}
+
+export function useMaintenanceRecord(id: string | undefined) {
+  return useQuery({
+    queryKey: ['maintenance', id],
+    queryFn: () => maintenanceApi.getById(id!),
+    enabled: !!id,
+  });
+}
+
+export function useMaintenanceTypes() {
+  return useQuery({
+    queryKey: ['maintenance', 'types'],
+    queryFn: () => maintenanceApi.getTypes(),
+    staleTime: 300000, // 5 minutes
+  });
+}
+
+export function useMaintenanceStats() {
+  return useQuery({
+    queryKey: ['maintenance', 'stats'],
+    queryFn: () => maintenanceApi.getStats(),
+  });
+}
+
+export function useUpcomingMaintenance() {
+  return useQuery({
+    queryKey: ['maintenance', 'upcoming'],
+    queryFn: () => maintenanceApi.getUpcoming(),
+  });
+}
+
+export function useMaintenanceByTruck(truckId: string | undefined) {
+  return useQuery({
+    queryKey: ['maintenance', 'truck', truckId],
+    queryFn: () => maintenanceApi.getByTruck(truckId!),
+    enabled: !!truckId,
+  });
+}
+
+export function useCreateMaintenance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: import('@/types/api').CreateMaintenanceInput) => maintenanceApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['maintenance'] });
+    },
+  });
+}
+
+export function useUpdateMaintenance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: import('@/types/api').UpdateMaintenanceInput }) =>
+      maintenanceApi.update(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['maintenance'] });
+      queryClient.invalidateQueries({ queryKey: ['maintenance', id] });
+    },
+  });
+}
+
+export function useStartMaintenance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => maintenanceApi.start(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['maintenance'] });
+      queryClient.invalidateQueries({ queryKey: ['maintenance', id] });
+    },
+  });
+}
+
+export function useCompleteMaintenance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, cost, notes }: { id: string; cost?: number; notes?: string }) =>
+      maintenanceApi.complete(id, cost, notes),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['maintenance'] });
+      queryClient.invalidateQueries({ queryKey: ['maintenance', id] });
+    },
+  });
+}
+
+export function useCancelMaintenance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      maintenanceApi.cancel(id, reason),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['maintenance'] });
+      queryClient.invalidateQueries({ queryKey: ['maintenance', id] });
+    },
+  });
+}
+
+// ============ Sanctions Hooks ============
+export function useSanctions(params?: import('@/types/api').SanctionListParams) {
+  return useQuery({
+    queryKey: ['sanctions', params],
+    queryFn: () => sanctionsApi.getAll(params),
+  });
+}
+
+export function useSanction(id: string | undefined) {
+  return useQuery({
+    queryKey: ['sanctions', id],
+    queryFn: () => sanctionsApi.getById(id!),
+    enabled: !!id,
+  });
+}
+
+export function useSanctionTypes() {
+  return useQuery({
+    queryKey: ['sanctions', 'types'],
+    queryFn: () => sanctionsApi.getTypes(),
+    staleTime: 300000, // 5 minutes
+  });
+}
+
+export function useSanctionStats() {
+  return useQuery({
+    queryKey: ['sanctions', 'stats'],
+    queryFn: () => sanctionsApi.getStats(),
+  });
+}
+
+export function useActiveSanctions() {
+  return useQuery({
+    queryKey: ['sanctions', 'active'],
+    queryFn: () => sanctionsApi.getActive(),
+  });
+}
+
+export function useSanctionsByDriver(driverId: string | undefined) {
+  return useQuery({
+    queryKey: ['sanctions', 'driver', driverId],
+    queryFn: () => sanctionsApi.getByDriver(driverId!),
+    enabled: !!driverId,
+  });
+}
+
+export function useCreateSanction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: import('@/types/api').CreateSanctionInput) => sanctionsApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sanctions'] });
+    },
+  });
+}
+
+export function useUpdateSanction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: import('@/types/api').UpdateSanctionInput }) =>
+      sanctionsApi.update(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['sanctions'] });
+      queryClient.invalidateQueries({ queryKey: ['sanctions', id] });
+    },
+  });
+}
+
+export function useCompleteSanction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => sanctionsApi.complete(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['sanctions'] });
+      queryClient.invalidateQueries({ queryKey: ['sanctions', id] });
+    },
+  });
+}
+
+export function useCancelSanction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      sanctionsApi.cancel(id, reason),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['sanctions'] });
+      queryClient.invalidateQueries({ queryKey: ['sanctions', id] });
+    },
+  });
+}
+
+// ============ Driver History Hooks ============
+export function useDriverHistory(params?: import('@/types/api').DriverHistoryListParams) {
+  return useQuery({
+    queryKey: ['driverHistory', params],
+    queryFn: () => driverHistoryApi.getAll(params),
+  });
+}
+
+export function useDriverHistoryRecord(id: string | undefined) {
+  return useQuery({
+    queryKey: ['driverHistory', id],
+    queryFn: () => driverHistoryApi.getById(id!),
+    enabled: !!id,
+  });
+}
+
+export function useDriverEventTypes() {
+  return useQuery({
+    queryKey: ['driverHistory', 'eventTypes'],
+    queryFn: () => driverHistoryApi.getEventTypes(),
+    staleTime: 300000, // 5 minutes
+  });
+}
+
+export function useDriverHistoryStats() {
+  return useQuery({
+    queryKey: ['driverHistory', 'stats'],
+    queryFn: () => driverHistoryApi.getStats(),
+  });
+}
+
+export function useDriverHistoryByDriver(driverId: string | undefined) {
+  return useQuery({
+    queryKey: ['driverHistory', 'driver', driverId],
+    queryFn: () => driverHistoryApi.getByDriver(driverId!),
+    enabled: !!driverId,
+  });
+}
+
+export function useDriverTimeline(driverId: string | undefined) {
+  return useQuery({
+    queryKey: ['driverHistory', 'timeline', driverId],
+    queryFn: () => driverHistoryApi.getTimeline(driverId!),
+    enabled: !!driverId,
+  });
+}
+
+export function useDriverSummary(driverId: string | undefined) {
+  return useQuery({
+    queryKey: ['driverHistory', 'summary', driverId],
+    queryFn: () => driverHistoryApi.getSummary(driverId!),
+    enabled: !!driverId,
+  });
+}
+
+export function useCreateDriverHistory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: import('@/types/api').CreateDriverHistoryInput) => driverHistoryApi.create(data),
+    onSuccess: (_, { driverId }) => {
+      queryClient.invalidateQueries({ queryKey: ['driverHistory'] });
+      queryClient.invalidateQueries({ queryKey: ['driverHistory', 'driver', driverId] });
+      queryClient.invalidateQueries({ queryKey: ['driverHistory', 'timeline', driverId] });
+      queryClient.invalidateQueries({ queryKey: ['driverHistory', 'summary', driverId] });
+    },
+  });
+}
+
+export function useDeleteDriverHistory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => driverHistoryApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['driverHistory'] });
+    },
+  });
+}
+
+// ============ Additional Hooks for Sprint 7 ============
+
+export function useDriversList(params?: import('@/types/api').DriverListParams) {
+  return useQuery({
+    queryKey: ['drivers', params],
+    queryFn: () => driversApi.getAll(params),
+  });
+}
+
+export function useTrucksList(params?: import('@/types/api').TruckListParams) {
+  return useQuery({
+    queryKey: ['trucks', params],
+    queryFn: () => trucksApi.getAll(params),
   });
 }
