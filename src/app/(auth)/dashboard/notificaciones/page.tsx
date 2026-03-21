@@ -244,28 +244,28 @@ export default function NotificacionesPage() {
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
               <Input placeholder="Buscar..." className="pl-8" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <Select value={typeFilter || ''} onValueChange={(v) => setTypeFilter(v as NotificationType || undefined)}>
+            <Select value={typeFilter || 'ALL'} onValueChange={(v) => setTypeFilter(v === 'ALL' ? undefined : v as NotificationType)}>
               <SelectTrigger><SelectValue placeholder="Tipo" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="ALL">Todos</SelectItem>
                 {Object.entries(TYPE_LABELS).map(([value, label]) => (
                   <SelectItem key={value} value={value}>{label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Select value={priorityFilter || ''} onValueChange={(v) => setPriorityFilter(v as NotificationPriority || undefined)}>
+            <Select value={priorityFilter || 'ALL'} onValueChange={(v) => setPriorityFilter(v === 'ALL' ? undefined : v as NotificationPriority)}>
               <SelectTrigger><SelectValue placeholder="Prioridad" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas</SelectItem>
+                <SelectItem value="ALL">Todas</SelectItem>
                 {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
                   <SelectItem key={value} value={value}>{label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Select value={isReadFilter === undefined ? '' : String(isReadFilter)} onValueChange={(v) => setIsReadFilter(v === '' ? undefined : v === 'true')}>
+            <Select value={isReadFilter === undefined ? 'ALL' : String(isReadFilter)} onValueChange={(v) => setIsReadFilter(v === 'ALL' ? undefined : v === 'true')}>
               <SelectTrigger><SelectValue placeholder="Estado" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="ALL">Todos</SelectItem>
                 <SelectItem value="false">No leídas</SelectItem>
                 <SelectItem value="true">Leídas</SelectItem>
               </SelectContent>

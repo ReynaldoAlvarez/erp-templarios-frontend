@@ -118,7 +118,7 @@ export default function FlujoCajaPage() {
   const updateMutation = useUpdateCashFlow();
   const deleteMutation = useDeleteCashFlow();
 
-  const { control, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<CashFlowFormData>({
+  const { control, register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<CashFlowFormData>({
     resolver: zodResolver(cashFlowSchema),
     defaultValues: {
       type: 'INCOME',
@@ -252,18 +252,18 @@ export default function FlujoCajaPage() {
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
               <Input placeholder="Buscar..." className="pl-8" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <Select value={typeFilter || ''} onValueChange={(v) => setTypeFilter(v as CashFlowType || undefined)}>
+            <Select value={typeFilter || 'ALL'} onValueChange={(v) => setTypeFilter(v === 'ALL' ? undefined : v as CashFlowType)}>
               <SelectTrigger><SelectValue placeholder="Tipo" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="ALL">Todos</SelectItem>
                 <SelectItem value="INCOME">Ingresos</SelectItem>
                 <SelectItem value="EXPENSE">Egresos</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={categoryFilter || ''} onValueChange={(v) => setCategoryFilter(v as CashFlowCategory || undefined)}>
+            <Select value={categoryFilter || 'ALL'} onValueChange={(v) => setCategoryFilter(v === 'ALL' ? undefined : v as CashFlowCategory)}>
               <SelectTrigger><SelectValue placeholder="Categoría" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas</SelectItem>
+                <SelectItem value="ALL">Todas</SelectItem>
                 {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
                   <SelectItem key={value} value={value}>{label}</SelectItem>
                 ))}

@@ -182,10 +182,10 @@ export default function SINExportPage() {
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
               <Input placeholder="Buscar por factura..." className="pl-8" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <Select value={statusFilter || ''} onValueChange={(v) => setStatusFilter(v as SINExportStatus || undefined)}>
+            <Select value={statusFilter || 'ALL'} onValueChange={(v) => setStatusFilter(v === 'ALL' ? undefined : v as SINExportStatus)}>
               <SelectTrigger><SelectValue placeholder="Estado" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="ALL">Todos</SelectItem>
                 {Object.entries(STATUS_LABELS).map(([value, label]) => (
                   <SelectItem key={value} value={value}>{label}</SelectItem>
                 ))}
