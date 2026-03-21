@@ -395,3 +395,79 @@ Se agregaron nuevos íconos y rutas:
 
 ### Pendiente
 - Implementar páginas de los módulos (Cash Flow, Payments, SIN Export, Notifications)
+
+---
+
+## Task ID: Sprint 7 Finance Enhancement - Pages Implementation
+### Agent: Main Agent
+### Task: Implementar páginas de los 4 módulos de Sprint 7
+
+### Work Summary
+
+#### 1. Página Flujo de Caja (`/dashboard/flujo-caja`)
+- **Archivo**: `src/app/(auth)/dashboard/flujo-caja/page.tsx`
+- **Funcionalidades**:
+  - Tarjetas de resumen: Total Ingresos, Total Egresos, Balance
+  - Tabla con paginación de registros de flujo de caja
+  - Filtros: búsqueda, tipo (Ingreso/Egreso), categoría, rango de fechas
+  - CRUD completo: crear, editar, eliminar registros
+  - Dialog con formulario usando react-hook-form + zod
+  - Categorías: Fletes, Combustible, Mantenimiento, Salarios, Peajes, Otros
+  - Métodos de pago: Efectivo, Transferencia, Cheque, Tarjeta, Otro
+  - Badges con colores diferenciados para ingresos (verde) y egresos (rojo)
+
+#### 2. Página Pagos y Anticipos (`/dashboard/pagos`)
+- **Archivo**: `src/app/(auth)/dashboard/pagos/page.tsx`
+- **Funcionalidades**:
+  - Tarjetas de resumen: Total Pagos, Monto Total, Pendientes, Completados
+  - Tabla con paginación de pagos
+  - Filtros: búsqueda, tipo (Anticipo, Liquidación, Factura, Reembolso), estado
+  - Estados: Pendiente, Aprobado, Completado, Cancelado
+  - Acciones: aprobar, completar, cancelar, editar, eliminar
+  - Dialog con formulario para crear/editar pagos
+  - Badges con colores por estado
+
+#### 3. Página SIN Export (`/dashboard/sin-export`)
+- **Archivo**: `src/app/(auth)/dashboard/sin-export/page.tsx`
+- **Funcionalidades**:
+  - Tarjetas de resumen: Total Exportaciones, Pendientes, Exitosos, Fallidos
+  - Tabla con paginación de exportaciones SIN
+  - Filtros: búsqueda, estado
+  - Acciones: procesar (enviar al SIN), reintentar (si falló), ver detalle
+  - Dialog de detalle con información completa:
+    - CUF (Código Único de Facturación)
+    - CUFD
+    - Código de Control
+    - QR Code
+    - Mensaje de error (si aplica)
+    - Contador de reintentos
+  - Badges con iconos animados para estados
+
+#### 4. Página Notificaciones (`/dashboard/notificaciones`)
+- **Archivo**: `src/app/(auth)/dashboard/notificaciones/page.tsx`
+- **Funcionalidades**:
+  - Tarjetas de resumen: Total, No Leídas, Urgentes, Altas
+  - Lista scrollable de notificaciones con diseño de borde izquierdo por prioridad
+  - Filtros: búsqueda, tipo (Viaje, Liquidación, Factura, Mantenimiento, Documento, Sistema, Frontera), prioridad, estado de lectura
+  - Acciones: marcar como leída, marcar todas como leídas, eliminar, limpiar leídas
+  - Iconos diferenciados por tipo de notificación
+  - Colores por prioridad: Baja (gris), Media (azul), Alta (naranja), Urgente (rojo)
+  - Formato de fecha relativo (Hace 5m, Hace 2h, etc.)
+
+#### 5. Sidebar Actualizado
+- Nuevas rutas añadidas:
+  - Finanzas → Flujo de Caja, Pagos, SIN Export
+  - Administración → Notificaciones
+- Nuevos iconos: DollarSign, Bell, FileSpreadsheet
+
+### Build Verificado
+- ✅ Build exitoso con Next.js 16.1.3
+- ✅ 32 rutas estáticas generadas
+- ✅ Todas las páginas funcionales
+
+### Commits Realizados
+1. `16d665d` - feat(sprint-7-finance): Add infrastructure for Cash Flow, Payments, SIN Export, Notifications
+2. Pendiente - feat(sprint-7-finance): Implement pages for all 4 modules
+
+### Branch
+- `feature/sprint-7-finance-enhancement`
