@@ -1,0 +1,645 @@
+###############################################################################
+# ERP TEMPLARIOS - PRUEBAS SPRINT 1: AUTH, USERS, ROLES, PERMISSIONS
+# Archivo para VS Code REST Client
+###############################################################################
+
+@baseUrl = http://localhost:3001/api/v1
+@contentType = application/json
+
+###############################################################################
+# VARIABLES GLOBALES
+###############################################################################
+# Variables que se actualizarán automáticamente
+@token = {{login.response.body.data.accessToken}}
+@refreshToken = {{login.response.body.data.refreshToken}}
+@userId = {{createUser.response.body.data.id}}
+@roleId = {{createRole.response.body.data.id}}
+@permissionId = {{createPermission.response.body.data.id}}
+
+###############################################################################
+# 1. HEALTH CHECK
+###############################################################################
+
+### 1.1 Health Check - Éxito
+# @name healthCheck
+GET {{baseUrl}}/health
+Content-Type: {{contentType}}
+
+###
+
+### 1.2 Health Check - Verificar respuesta
+# Expected: 200 OK con mensaje "API is running"
+
+###############################################################################
+# 2. AUTENTICACIÓN
+###############################################################################
+
+### 2.1 Login - Éxito (Admin)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@templarios.com",
+  "password": "Admin123!"
+}
+
+###
+
+### 2.2 Login - Fallido (Email incorrecto)
+# @name loginWrongEmail
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "wrong@email.com",
+  "password": "Admin123!"
+}
+
+###
+# Expected: 401 Unauthorized - "Usuario no encontrado"
+
+### 2.3 Login - Fallido (Contraseña incorrecta)
+# @name loginWrongPassword
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@templarios.com",
+  "password": "wrongpassword"
+}
+
+###
+# Expected: 401 Unauthorized - "Contraseña incorrecta"
+
+### 2.4 Login - Fallido (Campos vacíos)
+# @name loginEmptyFields
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "",
+  "password": ""
+}
+
+###
+# Expected: 400 Bad Request - Validación fallida
+
+### 2.5 Login - Fallido (Formato email inválido)
+# @name loginInvalidEmail
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "notanemail",
+  "password": "Admin123!"
+}
+
+###
+# Expected: 400 Bad Request - "Email inválido"
+
+### 2.6 Get Current User - Éxito
+# @name getCurrentUser
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 2.7 Get Current User - Fallido (Sin token)
+# @name getCurrentUserNoToken
+GET {{baseUrl}}/auth/me
+Content-Type: {{contentType}}
+
+###
+# Expected: 401 Unauthorized - "No token provided"
+
+### 2.8 Get Current User - Fallido (Token inválido)
+# @name getCurrentUserInvalidToken
+GET {{baseUrl}}/auth/me
+Authorization: Bearer invalid_token_here
+Content-Type: {{contentType}}
+
+###
+# Expected: 401 Unauthorized - "Invalid or expired token"
+
+### 2.9 Refresh Token - Éxito
+# @name refreshToken
+POST {{baseUrl}}/auth/refresh-token
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+###
+
+### 2.10 Refresh Token - Fallido (Token inválido)
+# @name refreshTokenInvalid
+POST {{baseUrl}}/auth/refresh-token
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "invalid_refresh_token"
+}
+
+###
+# Expected: 401 Unauthorized
+
+### 2.11 Change Password - Éxito
+# @name changePassword
+POST {{baseUrl}}/auth/change-password
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "currentPassword": "Admin123!",
+  "newPassword": "NewPassword123!"
+}
+
+###
+
+### 2.12 Change Password - Fallido (Contraseña actual incorrecta)
+# @name changePasswordWrong
+POST {{baseUrl}}/auth/change-password
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "currentPassword": "wrongpassword",
+  "newPassword": "NewPassword123!"
+}
+
+###
+# Expected: 401 Unauthorized - "Contraseña actual incorrecta"
+
+### 2.13 Logout - Éxito
+# @name logout
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+###############################################################################
+# 3. USUARIOS
+###############################################################################
+
+### 3.1 Listar Usuarios - Éxito (con paginación)
+# @name listUsers
+GET {{baseUrl}}/users?page=1&limit=10
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 3.2 Listar Usuarios - Con búsqueda
+# @name listUsersSearch
+GET {{baseUrl}}/users?search=admin
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 3.3 Listar Usuarios - Filtrar por estado
+# @name listUsersByStatus
+GET {{baseUrl}}/users?status=ACTIVE
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 3.4 Crear Usuario - Éxito
+# @name createUser
+POST {{baseUrl}}/users
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "email": "nuevo.usuario@templarios.com",
+  "firstName": "Nuevo",
+  "lastName": "Usuario",
+  "phone": "+591 71234567",
+  "roleIds": []
+}
+
+###
+
+### 3.5 Crear Usuario - Fallido (Email duplicado)
+# @name createUserDuplicate
+POST {{baseUrl}}/users
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@templarios.com",
+  "firstName": "Admin",
+  "lastName": "Duplicado",
+  "phone": "+591 71234568",
+  "roleIds": []
+}
+
+###
+# Expected: 409 Conflict - "Ya existe un usuario con este email"
+
+### 3.6 Crear Usuario - Fallido (Campos requeridos vacíos)
+# @name createUserEmptyFields
+POST {{baseUrl}}/users
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "email": "",
+  "firstName": "",
+  "lastName": ""
+}
+
+###
+# Expected: 400 Bad Request - Validación fallida
+
+### 3.7 Crear Usuario - Fallido (Email inválido)
+# @name createUserInvalidEmail
+POST {{baseUrl}}/users
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "email": "notanemail",
+  "firstName": "Test",
+  "lastName": "User"
+}
+
+###
+# Expected: 400 Bad Request - "Email inválido"
+
+### 3.8 Obtener Usuario por ID - Éxito
+# @name getUserById
+GET {{baseUrl}}/users/{{userId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 3.9 Obtener Usuario por ID - Fallido (ID inválido)
+# @name getUserInvalidId
+GET {{baseUrl}}/users/invalid-uuid
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 400 Bad Request - "ID inválido"
+
+### 3.10 Obtener Usuario por ID - Fallido (No existe)
+# @name getUserNotFound
+GET {{baseUrl}}/users/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 404 Not Found - "Usuario no encontrado"
+
+### 3.11 Actualizar Usuario - Éxito
+# @name updateUser
+PUT {{baseUrl}}/users/{{userId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "firstName": "Nombre Actualizado",
+  "lastName": "Apellido Actualizado",
+  "phone": "+591 79999999"
+}
+
+###
+
+### 3.12 Actualizar Usuario - Fallido (ID no existe)
+# @name updateUserNotFound
+PUT {{baseUrl}}/users/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "firstName": "Test"
+}
+
+###
+# Expected: 404 Not Found
+
+### 3.13 Eliminar Usuario (Soft Delete) - Éxito
+# @name deleteUser
+DELETE {{baseUrl}}/users/{{userId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 3.14 Eliminar Usuario - Fallido (Auto-eliminación)
+# @name deleteSelfUser
+DELETE {{baseUrl}}/users/self
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 400 Bad Request - "No puede desactivar su propia cuenta"
+
+### 3.15 Asignar Roles a Usuario - Éxito
+# @name assignRoles
+POST {{baseUrl}}/users/{{userId}}/roles
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "roleIds": ["role-uuid-here"]
+}
+
+###
+
+### 3.16 Obtener Permisos de Usuario - Éxito
+# @name getUserPermissions
+GET {{baseUrl}}/users/{{userId}}/permissions
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 3.17 Desbloquear Cuenta - Éxito
+# @name unlockAccount
+POST {{baseUrl}}/users/{{userId}}/unlock
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+###############################################################################
+# 4. ROLES
+###############################################################################
+
+### 4.1 Listar Roles - Éxito
+# @name listRoles
+GET {{baseUrl}}/roles
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 4.2 Crear Rol - Éxito
+# @name createRole
+POST {{baseUrl}}/roles
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "name": "Rol de Prueba",
+  "description": "Descripción del rol de prueba",
+  "color": "#3B82F6"
+}
+
+###
+
+### 4.3 Crear Rol - Fallido (Nombre duplicado)
+# @name createRoleDuplicate
+POST {{baseUrl}}/roles
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "name": "Super Admin",
+  "description": "Rol duplicado"
+}
+
+###
+# Expected: 409 Conflict - "Ya existe un rol con este nombre"
+
+### 4.4 Crear Rol - Fallido (Campos requeridos vacíos)
+# @name createRoleEmptyName
+POST {{baseUrl}}/roles
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "name": ""
+}
+
+###
+# Expected: 400 Bad Request - "El nombre es requerido"
+
+### 4.5 Obtener Rol por ID - Éxito
+# @name getRoleById
+GET {{baseUrl}}/roles/{{roleId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 4.6 Obtener Rol por ID - Fallido (No existe)
+# @name getRoleNotFound
+GET {{baseUrl}}/roles/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 404 Not Found - "Rol no encontrado"
+
+### 4.7 Actualizar Rol - Éxito
+# @name updateRole
+PUT {{baseUrl}}/roles/{{roleId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "name": "Rol Actualizado",
+  "description": "Nueva descripción",
+  "color": "#10B981"
+}
+
+###
+
+### 4.8 Actualizar Rol - Fallido (Rol del sistema)
+# @name updateSystemRole
+PUT {{baseUrl}}/roles/system-role-id
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "name": "Nuevo Nombre"
+}
+
+###
+# Expected: 400 Bad Request - "No se puede modificar un rol del sistema"
+
+### 4.9 Eliminar Rol - Éxito
+# @name deleteRole
+DELETE {{baseUrl}}/roles/{{roleId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 4.10 Eliminar Rol - Fallido (Rol en uso)
+# @name deleteRoleInUse
+DELETE {{baseUrl}}/roles/role-with-users-id
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 400 Bad Request - "No se puede eliminar un rol asignado a usuarios"
+
+### 4.11 Asignar Permisos a Rol - Éxito
+# @name assignPermissions
+POST {{baseUrl}}/roles/{{roleId}}/permissions
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "permissionIds": ["permission-uuid-1", "permission-uuid-2"]
+}
+
+###
+
+###############################################################################
+# 5. PERMISOS
+###############################################################################
+
+### 5.1 Listar Permisos - Éxito
+# @name listPermissions
+GET {{baseUrl}}/permissions
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 5.2 Listar Permisos por Módulo
+# @name listPermissionsByModule
+GET {{baseUrl}}/permissions?module=iam
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 5.3 Crear Permiso - Éxito
+# @name createPermission
+POST {{baseUrl}}/permissions
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "module": "test",
+  "resource": "recurso",
+  "action": "ver",
+  "description": "Permiso de prueba"
+}
+
+###
+
+### 5.4 Crear Permiso - Fallido (Duplicado)
+# @name createPermissionDuplicate
+POST {{baseUrl}}/permissions
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "module": "iam",
+  "resource": "usuarios",
+  "action": "crear",
+  "description": "Permiso duplicado"
+}
+
+###
+# Expected: 409 Conflict - "Ya existe este permiso"
+
+### 5.5 Crear Permiso - Fallido (Campos requeridos)
+# @name createPermissionEmptyFields
+POST {{baseUrl}}/permissions
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "module": "",
+  "resource": "",
+  "action": ""
+}
+
+###
+# Expected: 400 Bad Request - Validación fallida
+
+###############################################################################
+# 6. CASOS ESPECIALES
+###############################################################################
+
+### 6.1 Token Expirado - Simulación
+# Usar un token que ya expiró
+GET {{baseUrl}}/users
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.expired
+Content-Type: {{contentType}}
+
+###
+# Expected: 401 Unauthorized - "Token expirado"
+
+### 6.2 Acceso sin permisos - Usuario sin permisos
+# Crear usuario sin roles y tratar de acceder a recursos protegidos
+GET {{baseUrl}}/users
+Authorization: Bearer {{userWithoutPermissionsToken}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 403 Forbidden - "No tiene permisos para realizar esta acción"
+
+### 6.3 Rate Limiting - Múltiples requests
+# Ejecutar múltiples veces para probar rate limiting
+# @name rateLimitTest
+GET {{baseUrl}}/health
+Content-Type: {{contentType}}
+
+###
+# Expected: 429 Too Many Requests después de superar el límite
+
+### 6.4 Request con JSON inválido
+# @name invalidJson
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "test@test.com",
+  "password": "test"
+  # Missing comma - invalid JSON
+  "extra": "field"
+}
+
+###
+# Expected: 400 Bad Request - "JSON inválido"
+
+### 6.5 Request con Content-Type incorrecto
+# @name wrongContentType
+POST {{baseUrl}}/auth/login
+Content-Type: text/plain
+
+email=test@test.com&password=test
+
+###
+# Expected: 400 Bad Request o error de parsing
+
+### 6.6 Endpoint no existente
+# @name notFoundEndpoint
+GET {{baseUrl}}/nonexistent-endpoint
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 404 Not Found
+
+### 6.7 Método no permitido
+# @name methodNotAllowed
+PATCH {{baseUrl}}/auth/login
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "test": "data"
+}
+
+###
+# Expected: 404 Not Found o 405 Method Not Allowed
+
+###############################################################################
+# FIN DE PRUEBAS SPRINT 1
+###############################################################################

@@ -31,6 +31,9 @@ import {
   Wrench,
   AlertTriangle,
   History,
+  DollarSign,
+  Bell,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 import {
@@ -164,9 +167,19 @@ const navigation: NavGroup[] = [
         icon: Receipt,
       },
       {
-        title: 'Ingresos',
-        href: '/dashboard/ingresos',
-        icon: TrendingUp,
+        title: 'Flujo de Caja',
+        href: '/dashboard/flujo-caja',
+        icon: DollarSign,
+      },
+      {
+        title: 'Pagos',
+        href: '/dashboard/pagos',
+        icon: CreditCard,
+      },
+      {
+        title: 'SIN Export',
+        href: '/dashboard/sin-export',
+        icon: FileSpreadsheet,
       },
     ],
   },
@@ -226,6 +239,11 @@ const navigation: NavGroup[] = [
           { title: 'Roles', href: '/dashboard/iam/roles' },
           { title: 'Permisos', href: '/dashboard/iam/permisos' },
         ],
+      },
+      {
+        title: 'Notificaciones',
+        href: '/dashboard/notificaciones',
+        icon: Bell,
       },
       {
         title: 'Empresa',

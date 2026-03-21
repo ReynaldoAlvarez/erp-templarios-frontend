@@ -1,0 +1,715 @@
+// ============================================================================
+// PRISMA SCHEMA - ERP TEMPLARIOS (SQLite Version for Development)
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS - Stored as Strings in SQLite
+// ============================================================================
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  LOCKED
+}
+
+enum TripStatus {
+  SCHEDULED
+  IN_TRANSIT
+  AT_BORDER
+  DELIVERED
+  CANCELLED
+}
+
+enum BorderChannel {
+  GREEN
+  YELLOW
+  RED
+}
+
+enum DocumentStatus {
+  PENDING
+  RECEIVED
+  VERIFIED
+}
+
+enum SettlementStatus {
+  PENDING
+  APPROVED
+  PAID
+}
+
+enum InvoiceStatus {
+  PENDING
+  ISSUED
+  PAID
+  CANCELLED
+}
+
+enum MaintenanceStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum MaintenanceType {
+  PREVENTIVE
+  CORRECTIVE
+}
+
+enum ExpenseCategory {
+  FUEL
+  FOOD
+  TOLL
+  MAINTENANCE
+  OTHER
+}
+
+enum ContractType {
+  MONTHLY
+  PER_TRIP
+}
+
+enum DeliveryType {
+  DIRECT
+  INDIRECT
+}
+
+enum AssetCategory {
+  VEHICLE
+  EQUIPMENT
+  PROPERTY
+  OTHER
+}
+
+enum LiabilityType {
+  LOAN
+  ACCOUNTS_PAYABLE
+  MORTGAGE
+  OTHER
+}
+
+enum LiabilityStatus {
+  PENDING
+  PARTIAL
+  PAID
+}
+
+enum SanctionType {
+  FINE
+  SUSPENSION
+  WARNING
+}
+
+enum SanctionStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum HistoryEventType {
+  INCIDENT
+  ACCIDENT
+  AWARD
+  STATUS_CHANGE
+}
+
+// ============================================================================
+// COMPANY & BRANCHES
+// ============================================================================
+
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  nit       String   @unique
+  address   String?
+  phone     String?
+  email     String?
+  logo      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branches   Branch[]
+  employees  Employee[]
+  trucks     Truck[]
+  assets     Asset[]
+  liabilities Liability[]
+  users      User[]
+
+  @@map("companies")
+}
+
+model Branch {
+  id             String    @id @default(uuid())
+  name           String
+  address        String?
+  phone          String?
+  isHeadquarters Boolean   @default(false)
+  isActive       Boolean   @default(true)
+  companyId      String
+
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employees Employee[]
+
+  @@map("branches")
+}
+
+// ============================================================================
+// AUTHENTICATION & AUTHORIZATION
+// ============================================================================
+
+model User {
+  id                  String     @id @default(uuid())
+  email               String     @unique
+  passwordHash        String
+  firstName           String
+  lastName            String
+  phone               String?
+  avatar              String?
+  status              UserStatus @default(ACTIVE)
+  emailVerified       Boolean    @default(false)
+  emailVerifiedAt     DateTime?
+  lastLoginAt         DateTime?
+  failedLoginAttempts Int        @default(0)
+  lockedUntil         DateTime?
+  companyId           String
+  createdById         String?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  company       Company        @relation(fields: [companyId], references: [id])
+  createdBy     User?          @relation("UserCreatedBy", fields: [createdById], references: [id])
+  createdUsers  User[]         @relation("UserCreatedBy")
+  userRoles     UserRole[]
+  sessions      Session[]
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]     @relation("AuditLogUser")
+
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  color       String   @default("#3B82F6")
+  isSystem    Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String @id @default(uuid())
+  module      String
+  resource    String
+  action      String
+  description String?
+
+  rolePermissions RolePermission[]
+
+  @@unique([module, resource, action])
+  @@map("permissions")
+}
+
+model UserRole {
+  userId      String
+  roleId      String
+  assignedById String?
+  assignedAt  DateTime @default(now())
+
+  user       User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role  @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  userAgent String?
+  ipAddress String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid())
+  userId     String
+  token      String    @unique
+  expiresAt  DateTime
+  isRevoked  Boolean   @default(false)
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  oldData   String?
+  newData   String?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User? @relation("AuditLogUser", fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+// ============================================================================
+// EMPLOYEES & DRIVERS
+// ============================================================================
+
+model Employee {
+  id            String    @id @default(uuid())
+  firstName     String
+  lastName      String
+  identityCard  String    @unique
+  address       String?
+  phone         String?
+  email         String?
+  birthDate     DateTime?
+  hireDate      DateTime  @default(now())
+  position      String
+  salary        Float?
+  branchId      String
+  companyId     String
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  company Company  @relation(fields: [companyId], references: [id])
+  branch  Branch   @relation(fields: [branchId], references: [id])
+  driver  Driver?
+
+  @@map("employees")
+}
+
+model Driver {
+  id                 String       @id @default(uuid())
+  employeeId         String       @unique
+  licenseNumber      String       @unique
+  licenseCategory    String?
+  licenseExpiryDate  DateTime?
+  contractType       ContractType @default(MONTHLY)
+  isAvailable        Boolean      @default(true)
+  rating             Float?       @default(5.0)
+  totalTrips         Int          @default(0)
+  isActive           Boolean      @default(true)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  employee       Employee          @relation(fields: [employeeId], references: [id])
+  trips          Trip[]
+  historyRecords DriverHistory[]
+  sanctions      Sanction[]
+  expenses       Expense[]
+
+  @@map("drivers")
+}
+
+model DriverHistory {
+  id          String            @id @default(uuid())
+  driverId    String
+  eventType   HistoryEventType
+  description String
+  notes       String?
+  occurredAt  DateTime          @default(now())
+  createdAt   DateTime          @default(now())
+
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@map("driver_history")
+}
+
+model Sanction {
+  id         String          @id @default(uuid())
+  driverId   String
+  type       SanctionType
+  reason     String
+  amount     Float?
+  startDate  DateTime        @default(now())
+  endDate    DateTime?
+  status     SanctionStatus  @default(PENDING)
+  notes      String?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@map("sanctions")
+}
+
+model Expense {
+  id          String          @id @default(uuid())
+  driverId    String
+  tripId      String?
+  category    ExpenseCategory
+  concept     String
+  amount      Float
+  receiptUrl  String?
+  expenseDate DateTime        @default(now())
+  notes       String?
+  createdAt   DateTime        @default(now())
+
+  driver Driver @relation(fields: [driverId], references: [id])
+  trip   Trip?  @relation(fields: [tripId], references: [id])
+
+  @@map("expenses")
+}
+
+// ============================================================================
+// FLEET
+// ============================================================================
+
+model Truck {
+  id                     String      @id @default(uuid())
+  plateNumber            String      @unique
+  brand                  String
+  model                  String
+  year                   Int
+  color                  String?
+  axles                  Int         @default(2)
+  capacityTons           Float
+  operationPermit        String?
+  operationPermitExpiry  DateTime?
+  mileage                Int         @default(0)
+  companyId              String
+  status                 TripStatus  @default(SCHEDULED)
+  isActive               Boolean     @default(true)
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
+
+  company       Company        @relation(fields: [companyId], references: [id])
+  trailers      Trailer[]
+  trips         Trip[]
+  maintenances  Maintenance[]
+
+  @@map("trucks")
+}
+
+model Trailer {
+  id                     String   @id @default(uuid())
+  plateNumber            String   @unique
+  type                   String
+  brand                  String?
+  year                   Int?
+  capacityTons           Float
+  operationPermit        String?
+  operationPermitExpiry  DateTime?
+  truckId                String?
+  isActive               Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  truck Truck?  @relation(fields: [truckId], references: [id])
+  trips Trip[]
+
+  @@map("trailers")
+}
+
+model Maintenance {
+  id          String            @id @default(uuid())
+  truckId     String
+  type        MaintenanceType
+  description String
+  mileage     Int?
+  startDate   DateTime          @default(now())
+  endDate     DateTime?
+  cost        Float?
+  workshop    String?
+  status      MaintenanceStatus @default(PENDING)
+  notes       String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  truck Truck @relation(fields: [truckId], references: [id])
+
+  @@map("maintenances")
+}
+
+// ============================================================================
+// CLIENTS & BILL OF LADING
+// ============================================================================
+
+model Client {
+  id              String   @id @default(uuid())
+  businessName    String
+  nit             String   @unique
+  contactName     String?
+  phone           String?
+  email           String?
+  address         String?
+  hasCredit       Boolean  @default(false)
+  creditLimit     Float?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  billsOfLading BillOfLading[]
+  invoices       Invoice[]
+
+  @@map("clients")
+}
+
+model BillOfLading {
+  id               String       @id @default(uuid())
+  blNumber         String       @unique
+  totalWeight      Float
+  unitCount        Int
+  cargoType        String?
+  originPort       String
+  customsPoint     String
+  finalDestination String
+  vessel           String?
+  consignee        String?
+  deliveryType     DeliveryType @default(DIRECT)
+  clientId         String
+  status           TripStatus   @default(SCHEDULED)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  client Client  @relation(fields: [clientId], references: [id])
+  trips  Trip[]
+
+  @@map("bills_of_lading")
+}
+
+// ============================================================================
+// TRIPS & BORDERS
+// ============================================================================
+
+model Trip {
+  id             String     @id @default(uuid())
+  micDta         String     @unique
+  departureDate  DateTime
+  arrivalDate    DateTime?
+  billOfLadingId String
+  truckId        String
+  driverId       String
+  trailerId      String?
+  weight         Float
+  ratePerTon     Float?
+  notes          String?
+  status         TripStatus @default(SCHEDULED)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  billOfLading    BillOfLading      @relation(fields: [billOfLadingId], references: [id])
+  truck           Truck             @relation(fields: [truckId], references: [id])
+  driver          Driver            @relation(fields: [driverId], references: [id])
+  trailer         Trailer?          @relation(fields: [trailerId], references: [id])
+  routes          Route[]
+  borderCrossings BorderCrossing[]
+  documents       Document[]
+  settlement      Settlement?
+  expenses        Expense[]
+  invoiceTrips    InvoiceTrip[]
+
+  @@map("trips")
+}
+
+model Route {
+  id            String    @id @default(uuid())
+  tripId        String
+  origin        String
+  destination   String
+  distanceKm    Float?
+  rate          Float?
+  durationHours Int?
+  createdAt     DateTime  @default(now())
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@map("routes")
+}
+
+model BorderCrossing {
+  id         String   @id @default(uuid())
+  tripId     String
+  borderName String
+  arrivedAt  DateTime @default(now())
+  exitedAt   DateTime?
+  createdAt  DateTime @default(now())
+
+  trip           Trip                  @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  channelHistory BorderChannelHistory[]
+
+  @@map("border_crossings")
+}
+
+model BorderChannelHistory {
+  id               String        @id @default(uuid())
+  borderCrossingId String
+  channel          BorderChannel
+  changedAt        DateTime      @default(now())
+  reason           String?
+  notes            String?
+  responsible      String?
+
+  borderCrossing BorderCrossing @relation(fields: [borderCrossingId], references: [id], onDelete: Cascade)
+
+  @@map("border_channel_history")
+}
+
+// ============================================================================
+// DOCUMENTS
+// ============================================================================
+
+model Document {
+  id            String          @id @default(uuid())
+  tripId        String
+  documentType  String
+  documentNumber String?
+  documentDate  DateTime        @default(now())
+  status        DocumentStatus  @default(PENDING)
+  fileUrl       String?
+  isLocalFile   Boolean         @default(false)
+  notes         String?
+  receivedById  String?
+  receivedAt    DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  trip Trip @relation(fields: [tripId], references: [id])
+
+  @@map("documents")
+}
+
+// ============================================================================
+// FINANCE
+// ============================================================================
+
+model Settlement {
+  id                 String            @id @default(uuid())
+  tripId             String            @unique
+  freightUsd         Float
+  freightBob         Float
+  exchangeRate       Float
+  pricePerTon        Float
+  taxIt3Percent      Float
+  retention7Percent  Float
+  externalCommission Float?
+  advance            Float            @default(0)
+  netPayment         Float
+  status             SettlementStatus  @default(PENDING)
+  approvedAt         DateTime?
+  paidAt             DateTime?
+  notes              String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  trip Trip @relation(fields: [tripId], references: [id])
+
+  @@map("settlements")
+}
+
+model Invoice {
+  id            String         @id @default(uuid())
+  invoiceNumber String         @unique
+  clientId      String
+  invoiceDate   DateTime       @default(now())
+  totalAmount   Float
+  amountUsd     Float?
+  exchangeRate  Float?
+  status        InvoiceStatus  @default(PENDING)
+  approvedAt    DateTime?
+  issuedAt      DateTime?
+  paidAt        DateTime?
+  notes         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  client       Client        @relation(fields: [clientId], references: [id])
+  invoiceTrips InvoiceTrip[]
+
+  @@map("invoices")
+}
+
+model InvoiceTrip {
+  invoiceId String
+  tripId    String
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  trip    Trip    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@id([invoiceId, tripId])
+  @@map("invoice_trips")
+}
+
+model Asset {
+  id                 String        @id @default(uuid())
+  companyId          String
+  name               String
+  description        String?
+  category           AssetCategory
+  value              Float
+  acquisitionDate    DateTime?
+  usefulLifeMonths   Int?
+  depreciation       Float         @default(0)
+  isActive           Boolean       @default(true)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("assets")
+}
+
+model Liability {
+  id           String          @id @default(uuid())
+  companyId    String
+  name         String
+  description  String?
+  type         LiabilityType
+  amount       Float
+  interestRate Float?
+  startDate    DateTime?
+  dueDate      DateTime?
+  status       LiabilityStatus @default(PENDING)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("liabilities")
+}

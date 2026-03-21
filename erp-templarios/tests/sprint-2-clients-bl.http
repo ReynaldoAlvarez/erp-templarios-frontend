@@ -1,0 +1,822 @@
+###############################################################################
+# ERP TEMPLARIOS - PRUEBAS SPRINT 2: CLIENTS & BILL OF LADING
+# Archivo para VS Code REST Client
+###############################################################################
+
+@baseUrl = http://localhost:3001/api/v1
+@contentType = application/json
+
+###############################################################################
+# VARIABLES GLOBALES
+###############################################################################
+# Token de autenticación (obtener del sprint-1)
+@token = {{login.response.body.data.accessToken}}
+@clientId = {{createClient.response.body.data.id}}
+@blId = {{createBL.response.body.data.id}}
+
+###############################################################################
+# SETUP: Login primero
+###############################################################################
+
+### Login para obtener token
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@templarios.com",
+  "password": "Admin123!"
+}
+
+###
+
+###############################################################################
+# 1. CLIENTES - CRUD BÁSICO
+###############################################################################
+
+### 1.1 Listar Clientes - Éxito (paginado)
+# @name listClients
+GET {{baseUrl}}/clients?page=1&limit=10
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 1.2 Listar Clientes - Con búsqueda
+# @name listClientsSearch
+GET {{baseUrl}}/clients?search=SIDERURGICA
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 1.3 Listar Clientes - Filtrar por crédito
+# @name listClientsWithCredit
+GET {{baseUrl}}/clients?hasCredit=true
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 1.4 Listar Clientes - Filtrar por estado activo/inactivo
+# @name listClientsInactive
+GET {{baseUrl}}/clients?isActive=false
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 1.5 Crear Cliente - Éxito (con crédito)
+# @name createClient
+POST {{baseUrl}}/clients
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "businessName": "EMPRESA DE PRUEBA S.R.L.",
+  "nit": "9999999999",
+  "contactName": "Juan Pérez",
+  "phone": "+591 71234567",
+  "email": "contacto@empresaprueba.com",
+  "address": "Zona Industrial Norte, Cochabamba",
+  "hasCredit": true,
+  "creditLimit": 100000
+}
+
+###
+
+### 1.6 Crear Cliente - Éxito (sin crédito)
+# @name createClientNoCredit
+POST {{baseUrl}}/clients
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "businessName": "EMPRESA SIN CRÉDITO S.A.",
+  "nit": "8888888888",
+  "contactName": "María García",
+  "phone": "+591 79876543",
+  "email": "maria@empresasc.bo",
+  "address": "Av. Principal, La Paz",
+  "hasCredit": false
+}
+
+###
+
+### 1.7 Crear Cliente - Fallido (NIT duplicado)
+# @name createClientDuplicateNit
+POST {{baseUrl}}/clients
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "businessName": "EMPRESA DUPLICADA",
+  "nit": "9999999999",
+  "contactName": "Pedro López"
+}
+
+###
+# Expected: 409 Conflict - "Ya existe un cliente con este NIT"
+
+### 1.8 Crear Cliente - Fallido (Campos requeridos vacíos)
+# @name createClientEmptyFields
+POST {{baseUrl}}/clients
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "businessName": "",
+  "nit": ""
+}
+
+###
+# Expected: 400 Bad Request - Validación fallida
+
+### 1.9 Crear Cliente - Fallido (Email inválido)
+# @name createClientInvalidEmail
+POST {{baseUrl}}/clients
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "businessName": "EMPRESA TEST",
+  "nit": "7777777777",
+  "email": "no-es-un-email"
+}
+
+###
+# Expected: 400 Bad Request - "Email inválido"
+
+### 1.10 Crear Cliente - Fallido (Crédito sin límite)
+# @name createClientCreditNoLimit
+POST {{baseUrl}}/clients
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "businessName": "EMPRESA CRÉDITO SIN LÍMITE",
+  "nit": "6666666666",
+  "hasCredit": true
+}
+
+###
+# Expected: 400 Bad Request - "El límite de crédito es requerido cuando el cliente tiene crédito"
+
+###############################################################################
+# 2. CLIENTES - OPERACIONES INDIVIDUALES
+###############################################################################
+
+### 2.1 Obtener Cliente por ID - Éxito
+# @name getClientById
+GET {{baseUrl}}/clients/{{clientId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 2.2 Obtener Cliente por ID - Con estadísticas
+# @name getClientWithStats
+GET {{baseUrl}}/clients/{{clientId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: Incluye totalBillsOfLading, totalWeightKg, totalInvoicedBob
+
+### 2.3 Obtener Cliente por ID - Fallido (ID inválido)
+# @name getClientInvalidId
+GET {{baseUrl}}/clients/invalid-uuid
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 400 Bad Request - "ID inválido"
+
+### 2.4 Obtener Cliente por ID - Fallido (No existe)
+# @name getClientNotFound
+GET {{baseUrl}}/clients/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 404 Not Found - "Cliente no encontrado"
+
+### 2.5 Actualizar Cliente - Éxito
+# @name updateClient
+PUT {{baseUrl}}/clients/{{clientId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "businessName": "EMPRESA ACTUALIZADA S.R.L.",
+  "contactName": "Juan Pérez Actualizado",
+  "phone": "+591 70000001",
+  "creditLimit": 150000
+}
+
+###
+
+### 2.6 Actualizar Cliente - Cambiar NIT (verificar unicidad)
+# @name updateClientNit
+PUT {{baseUrl}}/clients/{{clientId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "nit": "12345678901"
+}
+
+###
+
+### 2.7 Actualizar Cliente - Fallido (NIT duplicado)
+# @name updateClientDuplicateNit
+PUT {{baseUrl}}/clients/{{clientId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "nit": "1023456789"
+}
+
+###
+# Expected: 409 Conflict - "Ya existe un cliente con este NIT"
+
+###############################################################################
+# 3. CLIENTES - ESTADO DE CRÉDITO
+###############################################################################
+
+### 3.1 Obtener Estado de Crédito - Éxito (con crédito)
+# @name getClientCredit
+GET {{baseUrl}}/clients/{{clientId}}/credit
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: creditLimit, usedCredit, availableCredit, utilizationPercent, pendingInvoices
+
+### 3.2 Obtener Estado de Crédito - Cliente sin crédito
+# @name getClientNoCredit
+GET {{baseUrl}}/clients/{{createClientNoCredit.response.body.data.id}}/credit
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: hasCredit: false, creditLimit: 0
+
+###############################################################################
+# 4. CLIENTES - DESACTIVAR/REACTIVAR
+###############################################################################
+
+### 4.1 Desactivar Cliente - Éxito
+# @name deactivateClient
+DELETE {{baseUrl}}/clients/{{clientId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 4.2 Desactivar Cliente - Fallido (Cliente con BLs activos)
+# @name deactivateClientWithBLs
+DELETE {{baseUrl}}/clients/client-with-bls-id
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 400 Bad Request - "No se puede eliminar un cliente con Bills of Lading asociados"
+
+### 4.3 Reactivar Cliente - Éxito
+# @name reactivateClient
+POST {{baseUrl}}/clients/{{clientId}}/restore
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 4.4 Reactivar Cliente - Fallido (Ya activo)
+# @name reactivateActiveClient
+POST {{baseUrl}}/clients/{{clientId}}/restore
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 400 Bad Request - "El cliente ya está activo"
+
+###############################################################################
+# 5. CLIENTES - BÚSQUEDA
+###############################################################################
+
+### 5.1 Búsqueda de Clientes - Éxito
+# @name searchClients
+GET {{baseUrl}}/clients/search?q=SIDERURGICA
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 5.2 Búsqueda de Clientes - Por NIT
+# @name searchClientsByNit
+GET {{baseUrl}}/clients/search?q=1023456789
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 5.3 Búsqueda de Clientes - Fallido (Query muy corta)
+# @name searchClientsShortQuery
+GET {{baseUrl}}/clients/search?q=a
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 400 Bad Request - "La búsqueda debe tener al menos 2 caracteres"
+
+###############################################################################
+# 6. BILL OF LADING - CRUD BÁSICO
+###############################################################################
+
+### 6.1 Listar BLs - Éxito (paginado)
+# @name listBLs
+GET {{baseUrl}}/bl?page=1&limit=10
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 6.2 Listar BLs - Con filtros
+# @name listBLsWithFilters
+GET {{baseUrl}}/bl?page=1&limit=10&status=SCHEDULED&clientId={{clientId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 6.3 Listar BLs - Filtrar por rango de fechas
+# @name listBLsByDate
+GET {{baseUrl}}/bl?dateFrom=2024-01-01&dateTo=2024-12-31
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 6.4 Listar BLs - Con búsqueda
+# @name listBLsSearch
+GET {{baseUrl}}/bl?search=BL-2024
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 6.5 Crear BL - Éxito (entrega directa)
+# @name createBL
+POST {{baseUrl}}/bl
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "blNumber": "BL-TEST-001",
+  "totalWeight": 45000.5,
+  "unitCount": 10,
+  "cargoType": "Bobinas de acero",
+  "originPort": "Desaguadero",
+  "customsPoint": "Desaguadero",
+  "finalDestination": "Cochabamba",
+  "vessel": "MSC Maria",
+  "consignee": "SIDERURGICA BOLIVIA S.R.L.",
+  "deliveryType": "DIRECT",
+  "clientId": "{{clientId}}"
+}
+
+###
+
+### 6.6 Crear BL - Éxito (entrega indirecta)
+# @name createBLIndirect
+POST {{baseUrl}}/bl
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "blNumber": "BL-TEST-002",
+  "totalWeight": 32000,
+  "unitCount": 8,
+  "cargoType": "Láminas de acero",
+  "originPort": "Desaguadero",
+  "customsPoint": "Desaguadero",
+  "finalDestination": "Santa Cruz",
+  "vessel": "Ever Given",
+  "consignee": "IMPORTADORA ANDINA S.A.",
+  "deliveryType": "INDIRECT",
+  "clientId": "{{clientId}}"
+}
+
+###
+
+### 6.7 Crear BL - Fallido (Número duplicado)
+# @name createBLDuplicate
+POST {{baseUrl}}/bl
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "blNumber": "BL-TEST-001",
+  "totalWeight": 10000,
+  "unitCount": 5,
+  "originPort": "Desaguadero",
+  "customsPoint": "Desaguadero",
+  "finalDestination": "Cochabamba",
+  "clientId": "{{clientId}}"
+}
+
+###
+# Expected: 409 Conflict - "Ya existe un Bill of Lading con este número"
+
+### 6.8 Crear BL - Fallido (Cliente no existe)
+# @name createBLInvalidClient
+POST {{baseUrl}}/bl
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "blNumber": "BL-TEST-003",
+  "totalWeight": 10000,
+  "unitCount": 5,
+  "originPort": "Desaguadero",
+  "customsPoint": "Desaguadero",
+  "finalDestination": "Cochabamba",
+  "clientId": "550e8400-e29b-41d4-a716-446655440000"
+}
+
+###
+# Expected: 404 Not Found - "Cliente no encontrado"
+
+### 6.9 Crear BL - Fallido (Campos requeridos vacíos)
+# @name createBLEmptyFields
+POST {{baseUrl}}/bl
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "blNumber": "",
+  "totalWeight": -100,
+  "unitCount": 0
+}
+
+###
+# Expected: 400 Bad Request - Validación fallida
+
+### 6.10 Crear BL - Fallido (Peso negativo)
+# @name createBLNegativeWeight
+POST {{baseUrl}}/bl
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "blNumber": "BL-TEST-004",
+  "totalWeight": -5000,
+  "unitCount": 5,
+  "originPort": "Desaguadero",
+  "customsPoint": "Desaguadero",
+  "finalDestination": "Cochabamba",
+  "clientId": "{{clientId}}"
+}
+
+###
+# Expected: 400 Bad Request - "El peso total debe ser un número positivo"
+
+### 6.11 Crear BL - Fallido (Tipo de entrega inválido)
+# @name createBLInvalidDeliveryType
+POST {{baseUrl}}/bl
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "blNumber": "BL-TEST-005",
+  "totalWeight": 5000,
+  "unitCount": 5,
+  "originPort": "Desaguadero",
+  "customsPoint": "Desaguadero",
+  "finalDestination": "Cochabamba",
+  "deliveryType": "INVALID_TYPE",
+  "clientId": "{{clientId}}"
+}
+
+###
+# Expected: 400 Bad Request - "Tipo de entrega inválido"
+
+###############################################################################
+# 7. BILL OF LADING - OPERACIONES INDIVIDUALES
+###############################################################################
+
+### 7.1 Obtener BL por ID - Éxito
+# @name getBLById
+GET {{baseUrl}}/bl/{{blId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 7.2 Obtener BL por Número - Éxito
+# @name getBLByNumber
+GET {{baseUrl}}/bl/number/BL-TEST-001
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 7.3 Obtener BL por Número - Fallido (No existe)
+# @name getBLByNumberNotFound
+GET {{baseUrl}}/bl/number/BL-NOT-EXIST
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 404 Not Found - "Bill of Lading no encontrado"
+
+### 7.4 Actualizar BL - Éxito
+# @name updateBL
+PUT {{baseUrl}}/bl/{{blId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "totalWeight": 46000,
+  "cargoType": "Bobinas de acero actualizado",
+  "vessel": "MSC Maria Updated"
+}
+
+###
+
+### 7.5 Actualizar BL - Cambiar número (verificar unicidad)
+# @name updateBLNumber
+PUT {{baseUrl}}/bl/{{blId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "blNumber": "BL-TEST-001-UPDATED"
+}
+
+###
+
+###############################################################################
+# 8. BILL OF LADING - REPORTE DE PROGRESO
+###############################################################################
+
+### 8.1 Obtener Reporte de Progreso - Éxito
+# @name getBLProgress
+GET {{baseUrl}}/bl/{{blId}}/progress
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: progress (totalWeight, delivered, pending, percentComplete), tripsByStatus, details
+
+### 8.2 Obtener Reporte de Progreso - BL sin viajes
+# @name getBLProgressNoTrips
+GET {{baseUrl}}/bl/{{blId}}/progress
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: progress 0%, tripsByStatus all zeros
+
+###############################################################################
+# 9. BILL OF LADING - APROBACIÓN
+###############################################################################
+
+### 9.1 Aprobar BL - Éxito
+# @name approveBL
+POST {{baseUrl}}/bl/{{blId}}/approve
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 9.2 Aprobar BL - Fallido (Ya aprobado)
+# @name approveBLAlready
+POST {{baseUrl}}/bl/{{blId}}/approve
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 400 Bad Request - "El Bill of Lading ya está aprobado"
+
+###############################################################################
+# 10. BILL OF LADING - CANCELACIÓN
+###############################################################################
+
+### 10.1 Cancelar BL - Éxito
+# @name cancelBL
+POST {{baseUrl}}/bl/{{blId}}/cancel
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "reason": "Cancelación por solicitud del cliente"
+}
+
+###
+
+### 10.2 Cancelar BL - Fallido (Sin motivo)
+# @name cancelBLNoReason
+POST {{baseUrl}}/bl/{{blId}}/cancel
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{}
+
+###
+# Expected: 400 Bad Request - "La razón de cancelación es requerida"
+
+### 10.3 Cancelar BL - Fallido (Ya cancelado)
+# @name cancelBLAlready
+POST {{baseUrl}}/bl/{{blId}}/cancel
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "reason": "Otra razón"
+}
+
+###
+# Expected: 400 Bad Request - "El Bill of Lading ya está cancelado"
+
+### 10.4 Cancelar BL - Fallido (Con viajes activos)
+# @name cancelBLWithActiveTrips
+POST {{baseUrl}}/bl/bl-with-active-trips/cancel
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "reason": "Intento de cancelación"
+}
+
+###
+# Expected: 400 Bad Request - "No se puede cancelar un BL con viajes activos"
+
+###############################################################################
+# 11. BILL OF LADING - IMPORTACIÓN
+###############################################################################
+
+### 11.1 Obtener Plantilla de Importación
+# @name getImportTemplate
+GET {{baseUrl}}/bl/import/template
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 11.2 Importar BLs desde JSON - Éxito
+# @name importBLsJSON
+POST {{baseUrl}}/bl/import/json
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+[
+  {
+    "blNumber": "BL-IMPORT-001",
+    "clientNit": "1023456789",
+    "clientName": "SIDERURGICA BOLIVIA S.R.L.",
+    "totalWeight": 25000,
+    "unitCount": 6,
+    "cargoType": "Tubos de acero",
+    "originPort": "Desaguadero",
+    "customsPoint": "Desaguadero",
+    "finalDestination": "La Paz"
+  },
+  {
+    "blNumber": "BL-IMPORT-002",
+    "clientNit": "2034567890",
+    "clientName": "IMPORTADORA ANDINA S.A.",
+    "totalWeight": 35000,
+    "unitCount": 9,
+    "cargoType": "Planchas de acero",
+    "originPort": "Desaguadero",
+    "customsPoint": "Desaguadero",
+    "finalDestination": "Santa Cruz"
+  }
+]
+
+###
+# Expected: { total, created, skipped, errors, createdBLs }
+
+### 11.3 Importar BLs - Crear cliente automáticamente
+# @name importBLsCreateClient
+POST {{baseUrl}}/bl/import/json
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+[
+  {
+    "blNumber": "BL-NEW-CLIENT-001",
+    "clientNit": "NEW12345678",
+    "clientName": "NUEVO CLIENTE S.R.L.",
+    "totalWeight": 15000,
+    "unitCount": 4,
+    "originPort": "Desaguadero",
+    "customsPoint": "Desaguadero",
+    "finalDestination": "Cochabamba"
+  }
+]
+
+###
+# Expected: Cliente creado automáticamente
+
+### 11.4 Importar BLs - Fallido (BL duplicado se omite)
+# @name importBLsDuplicate
+POST {{baseUrl}}/bl/import/json
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+[
+  {
+    "blNumber": "BL-IMPORT-001",
+    "clientNit": "1023456789",
+    "totalWeight": 10000,
+    "unitCount": 3
+  }
+]
+
+###
+# Expected: created: 0, skipped: 1
+
+### 11.5 Importar BLs - Fallido (Array vacío)
+# @name importBLsEmpty
+POST {{baseUrl}}/bl/import/json
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+[]
+
+###
+# Expected: 400 Bad Request - "El arreglo está vacío"
+
+### 11.6 Importar BLs - Fallido (Campos requeridos faltantes)
+# @name importBLsMissingFields
+POST {{baseUrl}}/bl/import/json
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+[
+  {
+    "blNumber": "BL-NO-CLIENT",
+    "totalWeight": 10000
+  }
+]
+
+###
+# Expected: errors array con "Faltan campos requeridos"
+
+###############################################################################
+# 12. BILL OF LADING - BÚSQUEDA
+###############################################################################
+
+### 12.1 Búsqueda de BLs - Éxito
+# @name searchBLs
+GET {{baseUrl}}/bl/search?q=BL-TEST
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 12.2 Búsqueda de BLs - Por barco
+# @name searchBLsByVessel
+GET {{baseUrl}}/bl/search?q=MSC
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 12.3 Búsqueda de BLs - Fallido (Query muy corta)
+# @name searchBLsShortQuery
+GET {{baseUrl}}/bl/search?q=B
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 400 Bad Request - "La búsqueda debe tener al menos 2 caracteres"
+
+###############################################################################
+# 13. CASOS ESPECIALES - CLIENTES
+###############################################################################
+
+### 13.1 Cliente con facturas pendientes afecta crédito
+# Verificar que el estado de crédito refleje las facturas pendientes
+# @name checkCreditWithInvoices
+GET {{baseUrl}}/clients/{{clientId}}/credit
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: usedCredit incluye facturas pendientes
+
+### 13.2 Listar clientes incluyendo inactivos
+# @name listAllClients
+GET {{baseUrl}}/clients?isActive=false&page=1&limit=100
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+###############################################################################
+# FIN DE PRUEBAS SPRINT 2
+###############################################################################

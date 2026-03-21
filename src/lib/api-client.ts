@@ -1761,4 +1761,359 @@ export const driverHistoryApi = {
   },
 };
 
+// ==========================================
+// Cash Flow API (Sprint 7 Finance Enhancement)
+// ==========================================
+interface BackendCashFlowResponse {
+  success: boolean;
+  message: string;
+  data: {
+    cashFlow: import('@/types/api').CashFlow[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  timestamp: string;
+}
+
+export const cashFlowApi = {
+  getAll: async (params?: import('@/types/api').CashFlowListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').CashFlow>> => {
+    const response = await api.get<BackendCashFlowResponse>('/cash-flow', params);
+    const { cashFlow, total, page, limit, totalPages } = response.data.data;
+
+    return {
+      data: cashFlow,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  },
+
+  getById: async (id: string): Promise<import('@/types/api').CashFlow> => {
+    const response = await api.get<{ data: import('@/types/api').CashFlow }>(`/cash-flow/${id}`);
+    return response.data.data;
+  },
+
+  getTypes: async (): Promise<import('@/types/api').CashFlowTypeOption[]> => {
+    const response = await api.get<{ data: import('@/types/api').CashFlowTypeOption[] }>('/cash-flow/types');
+    return response.data.data;
+  },
+
+  getCategories: async (): Promise<import('@/types/api').CashFlowCategoryOption[]> => {
+    const response = await api.get<{ data: import('@/types/api').CashFlowCategoryOption[] }>('/cash-flow/categories');
+    return response.data.data;
+  },
+
+  getPaymentMethods: async (): Promise<import('@/types/api').PaymentMethodOption[]> => {
+    const response = await api.get<{ data: import('@/types/api').PaymentMethodOption[] }>('/cash-flow/payment-methods');
+    return response.data.data;
+  },
+
+  getSummary: async (params?: { dateFrom?: string; dateTo?: string }): Promise<import('@/types/api').CashFlowSummary> => {
+    const response = await api.get<{ data: import('@/types/api').CashFlowSummary }>('/cash-flow/summary', params);
+    return response.data.data;
+  },
+
+  getDaily: async (date: string): Promise<import('@/types/api').CashFlowDaily> => {
+    const response = await api.get<{ data: import('@/types/api').CashFlowDaily }>(`/cash-flow/daily`, { date });
+    return response.data.data;
+  },
+
+  getMonthly: async (year: number, month: number): Promise<import('@/types/api').CashFlowMonthly> => {
+    const response = await api.get<{ data: import('@/types/api').CashFlowMonthly }>(`/cash-flow/monthly`, { year, month });
+    return response.data.data;
+  },
+
+  create: async (data: import('@/types/api').CreateCashFlowInput): Promise<import('@/types/api').CashFlow> => {
+    const response = await api.post<{ data: import('@/types/api').CashFlow }>('/cash-flow', data);
+    return response.data.data;
+  },
+
+  update: async (id: string, data: import('@/types/api').UpdateCashFlowInput): Promise<import('@/types/api').CashFlow> => {
+    const response = await api.put<{ data: import('@/types/api').CashFlow }>(`/cash-flow/${id}`, data);
+    return response.data.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/cash-flow/${id}`);
+  },
+};
+
+// ==========================================
+// Payments API (Sprint 7 Finance Enhancement)
+// ==========================================
+interface BackendPaymentsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    payments: import('@/types/api').Payment[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  timestamp: string;
+}
+
+export const paymentsApi = {
+  getAll: async (params?: import('@/types/api').PaymentListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').Payment>> => {
+    const response = await api.get<BackendPaymentsResponse>('/payments', params);
+    const { payments, total, page, limit, totalPages } = response.data.data;
+
+    return {
+      data: payments,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  },
+
+  getById: async (id: string): Promise<import('@/types/api').Payment> => {
+    const response = await api.get<{ data: import('@/types/api').Payment }>(`/payments/${id}`);
+    return response.data.data;
+  },
+
+  getTypes: async (): Promise<import('@/types/api').PaymentTypeOption[]> => {
+    const response = await api.get<{ data: import('@/types/api').PaymentTypeOption[] }>('/payments/types');
+    return response.data.data;
+  },
+
+  getMethods: async (): Promise<import('@/types/api').PaymentMethodOption[]> => {
+    const response = await api.get<{ data: import('@/types/api').PaymentMethodOption[] }>('/payments/methods');
+    return response.data.data;
+  },
+
+  getStatuses: async (): Promise<import('@/types/api').PaymentStatusOption[]> => {
+    const response = await api.get<{ data: import('@/types/api').PaymentStatusOption[] }>('/payments/statuses');
+    return response.data.data;
+  },
+
+  getPending: async (): Promise<import('@/types/api').Payment[]> => {
+    const response = await api.get<{ data: import('@/types/api').Payment[] }>('/payments/pending');
+    return response.data.data;
+  },
+
+  getStats: async (params?: { driverId?: string; dateFrom?: string; dateTo?: string }): Promise<import('@/types/api').PaymentStats> => {
+    const response = await api.get<{ data: import('@/types/api').PaymentStats }>('/payments/stats', params);
+    return response.data.data;
+  },
+
+  getByDriver: async (driverId: string): Promise<import('@/types/api').Payment[]> => {
+    const response = await api.get<{ data: import('@/types/api').Payment[] }>(`/payments/driver/${driverId}`);
+    return response.data.data;
+  },
+
+  create: async (data: import('@/types/api').CreatePaymentInput): Promise<import('@/types/api').Payment> => {
+    const response = await api.post<{ data: import('@/types/api').Payment }>('/payments', data);
+    return response.data.data;
+  },
+
+  update: async (id: string, data: import('@/types/api').UpdatePaymentInput): Promise<import('@/types/api').Payment> => {
+    const response = await api.put<{ data: import('@/types/api').Payment }>(`/payments/${id}`, data);
+    return response.data.data;
+  },
+
+  approve: async (id: string): Promise<import('@/types/api').Payment> => {
+    const response = await api.post<{ data: import('@/types/api').Payment }>(`/payments/${id}/approve`);
+    return response.data.data;
+  },
+
+  complete: async (id: string): Promise<import('@/types/api').Payment> => {
+    const response = await api.post<{ data: import('@/types/api').Payment }>(`/payments/${id}/complete`);
+    return response.data.data;
+  },
+
+  cancel: async (id: string, reason?: string): Promise<import('@/types/api').Payment> => {
+    const response = await api.post<{ data: import('@/types/api').Payment }>(`/payments/${id}/cancel`, { reason });
+    return response.data.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/payments/${id}`);
+  },
+};
+
+// ==========================================
+// SIN Export API (Sprint 7 Finance Enhancement)
+// ==========================================
+interface BackendSINExportResponse {
+  success: boolean;
+  message: string;
+  data: {
+    sinExports: import('@/types/api').SINExport[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  timestamp: string;
+}
+
+export const sinExportApi = {
+  getAll: async (params?: import('@/types/api').SINExportListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').SINExport>> => {
+    const response = await api.get<BackendSINExportResponse>('/sin-export', params);
+    const { sinExports, total, page, limit, totalPages } = response.data.data;
+
+    return {
+      data: sinExports,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  },
+
+  getById: async (id: string): Promise<import('@/types/api').SINExport> => {
+    const response = await api.get<{ data: import('@/types/api').SINExport }>(`/sin-export/${id}`);
+    return response.data.data;
+  },
+
+  getStatuses: async (): Promise<import('@/types/api').SINExportStatusOption[]> => {
+    const response = await api.get<{ data: import('@/types/api').SINExportStatusOption[] }>('/sin-export/statuses');
+    return response.data.data;
+  },
+
+  getPending: async (): Promise<import('@/types/api').SINExport[]> => {
+    const response = await api.get<{ data: import('@/types/api').SINExport[] }>('/sin-export/pending');
+    return response.data.data;
+  },
+
+  getFailed: async (): Promise<import('@/types/api').SINExport[]> => {
+    const response = await api.get<{ data: import('@/types/api').SINExport[] }>('/sin-export/failed');
+    return response.data.data;
+  },
+
+  getStats: async (): Promise<import('@/types/api').SINExportStats> => {
+    const response = await api.get<{ data: import('@/types/api').SINExportStats }>('/sin-export/stats');
+    return response.data.data;
+  },
+
+  getByInvoice: async (invoiceId: string): Promise<import('@/types/api').SINExport | null> => {
+    const response = await api.get<{ data: import('@/types/api').SINExport | null }>(`/sin-export/invoice/${invoiceId}`);
+    return response.data.data;
+  },
+
+  getInvoiceJson: async (invoiceId: string): Promise<import('@/types/api').SINInvoiceJSON> => {
+    const response = await api.get<{ data: import('@/types/api').SINInvoiceJSON }>(`/sin-export/invoice/${invoiceId}/json`);
+    return response.data.data;
+  },
+
+  create: async (invoiceId: string): Promise<import('@/types/api').SINExport> => {
+    const response = await api.post<{ data: import('@/types/api').SINExport }>('/sin-export', { invoiceId });
+    return response.data.data;
+  },
+
+  process: async (id: string): Promise<import('@/types/api').SINExport> => {
+    const response = await api.post<{ data: import('@/types/api').SINExport }>(`/sin-export/${id}/process`);
+    return response.data.data;
+  },
+
+  retry: async (id: string): Promise<import('@/types/api').SINExport> => {
+    const response = await api.post<{ data: import('@/types/api').SINExport }>(`/sin-export/${id}/retry`);
+    return response.data.data;
+  },
+};
+
+// ==========================================
+// Notifications API (Sprint 7 Finance Enhancement)
+// ==========================================
+interface BackendNotificationsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    notifications: import('@/types/api').Notification[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  timestamp: string;
+}
+
+export const notificationsApi = {
+  getAll: async (params?: import('@/types/api').NotificationListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').Notification>> => {
+    const response = await api.get<BackendNotificationsResponse>('/notifications', params);
+    const { notifications, total, page, limit, totalPages } = response.data.data;
+
+    return {
+      data: notifications,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  },
+
+  getById: async (id: string): Promise<import('@/types/api').Notification> => {
+    const response = await api.get<{ data: import('@/types/api').Notification }>(`/notifications/${id}`);
+    return response.data.data;
+  },
+
+  getTypes: async (): Promise<import('@/types/api').NotificationTypeOption[]> => {
+    const response = await api.get<{ data: import('@/types/api').NotificationTypeOption[] }>('/notifications/types');
+    return response.data.data;
+  },
+
+  getPriorities: async (): Promise<import('@/types/api').NotificationPriorityOption[]> => {
+    const response = await api.get<{ data: import('@/types/api').NotificationPriorityOption[] }>('/notifications/priorities');
+    return response.data.data;
+  },
+
+  getCounts: async (): Promise<import('@/types/api').NotificationCounts> => {
+    const response = await api.get<{ data: import('@/types/api').NotificationCounts }>('/notifications/counts');
+    return response.data.data;
+  },
+
+  getUnread: async (): Promise<import('@/types/api').Notification[]> => {
+    const response = await api.get<{ data: import('@/types/api').Notification[] }>('/notifications/unread');
+    return response.data.data;
+  },
+
+  create: async (data: import('@/types/api').CreateNotificationInput): Promise<import('@/types/api').Notification> => {
+    const response = await api.post<{ data: import('@/types/api').Notification }>('/notifications', data);
+    return response.data.data;
+  },
+
+  createBulk: async (data: import('@/types/api').CreateNotificationInput[]): Promise<import('@/types/api').Notification[]> => {
+    const response = await api.post<{ data: import('@/types/api').Notification[] }>('/notifications/bulk', data);
+    return response.data.data;
+  },
+
+  markAsRead: async (id: string): Promise<import('@/types/api').Notification> => {
+    const response = await api.post<{ data: import('@/types/api').Notification }>(`/notifications/${id}/read`);
+    return response.data.data;
+  },
+
+  markAllAsRead: async (): Promise<void> => {
+    await api.post('/notifications/read-all');
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/notifications/${id}`);
+  },
+
+  deleteRead: async (): Promise<void> => {
+    await api.delete('/notifications/read');
+  },
+};
+
 export default apiClient;

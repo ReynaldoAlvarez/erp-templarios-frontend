@@ -22,6 +22,10 @@ import {
   driverHistoryApi,
   trucksApi,
   driversApi,
+  cashFlowApi,
+  paymentsApi,
+  sinExportApi,
+  notificationsApi,
 } from '@/lib/api-client';
 import {
   UserListParams,
@@ -1382,5 +1386,461 @@ export function useTrucksList(params?: import('@/types/api').TruckListParams) {
   return useQuery({
     queryKey: ['trucks', params],
     queryFn: () => trucksApi.getAll(params),
+  });
+}
+
+// ==========================================
+// Sprint 7 Finance Enhancement: Cash Flow, Payments, SIN Export, Notifications
+// ==========================================
+
+// ============ Cash Flow Hooks ============
+export function useCashFlow(params?: import('@/types/api').CashFlowListParams) {
+  return useQuery({
+    queryKey: ['cashFlow', params],
+    queryFn: () => cashFlowApi.getAll(params),
+  });
+}
+
+export function useCashFlowRecord(id: string | undefined) {
+  return useQuery({
+    queryKey: ['cashFlow', id],
+    queryFn: () => cashFlowApi.getById(id!),
+    enabled: !!id,
+  });
+}
+
+export function useCashFlowTypes() {
+  return useQuery({
+    queryKey: ['cashFlow', 'types'],
+    queryFn: () => cashFlowApi.getTypes(),
+    staleTime: 300000,
+  });
+}
+
+export function useCashFlowCategories() {
+  return useQuery({
+    queryKey: ['cashFlow', 'categories'],
+    queryFn: () => cashFlowApi.getCategories(),
+    staleTime: 300000,
+  });
+}
+
+export function useCashFlowPaymentMethods() {
+  return useQuery({
+    queryKey: ['cashFlow', 'paymentMethods'],
+    queryFn: () => cashFlowApi.getPaymentMethods(),
+    staleTime: 300000,
+  });
+}
+
+export function useCashFlowSummary(params?: { dateFrom?: string; dateTo?: string }) {
+  return useQuery({
+    queryKey: ['cashFlow', 'summary', params],
+    queryFn: () => cashFlowApi.getSummary(params),
+  });
+}
+
+export function useCashFlowDaily(date: string | undefined) {
+  return useQuery({
+    queryKey: ['cashFlow', 'daily', date],
+    queryFn: () => cashFlowApi.getDaily(date!),
+    enabled: !!date,
+  });
+}
+
+export function useCashFlowMonthly(year: number, month: number) {
+  return useQuery({
+    queryKey: ['cashFlow', 'monthly', year, month],
+    queryFn: () => cashFlowApi.getMonthly(year, month),
+  });
+}
+
+export function useCreateCashFlow() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: import('@/types/api').CreateCashFlowInput) => cashFlowApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cashFlow'] });
+      queryClient.invalidateQueries({ queryKey: ['cashFlow', 'summary'] });
+    },
+  });
+}
+
+export function useUpdateCashFlow() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: import('@/types/api').UpdateCashFlowInput }) =>
+      cashFlowApi.update(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['cashFlow'] });
+      queryClient.invalidateQueries({ queryKey: ['cashFlow', id] });
+      queryClient.invalidateQueries({ queryKey: ['cashFlow', 'summary'] });
+    },
+  });
+}
+
+export function useDeleteCashFlow() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => cashFlowApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cashFlow'] });
+      queryClient.invalidateQueries({ queryKey: ['cashFlow', 'summary'] });
+    },
+  });
+}
+
+// ============ Payments Hooks ============
+export function usePayments(params?: import('@/types/api').PaymentListParams) {
+  return useQuery({
+    queryKey: ['payments', params],
+    queryFn: () => paymentsApi.getAll(params),
+  });
+}
+
+export function usePayment(id: string | undefined) {
+  return useQuery({
+    queryKey: ['payments', id],
+    queryFn: () => paymentsApi.getById(id!),
+    enabled: !!id,
+  });
+}
+
+export function usePaymentTypes() {
+  return useQuery({
+    queryKey: ['payments', 'types'],
+    queryFn: () => paymentsApi.getTypes(),
+    staleTime: 300000,
+  });
+}
+
+export function usePaymentMethods() {
+  return useQuery({
+    queryKey: ['payments', 'methods'],
+    queryFn: () => paymentsApi.getMethods(),
+    staleTime: 300000,
+  });
+}
+
+export function usePaymentStatuses() {
+  return useQuery({
+    queryKey: ['payments', 'statuses'],
+    queryFn: () => paymentsApi.getStatuses(),
+    staleTime: 300000,
+  });
+}
+
+export function usePendingPayments() {
+  return useQuery({
+    queryKey: ['payments', 'pending'],
+    queryFn: () => paymentsApi.getPending(),
+  });
+}
+
+export function usePaymentStats(params?: { driverId?: string; dateFrom?: string; dateTo?: string }) {
+  return useQuery({
+    queryKey: ['payments', 'stats', params],
+    queryFn: () => paymentsApi.getStats(params),
+  });
+}
+
+export function usePaymentsByDriver(driverId: string | undefined) {
+  return useQuery({
+    queryKey: ['payments', 'driver', driverId],
+    queryFn: () => paymentsApi.getByDriver(driverId!),
+    enabled: !!driverId,
+  });
+}
+
+export function useCreatePayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: import('@/types/api').CreatePaymentInput) => paymentsApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['payments', 'pending'] });
+      queryClient.invalidateQueries({ queryKey: ['payments', 'stats'] });
+    },
+  });
+}
+
+export function useUpdatePayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: import('@/types/api').UpdatePaymentInput }) =>
+      paymentsApi.update(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['payments', id] });
+      queryClient.invalidateQueries({ queryKey: ['payments', 'pending'] });
+      queryClient.invalidateQueries({ queryKey: ['payments', 'stats'] });
+    },
+  });
+}
+
+export function useApprovePayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => paymentsApi.approve(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['payments', id] });
+      queryClient.invalidateQueries({ queryKey: ['payments', 'pending'] });
+      queryClient.invalidateQueries({ queryKey: ['payments', 'stats'] });
+    },
+  });
+}
+
+export function useCompletePayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => paymentsApi.complete(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['payments', id] });
+      queryClient.invalidateQueries({ queryKey: ['payments', 'pending'] });
+      queryClient.invalidateQueries({ queryKey: ['payments', 'stats'] });
+    },
+  });
+}
+
+export function useCancelPayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      paymentsApi.cancel(id, reason),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['payments', id] });
+      queryClient.invalidateQueries({ queryKey: ['payments', 'pending'] });
+      queryClient.invalidateQueries({ queryKey: ['payments', 'stats'] });
+    },
+  });
+}
+
+export function useDeletePayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => paymentsApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['payments', 'pending'] });
+      queryClient.invalidateQueries({ queryKey: ['payments', 'stats'] });
+    },
+  });
+}
+
+// ============ SIN Export Hooks ============
+export function useSINExports(params?: import('@/types/api').SINExportListParams) {
+  return useQuery({
+    queryKey: ['sinExports', params],
+    queryFn: () => sinExportApi.getAll(params),
+  });
+}
+
+export function useSINExport(id: string | undefined) {
+  return useQuery({
+    queryKey: ['sinExports', id],
+    queryFn: () => sinExportApi.getById(id!),
+    enabled: !!id,
+  });
+}
+
+export function useSINExportStatuses() {
+  return useQuery({
+    queryKey: ['sinExports', 'statuses'],
+    queryFn: () => sinExportApi.getStatuses(),
+    staleTime: 300000,
+  });
+}
+
+export function usePendingSINExports() {
+  return useQuery({
+    queryKey: ['sinExports', 'pending'],
+    queryFn: () => sinExportApi.getPending(),
+  });
+}
+
+export function useFailedSINExports() {
+  return useQuery({
+    queryKey: ['sinExports', 'failed'],
+    queryFn: () => sinExportApi.getFailed(),
+  });
+}
+
+export function useSINExportStats() {
+  return useQuery({
+    queryKey: ['sinExports', 'stats'],
+    queryFn: () => sinExportApi.getStats(),
+  });
+}
+
+export function useSINExportByInvoice(invoiceId: string | undefined) {
+  return useQuery({
+    queryKey: ['sinExports', 'invoice', invoiceId],
+    queryFn: () => sinExportApi.getByInvoice(invoiceId!),
+    enabled: !!invoiceId,
+  });
+}
+
+export function useSINInvoiceJSON(invoiceId: string | undefined) {
+  return useQuery({
+    queryKey: ['sinExports', 'invoiceJson', invoiceId],
+    queryFn: () => sinExportApi.getInvoiceJson(invoiceId!),
+    enabled: !!invoiceId,
+  });
+}
+
+export function useCreateSINExport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (invoiceId: string) => sinExportApi.create(invoiceId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sinExports'] });
+      queryClient.invalidateQueries({ queryKey: ['sinExports', 'pending'] });
+      queryClient.invalidateQueries({ queryKey: ['sinExports', 'stats'] });
+    },
+  });
+}
+
+export function useProcessSINExport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => sinExportApi.process(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['sinExports'] });
+      queryClient.invalidateQueries({ queryKey: ['sinExports', id] });
+      queryClient.invalidateQueries({ queryKey: ['sinExports', 'pending'] });
+      queryClient.invalidateQueries({ queryKey: ['sinExports', 'stats'] });
+    },
+  });
+}
+
+export function useRetrySINExport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => sinExportApi.retry(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['sinExports'] });
+      queryClient.invalidateQueries({ queryKey: ['sinExports', id] });
+      queryClient.invalidateQueries({ queryKey: ['sinExports', 'failed'] });
+      queryClient.invalidateQueries({ queryKey: ['sinExports', 'stats'] });
+    },
+  });
+}
+
+// ============ Notifications Hooks ============
+export function useNotifications(params?: import('@/types/api').NotificationListParams) {
+  return useQuery({
+    queryKey: ['notifications', params],
+    queryFn: () => notificationsApi.getAll(params),
+  });
+}
+
+export function useNotification(id: string | undefined) {
+  return useQuery({
+    queryKey: ['notifications', id],
+    queryFn: () => notificationsApi.getById(id!),
+    enabled: !!id,
+  });
+}
+
+export function useNotificationTypes() {
+  return useQuery({
+    queryKey: ['notifications', 'types'],
+    queryFn: () => notificationsApi.getTypes(),
+    staleTime: 300000,
+  });
+}
+
+export function useNotificationPriorities() {
+  return useQuery({
+    queryKey: ['notifications', 'priorities'],
+    queryFn: () => notificationsApi.getPriorities(),
+    staleTime: 300000,
+  });
+}
+
+export function useNotificationCounts() {
+  return useQuery({
+    queryKey: ['notifications', 'counts'],
+    queryFn: () => notificationsApi.getCounts(),
+    refetchInterval: 60000, // Refetch every minute
+  });
+}
+
+export function useUnreadNotifications() {
+  return useQuery({
+    queryKey: ['notifications', 'unread'],
+    queryFn: () => notificationsApi.getUnread(),
+  });
+}
+
+export function useCreateNotification() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: import('@/types/api').CreateNotificationInput) => notificationsApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'counts'] });
+    },
+  });
+}
+
+export function useCreateBulkNotifications() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: import('@/types/api').CreateNotificationInput[]) => notificationsApi.createBulk(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'counts'] });
+    },
+  });
+}
+
+export function useMarkNotificationAsRead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => notificationsApi.markAsRead(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications', id] });
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'counts'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'unread'] });
+    },
+  });
+}
+
+export function useMarkAllNotificationsAsRead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => notificationsApi.markAllAsRead(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'counts'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'unread'] });
+    },
+  });
+}
+
+export function useDeleteNotification() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => notificationsApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'counts'] });
+    },
+  });
+}
+
+export function useDeleteReadNotifications() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => notificationsApi.deleteRead(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'counts'] });
+    },
   });
 }

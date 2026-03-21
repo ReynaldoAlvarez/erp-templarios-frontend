@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: templarios-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: templarios
+      POSTGRES_PASSWORD: templarios123
+      POSTGRES_DB: templarios_erp
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - templarios-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U templarios -d templarios_erp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: templarios-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - templarios-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: templarios-api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://templarios:templarios123@postgres:5432/templarios_erp?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-templarios-jwt-secret-key-production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-templarios-refresh-secret-key-production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - templarios-network
+    volumes:
+      - uploads_data:/app/uploads
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:
+
+networks:
+  templarios-network:
+    driver: bridge

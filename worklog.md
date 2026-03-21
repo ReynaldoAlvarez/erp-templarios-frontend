@@ -285,3 +285,113 @@ POST /invoices/calculate                 - Cálculo desde viajes
 - Reportes de viajes, financiero, clientes, conductores, flota, fronteras
 - Fix de bucle infinito aplicado correctamente
 - Commit: 51219e0
+
+---
+## Task ID: Sprint 7 Finance Enhancement - Infrastructure
+### Agent: Main Agent
+### Task: Implementar módulos de Cash Flow, Payments, SIN Export y Notifications
+
+### Work Summary
+
+#### 1. Tipos agregados en `src/types/api.ts`
+Se agregaron los siguientes tipos para los nuevos módulos:
+
+**Cash Flow (Flujo de Caja):**
+- `CashFlowType`: 'INCOME' | 'EXPENSE'
+- `CashFlowCategory`: 'FREIGHT' | 'FUEL' | 'MAINTENANCE' | 'SALARY' | 'TOLL' | 'OTHER'
+- `PaymentMethod`: 'CASH' | 'BANK_TRANSFER' | 'CHECK' | 'CARD' | 'OTHER'
+- `CashFlow`, `CreateCashFlowInput`, `UpdateCashFlowInput`, `CashFlowListParams`
+- `CashFlowSummary`, `CashFlowDaily`, `CashFlowMonthly`
+- `CashFlowTypeOption`, `CashFlowCategoryOption`, `PaymentMethodOption`
+
+**Payments (Pagos y Anticipos):**
+- `PaymentType`: 'ADVANCE' | 'SETTLEMENT' | 'INVOICE' | 'EXPENSE_REIMBURSEMENT'
+- `PaymentStatus`: 'PENDING' | 'APPROVED' | 'COMPLETED' | 'CANCELLED'
+- `Payment`, `CreatePaymentInput`, `UpdatePaymentInput`, `PaymentListParams`, `PaymentStats`
+- `PaymentTypeOption`, `PaymentStatusOption`
+
+**SIN Export (Facturación Electrónica Bolivia):**
+- `SINExportStatus`: 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED'
+- `SINExport`, `SINExportListParams`, `SINExportStats`, `SINExportStatusOption`
+- `SINInvoiceJSON` con estructura completa para facturación SIN
+
+**Notifications:**
+- `NotificationType`: 'TRIP' | 'SETTLEMENT' | 'INVOICE' | 'MAINTENANCE' | 'DOCUMENT' | 'SYSTEM' | 'BORDER'
+- `NotificationPriority`: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
+- `Notification`, `NotificationListParams`, `NotificationCounts`, `CreateNotificationInput`
+- `NotificationTypeOption`, `NotificationPriorityOption`
+
+#### 2. API Client actualizado en `src/lib/api-client.ts`
+Se agregaron los siguientes módulos API:
+
+**cashFlowApi:**
+- getAll, getById, getTypes, getCategories, getPaymentMethods
+- getSummary, getDaily, getMonthly
+- create, update, delete
+
+**paymentsApi:**
+- getAll, getById, getTypes, getMethods, getStatuses
+- getPending, getStats, getByDriver
+- create, update, approve, complete, cancel, delete
+
+**sinExportApi:**
+- getAll, getById, getStatuses
+- getPending, getFailed, getStats
+- getByInvoice, getInvoiceJson
+- create, process, retry
+
+**notificationsApi:**
+- getAll, getById, getTypes, getPriorities
+- getCounts, getUnread
+- create, createBulk
+- markAsRead, markAllAsRead
+- delete, deleteRead
+
+#### 3. Hooks actualizados en `src/hooks/use-queries.ts`
+Se agregaron hooks completos para cada módulo:
+
+**Cash Flow:**
+- useCashFlow, useCashFlowRecord, useCashFlowTypes, useCashFlowCategories
+- useCashFlowPaymentMethods, useCashFlowSummary, useCashFlowDaily, useCashFlowMonthly
+- useCreateCashFlow, useUpdateCashFlow, useDeleteCashFlow
+
+**Payments:**
+- usePayments, usePayment, usePaymentTypes, usePaymentMethods, usePaymentStatuses
+- usePendingPayments, usePaymentStats, usePaymentsByDriver
+- useCreatePayment, useUpdatePayment, useApprovePayment, useCompletePayment
+- useCancelPayment, useDeletePayment
+
+**SIN Export:**
+- useSINExports, useSINExport, useSINExportStatuses
+- usePendingSINExports, useFailedSINExports, useSINExportStats
+- useSINExportByInvoice, useSINInvoiceJSON
+- useCreateSINExport, useProcessSINExport, useRetrySINExport
+
+**Notifications:**
+- useNotifications, useNotification, useNotificationTypes, useNotificationPriorities
+- useNotificationCounts, useUnreadNotifications
+- useCreateNotification, useCreateBulkNotifications
+- useMarkNotificationAsRead, useMarkAllNotificationsAsRead
+- useDeleteNotification, useDeleteReadNotifications
+
+#### 4. Sidebar actualizado (`src/components/layout/sidebar.tsx`)
+Se agregaron nuevos íconos y rutas:
+
+**Finanzas (actualizado):**
+- Flujo de Caja → /dashboard/flujo-caja
+- Pagos → /dashboard/pagos
+- SIN Export → /dashboard/sin-export
+
+**Administración (actualizado):**
+- Notificaciones → /dashboard/notificaciones
+
+#### 5. Build verificado exitosamente
+- Next.js 16.1.3 build completado sin errores
+- Todos los tipos correctamente definidos
+- Hooks funcionales
+
+### Branch Creado
+- `feature/sprint-7-finance-enhancement`
+
+### Pendiente
+- Implementar páginas de los módulos (Cash Flow, Payments, SIN Export, Notifications)
