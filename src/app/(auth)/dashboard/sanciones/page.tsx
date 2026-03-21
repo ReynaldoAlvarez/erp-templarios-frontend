@@ -86,13 +86,27 @@ const getStatusAmount = (value: unknown): number => {
   return 0;
 };
 
-// Helper para obtener nombre completo del driver
-const getDriverName = (driver: { employee?: { firstName?: string; lastName?: string } } | null | undefined): string => {
+// Helper para obtener nombre completo del driver (maneja ambas estructuras)
+const getDriverName = (driver: { 
+  fullName?: string; 
+  firstName?: string; 
+  lastName?: string;
+  employee?: { firstName?: string; lastName?: string }; 
+} | null | undefined): string => {
   if (!driver) return '-';
+  // Si tiene fullName, usarlo
+  if (driver.fullName) return driver.fullName;
+  // Si tiene employee con firstName/lastName (estructura backend)
   if (driver.employee?.firstName && driver.employee?.lastName) {
     return `${driver.employee.firstName} ${driver.employee.lastName}`;
   }
-  return driver.employee?.firstName || driver.employee?.lastName || '-';
+  if (driver.employee?.firstName) return driver.employee.firstName;
+  if (driver.employee?.lastName) return driver.employee.lastName;
+  // Si tiene firstName/lastName directo
+  if (driver.firstName && driver.lastName) {
+    return `${driver.firstName} ${driver.lastName}`;
+  }
+  return driver.firstName || driver.lastName || '-';
 };
 
 export default function SancionesPage() {
