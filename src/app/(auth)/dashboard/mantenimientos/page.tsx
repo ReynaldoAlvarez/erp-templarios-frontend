@@ -68,6 +68,24 @@ const typeLabels: Record<MaintenanceType, string> = {
   CORRECTIVE: 'Correctivo',
 };
 
+// Helper functions para manejar la estructura del backend
+// El backend puede devolver byStatus como {count, cost} o como número directo
+const getStatusValue = (value: unknown): number => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'object' && value !== null && 'count' in value) {
+    return (value as { count: number }).count;
+  }
+  return 0;
+};
+
+const getStatusCost = (value: unknown): number => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'object' && value !== null && 'cost' in value) {
+    return (value as { cost: number }).cost;
+  }
+  return 0;
+};
+
 export default function MantenimientosPage() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -166,7 +184,7 @@ export default function MantenimientosPage() {
               <Wrench className="h-4 w-4 text-[#1B3F66]" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
+              <div className="text-2xl font-bold">{getStatusValue(stats.total)}</div>
             </CardContent>
           </Card>
           <Card>
@@ -175,7 +193,7 @@ export default function MantenimientosPage() {
               <DollarSign className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(stats.totalCost)}</div>
+              <div className="text-2xl font-bold">{formatCurrency(getStatusCost(stats.totalCost))}</div>
             </CardContent>
           </Card>
           <Card>
@@ -184,7 +202,7 @@ export default function MantenimientosPage() {
               <Clock className="h-4 w-4 text-yellow-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.byStatus?.IN_PROGRESS || 0}</div>
+              <div className="text-2xl font-bold">{getStatusValue(stats.byStatus?.IN_PROGRESS)}</div>
             </CardContent>
           </Card>
           <Card>
@@ -193,7 +211,7 @@ export default function MantenimientosPage() {
               <Calendar className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.upcomingCount || 0}</div>
+              <div className="text-2xl font-bold">{getStatusValue(stats.upcomingCount)}</div>
             </CardContent>
           </Card>
         </div>
