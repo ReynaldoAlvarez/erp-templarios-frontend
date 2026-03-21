@@ -46,7 +46,7 @@ import {
   Edit,
   Loader2,
 } from 'lucide-react';
-import type { Liability, LiabilityType, LiabilityStatus, CreateLiabilityInput, UpdateLiabilityInput } from '@/types/api';
+import type { Liability, LiabilityType, LiabilityStatus } from '@/types/api';
 
 // Labels para estados según schema: PENDING, PARTIAL, PAID
 const statusConfig: Record<LiabilityStatus, { label: string; className: string }> = {
@@ -102,7 +102,7 @@ export default function PasivosPage() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
-    const data: CreateLiabilityInput | UpdateLiabilityInput = {
+    const data = {
       name: formData.get('name') as string,
       type: formData.get('type') as LiabilityType,
       description: formData.get('description') as string || undefined,
@@ -115,7 +115,7 @@ export default function PasivosPage() {
     if (selectedLiability) {
       updateMutation.mutate({ id: selectedLiability.id, data }, { onSuccess: handleCloseDialog });
     } else {
-      createMutation.mutate(data as CreateLiabilityInput, { onSuccess: handleCloseDialog });
+      createMutation.mutate(data, { onSuccess: handleCloseDialog });
     }
   };
 
@@ -131,6 +131,14 @@ export default function PasivosPage() {
   // Obtener datos de forma segura
   const liabilitiesList = liabilitiesData?.data || [];
   const pagination = liabilitiesData?.pagination;
+
+  // Helper para obtener count de byStatus (puede ser número o objeto {count, amount})
+  const getStatusCount = (status: LiabilityStatus): number => {
+    const value = stats?.byStatus?.[status];
+    if (typeof value === 'number') return value;
+    if (typeof value === 'object' && value !== null && 'count' in value) return value.count;
+    return 0;
+  };
 
   return (
     <div className="space-y-6">
@@ -174,7 +182,7 @@ export default function PasivosPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-600">
-                {stats.byStatus?.PENDING || 0}
+                {getStatusCount('PENDING')}
               </div>
             </CardContent>
           </Card>
