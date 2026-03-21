@@ -128,6 +128,10 @@ export default function PasivosPage() {
     return new Date(date).toLocaleDateString('es-BO');
   };
 
+  // Obtener datos de forma segura
+  const liabilitiesList = liabilitiesData?.data || [];
+  const pagination = liabilitiesData?.pagination;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -194,10 +198,8 @@ export default function PasivosPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los tipos</SelectItem>
-            {types?.map((type) => (
-              <SelectItem key={type.value} value={type.value}>
-                {type.label}
-              </SelectItem>
+            {Object.entries(typeLabels).map(([value, label]) => (
+              <SelectItem key={value} value={value}>{label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -208,9 +210,7 @@ export default function PasivosPage() {
           <SelectContent>
             <SelectItem value="all">Todos los estados</SelectItem>
             {Object.entries(statusConfig).map(([value, config]) => (
-              <SelectItem key={value} value={value}>
-                {config.label}
-              </SelectItem>
+              <SelectItem key={value} value={value}>{config.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -238,14 +238,14 @@ export default function PasivosPage() {
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-[#1B3F66]" />
                 </TableCell>
               </TableRow>
-            ) : liabilitiesData?.data.length === 0 ? (
+            ) : liabilitiesList.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                   No se encontraron pasivos
                 </TableCell>
               </TableRow>
             ) : (
-              liabilitiesData?.data.map((liability) => (
+              liabilitiesList.map((liability) => (
                 <TableRow key={liability.id}>
                   <TableCell>
                     <div>
@@ -284,17 +284,17 @@ export default function PasivosPage() {
       </div>
 
       {/* Pagination */}
-      {liabilitiesData && liabilitiesData.pagination.totalPages > 1 && (
+      {pagination && pagination.totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-gray-500">
-            Mostrando {((page - 1) * 10) + 1} - {Math.min(page * 10, liabilitiesData.pagination.total)} de {liabilitiesData.pagination.total}
+            Mostrando {((page - 1) * 10) + 1} - {Math.min(page * 10, pagination.total)} de {pagination.total}
           </p>
           <div className="flex gap-2">
             <Button 
               variant="outline" 
               size="sm" 
               onClick={() => setPage(page - 1)} 
-              disabled={!liabilitiesData.pagination.hasPrev}
+              disabled={!pagination.hasPrev}
             >
               Anterior
             </Button>
@@ -302,7 +302,7 @@ export default function PasivosPage() {
               variant="outline" 
               size="sm" 
               onClick={() => setPage(page + 1)} 
-              disabled={!liabilitiesData.pagination.hasNext}
+              disabled={!pagination.hasNext}
             >
               Siguiente
             </Button>
