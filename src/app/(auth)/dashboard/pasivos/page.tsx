@@ -4,10 +4,10 @@ import { useState, useMemo } from 'react';
 import { useDebounce } from '@/hooks/use-debounce';
 import {
   useLiabilities,
-  useLiabilityTypes,
   useLiabilityStats,
   useCreateLiability,
   useUpdateLiability,
+  useUpdateLiabilityStatus,
 } from '@/hooks/use-queries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +28,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Table,
   TableBody,
   TableCell,
@@ -45,6 +53,10 @@ import {
   AlertTriangle,
   Edit,
   Loader2,
+  MoreHorizontal,
+  ArrowRight,
+  CheckCircle,
+  Clock,
 } from 'lucide-react';
 import type { Liability, LiabilityType, LiabilityStatus } from '@/types/api';
 
@@ -63,13 +75,18 @@ const typeLabels: Record<LiabilityType, string> = {
   OTHER: 'Otro',
 };
 
+// Tipo para el valor de byStatus que puede ser número o objeto
+type StatusValue = number | { count: number; amount: number } | undefined;
+
 export default function PasivosPage() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [selectedLiability, setSelectedLiability] = useState<Liability | null>(null);
+  const [newStatus, setNewStatus] = useState<LiabilityStatus>('PENDING');
 
   const debouncedSearch = useDebounce(search, 300);
 
@@ -82,11 +99,11 @@ export default function PasivosPage() {
   }), [page, debouncedSearch, typeFilter, statusFilter]);
 
   const { data: liabilitiesData, isLoading } = useLiabilities(params);
-  const { data: types } = useLiabilityTypes();
   const { data: stats } = useLiabilityStats();
 
   const createMutation = useCreateLiability();
   const updateMutation = useUpdateLiability();
+  const updateStatusMutation = useUpdateLiabilityStatus();
 
   const handleOpenDialog = (liability?: Liability) => {
     setSelectedLiability(liability || null);
@@ -96,6 +113,28 @@ export default function PasivosPage() {
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
     setSelectedLiability(null);
+  };
+
+  const handleOpenStatusDialog = (liability: Liability) => {
+    setSelectedLiability(liability);
+    setNewStatus(liability.status);
+    setIsStatusDialogOpen(true);
+  };
+
+  const handleCloseStatusDialog = () => {
+    setIsStatusDialogOpen(false);
+    setSelectedLiability(null);
+  };
+
+  const handleStatusChange = () => {
+    if (selectedLiability && newStatus !== selectedLiability.status) {
+      updateStatusMutation.mutate(
+        { id: selectedLiability.id, status: newStatus },
+        { onSuccess: handleCloseStatusDialog }
+      );
+    } else {
+      handleCloseStatusDialog();
+    }
   };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -134,9 +173,9 @@ export default function PasivosPage() {
 
   // Helper para obtener count de byStatus (puede ser número o objeto {count, amount})
   const getStatusCount = (status: LiabilityStatus): number => {
-    const value = stats?.byStatus?.[status];
+    const value: StatusValue = stats?.byStatus?.[status];
     if (typeof value === 'number') return value;
-    if (typeof value === 'object' && value !== null && 'count' in value) return value.count;
+    if (typeof value === 'object' && value !== null) return value.count;
     return 0;
   };
 
@@ -274,15 +313,59 @@ export default function PasivosPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleOpenDialog(liability)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleOpenDialog(liability)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleOpenStatusDialog(liability)}>
+                          <ArrowRight className="mr-2 h-4 w-4" />
+                          Cambiar Estado
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel className="text-xs text-gray-500">
+                          Cambiar a:
+                        </DropdownMenuLabel>
+                        {liability.status !== 'PENDING' && (
+                          <DropdownMenuItem 
+                            onClick={() => {
+                              updateStatusMutation.mutate({ id: liability.id, status: 'PENDING' });
+                            }}
+                          >
+                            <Clock className="mr-2 h-4 w-4 text-yellow-600" />
+                            Pendiente
+                          </DropdownMenuItem>
+                        )}
+                        {liability.status !== 'PARTIAL' && (
+                          <DropdownMenuItem 
+                            onClick={() => {
+                              updateStatusMutation.mutate({ id: liability.id, status: 'PARTIAL' });
+                            }}
+                          >
+                            <Loader2 className="mr-2 h-4 w-4 text-blue-600" />
+                            Pago Parcial
+                          </DropdownMenuItem>
+                        )}
+                        {liability.status !== 'PAID' && (
+                          <DropdownMenuItem 
+                            onClick={() => {
+                              updateStatusMutation.mutate({ id: liability.id, status: 'PAID' });
+                            }}
+                          >
+                            <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
+                            Pagado
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))
@@ -373,6 +456,42 @@ export default function PasivosPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Status Dialog */}
+      <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cambiar Estado</DialogTitle>
+            <DialogDescription>
+              Selecciona el nuevo estado para: <strong>{selectedLiability?.name}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Select value={newStatus} onValueChange={(v) => setNewStatus(v as LiabilityStatus)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(statusConfig).map(([value, config]) => (
+                  <SelectItem key={value} value={value}>{config.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleCloseStatusDialog}>Cancelar</Button>
+            <Button 
+              type="button" 
+              className="bg-[#1B3F66] hover:bg-[#0F2A47]" 
+              onClick={handleStatusChange}
+              disabled={updateStatusMutation.isPending}
+            >
+              {updateStatusMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Cambiar Estado
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
