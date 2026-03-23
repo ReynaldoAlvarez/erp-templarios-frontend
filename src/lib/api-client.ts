@@ -1768,7 +1768,7 @@ interface BackendCashFlowResponse {
   success: boolean;
   message: string;
   data: {
-    cashFlow: import('@/types/api').CashFlow[];
+    records: import('@/types/api').CashFlow[];
     total: number;
     page: number;
     limit: number;
@@ -1780,10 +1780,10 @@ interface BackendCashFlowResponse {
 export const cashFlowApi = {
   getAll: async (params?: import('@/types/api').CashFlowListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').CashFlow>> => {
     const response = await api.get<BackendCashFlowResponse>('/cash-flow', params);
-    const { cashFlow, total, page, limit, totalPages } = response.data.data;
+    const { records, total, page, limit, totalPages } = response.data.data;
 
     return {
-      data: cashFlow,
+      data: records,
       pagination: {
         page,
         limit,

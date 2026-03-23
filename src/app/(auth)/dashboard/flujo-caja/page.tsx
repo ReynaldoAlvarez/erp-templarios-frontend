@@ -9,7 +9,6 @@ import {
   TrendingDown,
   Plus,
   Search,
-  Calendar,
   ArrowUpRight,
   ArrowDownRight,
   Wallet,
@@ -55,15 +54,16 @@ import {
   useUpdateCashFlow,
   useDeleteCashFlow,
 } from '@/hooks/use-queries';
-import { CashFlowType, CashFlowCategory, PaymentMethod, CashFlow } from '@/types/api';
+import { CashFlowType, CashFlowCategory, PaymentMethod, CashFlow, CreateCashFlowInput, UpdateCashFlowInput } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 
+// Schema con los nombres de campo que espera el backend
 const cashFlowSchema = z.object({
   type: z.enum(['INCOME', 'EXPENSE']),
   category: z.enum(['FREIGHT', 'FUEL', 'MAINTENANCE', 'SALARY', 'TOLL', 'OTHER']),
   amount: z.number().min(0.01, 'El monto debe ser mayor a 0'),
-  description: z.string().min(1, 'La descripción es requerida'),
-  date: z.string().min(1, 'La fecha es requerida'),
+  concept: z.string().min(1, 'El concepto es requerido'),
+  paymentDate: z.string().min(1, 'La fecha es requerida'),
   paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'CHECK', 'CARD', 'OTHER']),
   reference: z.string().optional(),
   notes: z.string().optional(),
@@ -124,8 +124,8 @@ export default function FlujoCajaPage() {
       type: 'INCOME',
       category: 'FREIGHT',
       amount: 0,
-      description: '',
-      date: new Date().toISOString().split('T')[0],
+      concept: '',
+      paymentDate: new Date().toISOString().split('T')[0],
       paymentMethod: 'CASH',
       reference: '',
       notes: '',
@@ -135,10 +135,10 @@ export default function FlujoCajaPage() {
   const onSubmit = async (data: CashFlowFormData) => {
     try {
       if (editingRecord) {
-        await updateMutation.mutateAsync({ id: editingRecord.id, data });
+        await updateMutation.mutateAsync({ id: editingRecord.id, data: data as UpdateCashFlowInput });
         toast({ title: 'Registro actualizado', description: 'El registro se actualizó correctamente' });
       } else {
-        await createMutation.mutateAsync(data);
+        await createMutation.mutateAsync(data as CreateCashFlowInput);
         toast({ title: 'Registro creado', description: 'El registro se creó correctamente' });
       }
       setIsDialogOpen(false);
@@ -154,8 +154,8 @@ export default function FlujoCajaPage() {
     setValue('type', record.type);
     setValue('category', record.category);
     setValue('amount', record.amount);
-    setValue('description', record.description);
-    setValue('date', record.date.split('T')[0]);
+    setValue('concept', record.concept);
+    setValue('paymentDate', record.paymentDate.split('T')[0]);
     setValue('paymentMethod', record.paymentMethod);
     setValue('reference', record.reference || '');
     setValue('notes', record.notes || '');
@@ -178,8 +178,8 @@ export default function FlujoCajaPage() {
       type: 'INCOME',
       category: 'FREIGHT',
       amount: 0,
-      description: '',
-      date: new Date().toISOString().split('T')[0],
+      concept: '',
+      paymentDate: new Date().toISOString().split('T')[0],
       paymentMethod: 'CASH',
       reference: '',
       notes: '',
@@ -283,7 +283,7 @@ export default function FlujoCajaPage() {
                 <TableHead>Fecha</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Categoría</TableHead>
-                <TableHead>Descripción</TableHead>
+                <TableHead>Concepto</TableHead>
                 <TableHead>Método</TableHead>
                 <TableHead className="text-right">Monto</TableHead>
                 <TableHead>Acciones</TableHead>
@@ -297,7 +297,7 @@ export default function FlujoCajaPage() {
               ) : (
                 cashFlowData.data.map((record) => (
                   <TableRow key={record.id}>
-                    <TableCell>{formatDate(record.date)}</TableCell>
+                    <TableCell>{formatDate(record.paymentDate)}</TableCell>
                     <TableCell>
                       <Badge variant={record.type === 'INCOME' ? 'default' : 'destructive'} 
                         className={record.type === 'INCOME' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
@@ -306,7 +306,7 @@ export default function FlujoCajaPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>{CATEGORY_LABELS[record.category]}</TableCell>
-                    <TableCell>{record.description}</TableCell>
+                    <TableCell>{record.concept}</TableCell>
                     <TableCell>{PAYMENT_METHOD_LABELS[record.paymentMethod]}</TableCell>
                     <TableCell className={`text-right font-medium ${record.type === 'INCOME' ? 'text-green-600' : 'text-red-600'}`}>
                       {record.type === 'INCOME' ? '+' : '-'}{formatCurrency(record.amount)}
@@ -382,15 +382,15 @@ export default function FlujoCajaPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Descripción</Label>
-              <Input {...register('description')} />
-              {errors.description && <p className="text-sm text-red-500">{errors.description.message}</p>}
+              <Label>Concepto</Label>
+              <Input {...register('concept')} />
+              {errors.concept && <p className="text-sm text-red-500">{errors.concept.message}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label>Fecha</Label>
-              <Input type="date" {...register('date')} />
-              {errors.date && <p className="text-sm text-red-500">{errors.date.message}</p>}
+              <Label>Fecha de Pago</Label>
+              <Input type="date" {...register('paymentDate')} />
+              {errors.paymentDate && <p className="text-sm text-red-500">{errors.paymentDate.message}</p>}
             </div>
 
             <div className="space-y-2">

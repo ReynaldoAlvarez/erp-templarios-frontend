@@ -1603,12 +1603,21 @@ export interface CashFlow {
   id: string;
   type: CashFlowType;
   category: CashFlowCategory;
+  concept: string;           // Backend usa "concept" no "description"
   amount: number;
-  description: string;
-  date: string;
-  paymentMethod: PaymentMethod;
   reference?: string;
+  entity?: string;           // Entidad relacionada (Trip, Invoice, etc.)
+  entityId?: string;         // ID de la entidad relacionada
+  paymentMethod: PaymentMethod;
+  paymentDate: string;       // Backend usa "paymentDate" no "date"
   notes?: string;
+  createdBy?: string;
+  creator?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -1617,10 +1626,12 @@ export interface CreateCashFlowInput {
   type: CashFlowType;
   category: CashFlowCategory;
   amount: number;
-  description: string;
-  date: string;
+  concept: string;           // Backend usa "concept"
+  paymentDate: string;       // Backend usa "paymentDate"
   paymentMethod: PaymentMethod;
   reference?: string;
+  entity?: string;
+  entityId?: string;
   notes?: string;
 }
 
@@ -1628,10 +1639,12 @@ export interface UpdateCashFlowInput {
   type?: CashFlowType;
   category?: CashFlowCategory;
   amount?: number;
-  description?: string;
-  date?: string;
+  concept?: string;
+  paymentDate?: string;
   paymentMethod?: PaymentMethod;
   reference?: string;
+  entity?: string;
+  entityId?: string;
   notes?: string;
 }
 
