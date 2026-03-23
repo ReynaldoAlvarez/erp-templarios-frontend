@@ -216,7 +216,7 @@ export default function SINExportPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow><TableCell colSpan={7} className="text-center py-8">Cargando...</TableCell></TableRow>
-              ) : !exportsData?.data.length ? (
+              ) : !exportsData?.data?.length ? (
                 <TableRow><TableCell colSpan={7} className="text-center py-8">No hay exportaciones</TableCell></TableRow>
               ) : (
                 exportsData.data.map((item) => (

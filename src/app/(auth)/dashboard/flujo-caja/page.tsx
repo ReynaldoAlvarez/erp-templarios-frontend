@@ -132,10 +132,6 @@ export default function FlujoCajaPage() {
     },
   });
 
-  const selectedType = watch('type');
-  const selectedCategory = watch('category');
-  const selectedPaymentMethod = watch('paymentMethod');
-
   const onSubmit = async (data: CashFlowFormData) => {
     try {
       if (editingRecord) {
@@ -296,7 +292,7 @@ export default function FlujoCajaPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow><TableCell colSpan={7} className="text-center py-8">Cargando...</TableCell></TableRow>
-              ) : !cashFlowData?.data.length ? (
+              ) : !cashFlowData?.data?.length ? (
                 <TableRow><TableCell colSpan={7} className="text-center py-8">No hay registros</TableCell></TableRow>
               ) : (
                 cashFlowData.data.map((record) => (
