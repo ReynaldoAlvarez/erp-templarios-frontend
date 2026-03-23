@@ -1699,31 +1699,64 @@ export interface PaymentMethodOption {
 // ============ Payments (Pagos y Anticipos) Types ============
 export type PaymentType = 'ADVANCE' | 'SETTLEMENT' | 'INVOICE' | 'EXPENSE_REIMBURSEMENT';
 export type PaymentStatus = 'PENDING' | 'APPROVED' | 'COMPLETED' | 'CANCELLED';
+export type PaymentCurrency = 'BOB' | 'USD';
 
 export interface Payment {
   id: string;
   type: PaymentType;
-  driverId?: string;
-  tripId?: string;
-  invoiceId?: string;
-  amount: number;
-  description: string;
+  concept: string;              // Backend usa "concept" no "description"
+  amount: number | string;      // Backend devuelve string
+  currency: PaymentCurrency;
+  exchangeRate?: number | null;
+  amountBob: number | string;
   paymentMethod: PaymentMethod;
   reference?: string;
+  bankAccount?: string | null;
   status: PaymentStatus;
-  approvedById?: string;
-  approvedAt?: string;
-  completedAt?: string;
+  tripId?: string | null;
+  invoiceId?: string | null;
+  settlementId?: string | null;
+  driverId?: string | null;
+  expenseId?: string | null;
+  approvedById?: string | null;
+  approvedAt?: string | null;
+  paidAt?: string | null;       // Backend usa "paidAt" no "completedAt"
+  scheduledDate?: string;
+  paymentDate?: string | null;
   notes?: string;
-  driver?: {
-    id: string;
-    firstName?: string;
-    lastName?: string;
-    fullName?: string;
-  };
+  createdBy?: string;
   trip?: {
     id: string;
     micDta: string;
+    departureDate?: string;
+    arrivalDate?: string;
+    billOfLading?: {
+      id: string;
+      blNumber: string;
+      client?: {
+        id: string;
+        businessName: string;
+      };
+    };
+  };
+  driver?: {
+    id: string;
+    employeeId?: string;
+    licenseNumber?: string;
+    licenseCategory?: string;
+    contractType?: string;
+    isAvailable?: boolean;
+    rating?: string;
+    totalTrips?: number;
+    isActive?: boolean;
+    employee?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      identityCard?: string;
+      phone?: string;
+      email?: string;
+    };
   };
   invoice?: {
     id: string;
@@ -1739,26 +1772,34 @@ export interface Payment {
 
 export interface CreatePaymentInput {
   type: PaymentType;
-  driverId?: string;
-  tripId?: string;
-  invoiceId?: string;
+  concept: string;              // Backend usa "concept"
   amount: number;
-  description: string;
+  currency?: PaymentCurrency;   // Default: BOB
+  exchangeRate?: number;        // Requerido si currency es USD
   paymentMethod: PaymentMethod;
   reference?: string;
+  driverId?: string;
+  tripId?: string;
+  settlementId?: string;
+  invoiceId?: string;
+  expenseId?: string;
+  scheduledDate?: string;
   notes?: string;
 }
 
 export interface UpdatePaymentInput {
-  type?: PaymentType;
-  driverId?: string;
-  tripId?: string;
-  invoiceId?: string;
+  concept?: string;
   amount?: number;
-  description?: string;
+  currency?: PaymentCurrency;
+  exchangeRate?: number;
   paymentMethod?: PaymentMethod;
   reference?: string;
+  scheduledDate?: string;
   notes?: string;
+}
+
+export interface CompletePaymentInput {
+  paymentDate?: string;
 }
 
 export interface PaymentListParams extends PaginationParams {

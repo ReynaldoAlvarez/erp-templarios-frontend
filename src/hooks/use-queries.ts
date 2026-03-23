@@ -1594,8 +1594,9 @@ export function useApprovePayment() {
 export function useCompletePayment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => paymentsApi.complete(id),
-    onSuccess: (_, id) => {
+    mutationFn: ({ id, paymentDate }: { id: string; paymentDate?: string }) =>
+      paymentsApi.complete(id, paymentDate),
+    onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       queryClient.invalidateQueries({ queryKey: ['payments', id] });
       queryClient.invalidateQueries({ queryKey: ['payments', 'pending'] });

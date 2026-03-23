@@ -13,7 +13,6 @@ import {
   Clock,
   DollarSign,
   TrendingUp,
-  AlertCircle,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -59,18 +58,24 @@ import {
   useCancelPayment,
   useDeletePayment,
 } from '@/hooks/use-queries';
-import { PaymentType, PaymentStatus, PaymentMethod, Payment } from '@/types/api';
+import { PaymentType, PaymentStatus, PaymentMethod, Payment, CreatePaymentInput, UpdatePaymentInput } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 
+// Schema con los nombres de campo que espera el backend
 const paymentSchema = z.object({
   type: z.enum(['ADVANCE', 'SETTLEMENT', 'INVOICE', 'EXPENSE_REIMBURSEMENT']),
-  driverId: z.string().optional(),
-  tripId: z.string().optional(),
-  invoiceId: z.string().optional(),
+  concept: z.string().min(1, 'El concepto es requerido'),
   amount: z.number().min(0.01, 'El monto debe ser mayor a 0'),
-  description: z.string().min(1, 'La descripción es requerida'),
+  currency: z.enum(['BOB', 'USD']).optional(),
+  exchangeRate: z.number().optional(),
   paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'CHECK', 'CARD', 'OTHER']),
   reference: z.string().optional(),
+  driverId: z.string().optional(),
+  tripId: z.string().optional(),
+  settlementId: z.string().optional(),
+  invoiceId: z.string().optional(),
+  expenseId: z.string().optional(),
+  scheduledDate: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -135,24 +140,50 @@ export default function PagosPage() {
     resolver: zodResolver(paymentSchema),
     defaultValues: {
       type: 'ADVANCE',
+      concept: '',
       amount: 0,
-      description: '',
+      currency: 'BOB',
       paymentMethod: 'CASH',
       reference: '',
+      driverId: '',
+      tripId: '',
       notes: '',
     },
   });
 
   const selectedType = watch('type');
   const selectedPaymentMethod = watch('paymentMethod');
+  const selectedCurrency = watch('currency');
 
   const onSubmit = async (data: PaymentFormData) => {
     try {
+      // Limpiar campos vacíos
+      const cleanData = {
+        ...data,
+        driverId: data.driverId || undefined,
+        tripId: data.tripId || undefined,
+        settlementId: data.settlementId || undefined,
+        invoiceId: data.invoiceId || undefined,
+        expenseId: data.expenseId || undefined,
+        reference: data.reference || undefined,
+        scheduledDate: data.scheduledDate || undefined,
+        notes: data.notes || undefined,
+        exchangeRate: data.currency === 'USD' ? data.exchangeRate : undefined,
+      };
+
       if (editingPayment) {
-        await updateMutation.mutateAsync({ id: editingPayment.id, data });
+        const updateData: UpdatePaymentInput = {
+          concept: cleanData.concept,
+          amount: cleanData.amount,
+          paymentMethod: cleanData.paymentMethod,
+          reference: cleanData.reference,
+          scheduledDate: cleanData.scheduledDate,
+          notes: cleanData.notes,
+        };
+        await updateMutation.mutateAsync({ id: editingPayment.id, data: updateData });
         toast({ title: 'Pago actualizado', description: 'El pago se actualizó correctamente' });
       } else {
-        await createMutation.mutateAsync(data);
+        await createMutation.mutateAsync(cleanData as CreatePaymentInput);
         toast({ title: 'Pago creado', description: 'El pago se creó correctamente' });
       }
       setIsDialogOpen(false);
@@ -166,13 +197,14 @@ export default function PagosPage() {
   const handleEdit = (payment: Payment) => {
     setEditingPayment(payment);
     setValue('type', payment.type);
-    setValue('driverId', payment.driverId || '');
-    setValue('tripId', payment.tripId || '');
-    setValue('invoiceId', payment.invoiceId || '');
-    setValue('amount', payment.amount);
-    setValue('description', payment.description);
+    setValue('concept', payment.concept);
+    setValue('amount', typeof payment.amount === 'string' ? parseFloat(payment.amount) : payment.amount);
+    setValue('currency', payment.currency || 'BOB');
+    setValue('exchangeRate', payment.exchangeRate || undefined);
     setValue('paymentMethod', payment.paymentMethod);
     setValue('reference', payment.reference || '');
+    setValue('driverId', payment.driverId || '');
+    setValue('tripId', payment.tripId || '');
     setValue('notes', payment.notes || '');
     setIsDialogOpen(true);
   };
@@ -188,7 +220,7 @@ export default function PagosPage() {
 
   const handleComplete = async (id: string) => {
     try {
-      await completeMutation.mutateAsync(id);
+      await completeMutation.mutateAsync({ id });
       toast({ title: 'Pago completado', description: 'El pago fue marcado como completado' });
     } catch {
       toast({ title: 'Error', description: 'No se pudo completar el pago', variant: 'destructive' });
@@ -220,21 +252,33 @@ export default function PagosPage() {
   const handleOpenDialog = () => {
     reset({
       type: 'ADVANCE',
+      concept: '',
       amount: 0,
-      description: '',
+      currency: 'BOB',
       paymentMethod: 'CASH',
       reference: '',
+      driverId: '',
+      tripId: '',
       notes: '',
     });
     setEditingPayment(null);
     setIsDialogOpen(true);
   };
 
-  const formatCurrency = (amount: number) => 
-    new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB' }).format(amount);
-  
-  const formatDate = (dateString: string) => 
+  const formatCurrency = (amount: number | string) => {
+    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB' }).format(num);
+  };
+
+  const formatDate = (dateString: string) =>
     new Date(dateString).toLocaleDateString('es-BO', { year: 'numeric', month: 'short', day: 'numeric' });
+
+  const getDriverName = (payment: Payment) => {
+    if (payment.driver?.employee) {
+      return `${payment.driver.employee.firstName} ${payment.driver.employee.lastName}`;
+    }
+    return '-';
+  };
 
   return (
     <div className="space-y-6">
@@ -330,7 +374,8 @@ export default function PagosPage() {
               <TableRow>
                 <TableHead>Fecha</TableHead>
                 <TableHead>Tipo</TableHead>
-                <TableHead>Descripción</TableHead>
+                <TableHead>Concepto</TableHead>
+                <TableHead>Conductor</TableHead>
                 <TableHead>Método</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead className="text-right">Monto</TableHead>
@@ -339,20 +384,21 @@ export default function PagosPage() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8">Cargando...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-8">Cargando...</TableCell></TableRow>
               ) : !paymentsData?.data.length ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8">No hay pagos</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-8">No hay pagos</TableCell></TableRow>
               ) : (
                 paymentsData.data.map((payment) => (
                   <TableRow key={payment.id}>
                     <TableCell>{formatDate(payment.createdAt)}</TableCell>
                     <TableCell>{TYPE_LABELS[payment.type]}</TableCell>
-                    <TableCell>{payment.description}</TableCell>
+                    <TableCell>{payment.concept}</TableCell>
+                    <TableCell>{getDriverName(payment)}</TableCell>
                     <TableCell>{PAYMENT_METHOD_LABELS[payment.paymentMethod]}</TableCell>
                     <TableCell>
                       <Badge className={STATUS_COLORS[payment.status]}>{STATUS_LABELS[payment.status]}</Badge>
                     </TableCell>
-                    <TableCell className="text-right font-medium">{formatCurrency(payment.amount)}</TableCell>
+                    <TableCell className="text-right font-medium">{formatCurrency(payment.amountBob || payment.amount)}</TableCell>
                     <TableCell>
                       <div className="flex gap-1 flex-wrap">
                         {payment.status === 'PENDING' && (
@@ -399,7 +445,7 @@ export default function PagosPage() {
 
       {/* Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingPayment ? 'Editar Pago' : 'Nuevo Pago'}</DialogTitle>
             <DialogDescription>{editingPayment ? 'Modifique los datos del pago' : 'Ingrese los datos del nuevo pago'}</DialogDescription>
@@ -408,7 +454,7 @@ export default function PagosPage() {
             <div className="space-y-2">
               <Label>Tipo</Label>
               <Controller name="type" control={control} render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select value={field.value} onValueChange={field.onChange} disabled={!!editingPayment}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {Object.entries(TYPE_LABELS).map(([value, label]) => (
@@ -420,19 +466,41 @@ export default function PagosPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Monto (BOB)</Label>
-              <Input type="number" step="0.01" {...register('amount', { valueAsNumber: true })} />
-              {errors.amount && <p className="text-sm text-red-500">{errors.amount.message}</p>}
+              <Label>Concepto *</Label>
+              <Input {...register('concept')} placeholder="Descripción del pago" />
+              {errors.concept && <p className="text-sm text-red-500">{errors.concept.message}</p>}
             </div>
 
-            <div className="space-y-2">
-              <Label>Descripción</Label>
-              <Input {...register('description')} />
-              {errors.description && <p className="text-sm text-red-500">{errors.description.message}</p>}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Monto *</Label>
+                <Input type="number" step="0.01" {...register('amount', { valueAsNumber: true })} />
+                {errors.amount && <p className="text-sm text-red-500">{errors.amount.message}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Moneda</Label>
+                <Controller name="currency" control={control} render={({ field }) => (
+                  <Select value={field.value || 'BOB'} onValueChange={field.onChange}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="BOB">BOB</SelectItem>
+                      <SelectItem value="USD">USD</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )} />
+              </div>
             </div>
 
+            {selectedCurrency === 'USD' && (
+              <div className="space-y-2">
+                <Label>Tipo de Cambio</Label>
+                <Input type="number" step="0.01" {...register('exchangeRate', { valueAsNumber: true })} placeholder="Ej: 6.96" />
+              </div>
+            )}
+
             <div className="space-y-2">
-              <Label>Método de Pago</Label>
+              <Label>Método de Pago *</Label>
               <Controller name="paymentMethod" control={control} render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -446,13 +514,28 @@ export default function PagosPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Referencia (opcional)</Label>
-              <Input {...register('reference')} />
+              <Label>Referencia</Label>
+              <Input {...register('reference')} placeholder="Nro. de transferencia, cheque, etc." />
             </div>
 
             <div className="space-y-2">
-              <Label>Notas (opcional)</Label>
-              <Input {...register('notes')} />
+              <Label>ID Conductor (opcional)</Label>
+              <Input {...register('driverId')} placeholder="UUID del conductor" />
+            </div>
+
+            <div className="space-y-2">
+              <Label>ID Viaje (opcional)</Label>
+              <Input {...register('tripId')} placeholder="UUID del viaje" />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Fecha Programada</Label>
+              <Input type="date" {...register('scheduledDate')} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Notas</Label>
+              <Input {...register('notes')} placeholder="Notas adicionales" />
             </div>
 
             <DialogFooter>

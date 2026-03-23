@@ -1929,8 +1929,8 @@ export const paymentsApi = {
     return response.data.data;
   },
 
-  complete: async (id: string): Promise<import('@/types/api').Payment> => {
-    const response = await api.post<{ data: import('@/types/api').Payment }>(`/payments/${id}/complete`);
+  complete: async (id: string, paymentDate?: string): Promise<import('@/types/api').Payment> => {
+    const response = await api.post<{ data: import('@/types/api').Payment }>(`/payments/${id}/complete`, paymentDate ? { paymentDate } : {});
     return response.data.data;
   },
 
