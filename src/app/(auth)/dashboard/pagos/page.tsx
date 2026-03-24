@@ -311,7 +311,16 @@ export default function PagosPage() {
     return '-';
   };
 
-  const getTripLabel = (trip: typeof tripsData?.data[0]) => {
+  type Trip = {
+  micDta: string;
+  billOfLading?: {
+    client?: {
+      businessName?: string;
+    };
+  };
+};
+
+const getTripLabel = (trip: Trip) => {
     const clientName = trip?.billOfLading?.client?.businessName || 'Sin cliente';
     return `${trip.micDta} - ${clientName}`;
   };
