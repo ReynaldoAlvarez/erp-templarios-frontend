@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -57,6 +57,8 @@ import {
   useCompletePayment,
   useCancelPayment,
   useDeletePayment,
+  useDriversList,
+  useTrips,
 } from '@/hooks/use-queries';
 import { PaymentType, PaymentStatus, PaymentMethod, Payment, CreatePaymentInput, UpdatePaymentInput } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
@@ -118,6 +120,8 @@ export default function PagosPage() {
   const [statusFilter, setStatusFilter] = useState<PaymentStatus | undefined>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [driverSearch, setDriverSearch] = useState('');
+  const [tripSearch, setTripSearch] = useState('');
 
   const { data: paymentsData, isLoading } = usePayments({
     page,
@@ -128,6 +132,21 @@ export default function PagosPage() {
   });
 
   const { data: stats } = usePaymentStats();
+
+  // Obtener lista de conductores activos
+  const { data: driversData } = useDriversList({
+    isActive: true,
+    limit: 100,
+    search: driverSearch,
+  });
+
+  // Obtener lista de viajes según el tipo de pago
+  const { data: tripsData } = useTrips({
+    limit: 100,
+    search: tripSearch,
+    // Para anticipos y liquidaciones, mostrar viajes en tránsito o programados
+    status: undefined,
+  });
 
   const createMutation = useCreatePayment();
   const updateMutation = useUpdatePayment();
@@ -154,6 +173,18 @@ export default function PagosPage() {
   const selectedType = watch('type');
   const selectedPaymentMethod = watch('paymentMethod');
   const selectedCurrency = watch('currency');
+  const selectedDriverId = watch('driverId');
+  const selectedTripId = watch('tripId');
+
+  // Cuando se selecciona un viaje, auto-seleccionar el conductor si el viaje tiene uno asignado
+  useEffect(() => {
+    if (selectedTripId && tripsData?.data) {
+      const selectedTrip = tripsData.data.find(t => t.id === selectedTripId);
+      if (selectedTrip?.driverId && !selectedDriverId) {
+        setValue('driverId', selectedTrip.driverId);
+      }
+    }
+  }, [selectedTripId, tripsData, selectedDriverId, setValue]);
 
   const onSubmit = async (data: PaymentFormData) => {
     try {
@@ -278,6 +309,32 @@ export default function PagosPage() {
       return `${payment.driver.employee.firstName} ${payment.driver.employee.lastName}`;
     }
     return '-';
+  };
+
+  const getTripLabel = (trip: typeof tripsData?.data[0]) => {
+    const clientName = trip?.billOfLading?.client?.businessName || 'Sin cliente';
+    return `${trip.micDta} - ${clientName}`;
+  };
+
+  // Filtrar conductores según el tipo de pago
+  const getFilteredDrivers = () => {
+    if (!driversData?.data) return [];
+    return driversData.data;
+  };
+
+  // Filtrar viajes según el tipo de pago
+  const getFilteredTrips = () => {
+    if (!tripsData?.data) return [];
+    
+    // Para anticipos, mostrar viajes programados o en tránsito
+    // Para liquidaciones, mostrar viajes entregados
+    if (selectedType === 'ADVANCE') {
+      return tripsData.data.filter(t => t.status === 'SCHEDULED' || t.status === 'IN_TRANSIT');
+    }
+    if (selectedType === 'SETTLEMENT') {
+      return tripsData.data.filter(t => t.status === 'DELIVERED');
+    }
+    return tripsData.data;
   };
 
   return (
@@ -452,10 +509,10 @@ export default function PagosPage() {
           </DialogHeader>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label>Tipo</Label>
+              <Label>Tipo de Pago</Label>
               <Controller name="type" control={control} render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange} disabled={!!editingPayment}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Select value={field.value} onValueChange={(v) => { field.onChange(v); setValue('tripId', ''); }} disabled={!!editingPayment}>
+                  <SelectTrigger><SelectValue placeholder="Seleccione tipo" /></SelectTrigger>
                   <SelectContent>
                     {Object.entries(TYPE_LABELS).map(([value, label]) => (
                       <SelectItem key={value} value={value}>{label}</SelectItem>
@@ -463,6 +520,12 @@ export default function PagosPage() {
                   </SelectContent>
                 </Select>
               )} />
+              <p className="text-xs text-gray-500">
+                {selectedType === 'ADVANCE' && 'Anticipo: Pago adelantado antes de completar el viaje'}
+                {selectedType === 'SETTLEMENT' && 'Liquidación: Pago final al concluir el viaje'}
+                {selectedType === 'INVOICE' && 'Factura: Pago recibido de cliente'}
+                {selectedType === 'EXPENSE_REIMBURSEMENT' && 'Reembolso: Devolución de gastos al conductor'}
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -484,8 +547,8 @@ export default function PagosPage() {
                   <Select value={field.value || 'BOB'} onValueChange={field.onChange}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="BOB">BOB</SelectItem>
-                      <SelectItem value="USD">USD</SelectItem>
+                      <SelectItem value="BOB">BOB - Bolivianos</SelectItem>
+                      <SelectItem value="USD">USD - Dólares</SelectItem>
                     </SelectContent>
                   </Select>
                 )} />
@@ -503,7 +566,7 @@ export default function PagosPage() {
               <Label>Método de Pago *</Label>
               <Controller name="paymentMethod" control={control} render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Seleccione método" /></SelectTrigger>
                   <SelectContent>
                     {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
                       <SelectItem key={value} value={value}>{label}</SelectItem>
@@ -518,15 +581,53 @@ export default function PagosPage() {
               <Input {...register('reference')} placeholder="Nro. de transferencia, cheque, etc." />
             </div>
 
-            <div className="space-y-2">
-              <Label>ID Conductor (opcional)</Label>
-              <Input {...register('driverId')} placeholder="UUID del conductor" />
-            </div>
+            {/* Select de Viaje - Solo para ADVANCE y SETTLEMENT */}
+            {(selectedType === 'ADVANCE' || selectedType === 'SETTLEMENT') && (
+              <div className="space-y-2">
+                <Label>Viaje {selectedType === 'ADVANCE' ? '(opcional)' : '*'}</Label>
+                <Controller name="tripId" control={control} render={({ field }) => (
+                  <Select value={field.value || 'NONE'} onValueChange={(v) => field.onChange(v === 'NONE' ? '' : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccione un viaje" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NONE">Sin viaje asignado</SelectItem>
+                      {getFilteredTrips().map((trip) => (
+                        <SelectItem key={trip.id} value={trip.id}>
+                          {getTripLabel(trip)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )} />
+                <p className="text-xs text-gray-500">
+                  {selectedType === 'ADVANCE' && 'Viajes disponibles: Programados y en tránsito'}
+                  {selectedType === 'SETTLEMENT' && 'Viajes disponibles: Entregados'}
+                </p>
+              </div>
+            )}
 
-            <div className="space-y-2">
-              <Label>ID Viaje (opcional)</Label>
-              <Input {...register('tripId')} placeholder="UUID del viaje" />
-            </div>
+            {/* Select de Conductor - Solo para ADVANCE, SETTLEMENT y EXPENSE_REIMBURSEMENT */}
+            {(selectedType === 'ADVANCE' || selectedType === 'SETTLEMENT' || selectedType === 'EXPENSE_REIMBURSEMENT') && (
+              <div className="space-y-2">
+                <Label>Conductor *</Label>
+                <Controller name="driverId" control={control} render={({ field }) => (
+                  <Select value={field.value || 'NONE'} onValueChange={(v) => field.onChange(v === 'NONE' ? '' : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccione un conductor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NONE">Sin conductor asignado</SelectItem>
+                      {getFilteredDrivers().map((driver) => (
+                        <SelectItem key={driver.id} value={driver.id}>
+                          {driver.fullName} - {driver.licenseNumber}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )} />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Fecha Programada</Label>
