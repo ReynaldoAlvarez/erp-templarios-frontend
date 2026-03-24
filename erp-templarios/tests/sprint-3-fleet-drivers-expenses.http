@@ -1,0 +1,1258 @@
+###############################################################################
+# ERP TEMPLARIOS - PRUEBAS SPRINT 3: FLEET, DRIVERS & EXPENSES
+# Archivo para VS Code REST Client
+###############################################################################
+
+@baseUrl = http://localhost:3001/api/v1
+@contentType = application/json
+
+###############################################################################
+# VARIABLES GLOBALES
+###############################################################################
+@token = {{login.response.body.data.accessToken}}
+@truckId = {{createTruck.response.body.data.id}}
+@trailerId = {{createTrailer.response.body.data.id}}
+@driverId = {{createDriver.response.body.data.id}}
+@expenseId = {{createExpense.response.body.data.id}}
+
+###############################################################################
+# SETUP: Login primero
+###############################################################################
+
+### Login para obtener token
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@templarios.com",
+  "password": "Admin123!"
+}
+
+###
+
+###############################################################################
+# 1. CAMIONES (TRUCKS) - CRUD BÁSICO
+###############################################################################
+
+### 1.1 Listar Camiones - Éxito (paginado)
+# @name listTrucks
+GET {{baseUrl}}/fleet/trucks?page=1&limit=10
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 1.2 Listar Camiones - Con búsqueda
+# @name listTrucksSearch
+GET {{baseUrl}}/fleet/trucks?search=ABC
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 1.3 Listar Camiones - Filtrar por estado
+# @name listTrucksByStatus
+GET {{baseUrl}}/fleet/trucks?status=SCHEDULED
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 1.4 Listar Camiones - Solo activos/inactivos
+# @name listTrucksInactive
+GET {{baseUrl}}/fleet/trucks?isActive=false
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 1.5 Crear Camión - Éxito
+# @name createTruck
+POST {{baseUrl}}/fleet/trucks
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "plateNumber": "ABC-1234",
+  "brand": "Volvo",
+  "model": "FH 540",
+  "year": 2022,
+  "color": "Blanco",
+  "axles": 3,
+  "capacityTons": 35,
+  "operationPermit": "PERM-2024-001",
+  "operationPermitExpiry": "2025-12-31",
+  "mileage": 150000
+}
+
+###
+
+### 1.6 Crear Camión - Fallido (Placa duplicada)
+# @name createTruckDuplicatePlate
+POST {{baseUrl}}/fleet/trucks
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "plateNumber": "ABC-1234",
+  "brand": "Scania",
+  "model": "R 500",
+  "year": 2023,
+  "capacityTons": 30
+}
+
+###
+# Expected: 409 Conflict - "Ya existe un camión con esta placa"
+
+### 1.7 Crear Camión - Fallido (Campos requeridos vacíos)
+# @name createTruckEmptyFields
+POST {{baseUrl}}/fleet/trucks
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "plateNumber": "",
+  "brand": "",
+  "model": ""
+}
+
+###
+# Expected: 400 Bad Request - Validación fallida
+
+### 1.8 Crear Camión - Fallido (Año inválido)
+# @name createTruckInvalidYear
+POST {{baseUrl}}/fleet/trucks
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "plateNumber": "XYZ-9999",
+  "brand": "Mercedes",
+  "model": "Actros",
+  "year": 1980,
+  "capacityTons": 30
+}
+
+###
+# Expected: 400 Bad Request - "Año inválido"
+
+### 1.9 Crear Camión - Fallido (Capacidad negativa)
+# @name createTruckNegativeCapacity
+POST {{baseUrl}}/fleet/trucks
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "plateNumber": "TEST-001",
+  "brand": "Volvo",
+  "model": "FH",
+  "year": 2022,
+  "capacityTons": -10
+}
+
+###
+# Expected: 400 Bad Request - "La capacidad debe ser un número positivo"
+
+### 1.10 Crear Camión - Fallido (Ejes fuera de rango)
+# @name createTruckInvalidAxles
+POST {{baseUrl}}/fleet/trucks
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "plateNumber": "TEST-002",
+  "brand": "Volvo",
+  "model": "FH",
+  "year": 2022,
+  "axles": 0,
+  "capacityTons": 30
+}
+
+###
+# Expected: 400 Bad Request - "Número de ejes inválido"
+
+###############################################################################
+# 2. CAMIONES - OPERACIONES INDIVIDUALES
+###############################################################################
+
+### 2.1 Obtener Camión por ID - Éxito
+# @name getTruckById
+GET {{baseUrl}}/fleet/trucks/{{truckId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 2.2 Obtener Camión por ID - Con estadísticas
+# @name getTruckWithStats
+GET {{baseUrl}}/fleet/trucks/{{truckId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: Incluye totalTrips, totalWeightTransported, totalMaintenanceCost
+
+### 2.3 Obtener Camión por ID - Fallido (No existe)
+# @name getTruckNotFound
+GET {{baseUrl}}/fleet/trucks/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 404 Not Found - "Camión no encontrado"
+
+### 2.4 Actualizar Camión - Éxito
+# @name updateTruck
+PUT {{baseUrl}}/fleet/trucks/{{truckId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "color": "Azul",
+  "mileage": 160000,
+  "operationPermit": "PERM-2024-001-UPDATED"
+}
+
+###
+
+### 2.5 Actualizar Camión - Cambiar placa
+# @name updateTruckPlate
+PUT {{baseUrl}}/fleet/trucks/{{truckId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "plateNumber": "ABC-5678"
+}
+
+###
+
+### 2.6 Actualizar Camión - Fallido (Placa duplicada)
+# @name updateTruckDuplicatePlate
+PUT {{baseUrl}}/fleet/trucks/{{truckId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "plateNumber": "EXISTING-PLATE"
+}
+
+###
+# Expected: 409 Conflict - "Ya existe un camión con esta placa"
+
+###############################################################################
+# 3. CAMIONES - KILOMETRAJE
+###############################################################################
+
+### 3.1 Actualizar Kilometraje - Éxito
+# @name updateTruckMileage
+PATCH {{baseUrl}}/fleet/trucks/{{truckId}}/mileage
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "mileage": 165000
+}
+
+###
+
+### 3.2 Actualizar Kilometraje - Fallido (Menor al actual)
+# @name updateTruckMileageLower
+PATCH {{baseUrl}}/fleet/trucks/{{truckId}}/mileage
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "mileage": 100000
+}
+
+###
+# Expected: 400 Bad Request - "El nuevo kilometraje no puede ser menor al actual"
+
+### 3.3 Actualizar Kilometraje - Fallido (Valor negativo)
+# @name updateTruckMileageNegative
+PATCH {{baseUrl}}/fleet/trucks/{{truckId}}/mileage
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "mileage": -5000
+}
+
+###
+# Expected: 400 Bad Request - "Kilometraje inválido"
+
+###############################################################################
+# 4. CAMIONES - DISPONIBILIDAD
+###############################################################################
+
+### 4.1 Obtener Camiones Disponibles - Éxito
+# @name getAvailableTrucks
+GET {{baseUrl}}/fleet/trucks/available
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 4.2 Obtener Camiones Disponibles para Fecha Específica
+# @name getAvailableTrucksByDate
+GET {{baseUrl}}/fleet/trucks/available?date=2024-06-15
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 4.3 Búsqueda de Camiones
+# @name searchTrucks
+GET {{baseUrl}}/fleet/trucks/search?q=Volvo
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 4.4 Búsqueda de Camiones - Fallido (Query corta)
+# @name searchTrucksShortQuery
+GET {{baseUrl}}/fleet/trucks/search?q=V
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 400 Bad Request - "La búsqueda debe tener al menos 2 caracteres"
+
+###############################################################################
+# 5. CAMIONES - DESACTIVAR/REACTIVAR
+###############################################################################
+
+### 5.1 Desactivar Camión - Éxito
+# @name deactivateTruck
+DELETE {{baseUrl}}/fleet/trucks/{{truckId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 5.2 Desactivar Camión - Fallido (Con viajes activos)
+# @name deactivateTruckWithTrips
+DELETE {{baseUrl}}/fleet/trucks/truck-with-trips-id
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 400 Bad Request - "No se puede desactivar un camión con viajes activos"
+
+### 5.3 Reactivar Camión - Éxito
+# @name restoreTruck
+POST {{baseUrl}}/fleet/trucks/{{truckId}}/restore
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 5.4 Reactivar Camión - Fallido (Ya activo)
+# @name restoreActiveTruck
+POST {{baseUrl}}/fleet/trucks/{{truckId}}/restore
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 400 Bad Request - "El camión ya está activo"
+
+###############################################################################
+# 6. REMOLQUES (TRAILERS) - CRUD BÁSICO
+###############################################################################
+
+### 6.1 Listar Remolques - Éxito (paginado)
+# @name listTrailers
+GET {{baseUrl}}/fleet/trailers?page=1&limit=10
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 6.2 Listar Remolques - Con búsqueda
+# @name listTrailersSearch
+GET {{baseUrl}}/fleet/trailers?search=REMOLQUE
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 6.3 Listar Remolques - Filtrar por camión asignado
+# @name listTrailersByTruck
+GET {{baseUrl}}/fleet/trailers?truckId={{truckId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 6.4 Crear Remolque - Éxito
+# @name createTrailer
+POST {{baseUrl}}/fleet/trailers
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "plateNumber": "REM-1234",
+  "type": "Plataforma",
+  "brand": "Rey",
+  "year": 2021,
+  "capacityTons": 40,
+  "operationPermit": "PERM-REM-001",
+  "operationPermitExpiry": "2025-06-30"
+}
+
+###
+
+### 6.5 Crear Remolque - Fallido (Placa duplicada)
+# @name createTrailerDuplicatePlate
+POST {{baseUrl}}/fleet/trailers
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "plateNumber": "REM-1234",
+  "type": "Furgón",
+  "capacityTons": 35
+}
+
+###
+# Expected: 409 Conflict - "Ya existe un remolque con esta placa"
+
+### 6.6 Crear Remolque - Fallido (Campos requeridos vacíos)
+# @name createTrailerEmptyFields
+POST {{baseUrl}}/fleet/trailers
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "plateNumber": "",
+  "type": ""
+}
+
+###
+# Expected: 400 Bad Request - Validación fallida
+
+### 6.7 Crear Remolque - Fallido (Capacidad negativa)
+# @name createTrailerNegativeCapacity
+POST {{baseUrl}}/fleet/trailers
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "plateNumber": "TEST-REM",
+  "type": "Plataforma",
+  "capacityTons": -10
+}
+
+###
+# Expected: 400 Bad Request - "La capacidad debe ser un número positivo"
+
+###############################################################################
+# 7. REMOLQUES - OPERACIONES INDIVIDUALES
+###############################################################################
+
+### 7.1 Obtener Remolque por ID - Éxito
+# @name getTrailerById
+GET {{baseUrl}}/fleet/trailers/{{trailerId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 7.2 Obtener Remolque por ID - Fallido (No existe)
+# @name getTrailerNotFound
+GET {{baseUrl}}/fleet/trailers/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 404 Not Found - "Remolque no encontrado"
+
+### 7.3 Actualizar Remolque - Éxito
+# @name updateTrailer
+PUT {{baseUrl}}/fleet/trailers/{{trailerId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "type": "Furgón Refrigerado",
+  "capacityTons": 38
+}
+
+###
+
+###############################################################################
+# 8. REMOLQUES - ASIGNACIÓN A CAMIÓN
+###############################################################################
+
+### 8.1 Asignar Remolque a Camión - Éxito
+# @name assignTrailerToTruck
+PATCH {{baseUrl}}/fleet/trailers/{{trailerId}}/assign
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "truckId": "{{truckId}}"
+}
+
+###
+
+### 8.2 Asignar Remolque a Camión - Fallido (Camión no existe)
+# @name assignTrailerInvalidTruck
+PATCH {{baseUrl}}/fleet/trailers/{{trailerId}}/assign
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "truckId": "550e8400-e29b-41d4-a716-446655440000"
+}
+
+###
+# Expected: 404 Not Found - "Camión no encontrado"
+
+### 8.3 Desasignar Remolque - Éxito
+# @name unassignTrailer
+PATCH {{baseUrl}}/fleet/trailers/{{trailerId}}/assign
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "truckId": null
+}
+
+###
+
+###############################################################################
+# 9. REMOLQUES - DISPONIBILIDAD
+###############################################################################
+
+### 9.1 Obtener Remolques Disponibles - Éxito
+# @name getAvailableTrailers
+GET {{baseUrl}}/fleet/trailers/available
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 9.2 Búsqueda de Remolques
+# @name searchTrailers
+GET {{baseUrl}}/fleet/trailers/search?q=REM
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+###############################################################################
+# 10. REMOLQUES - DESACTIVAR/REACTIVAR
+###############################################################################
+
+### 10.1 Desactivar Remolque - Éxito
+# @name deactivateTrailer
+DELETE {{baseUrl}}/fleet/trailers/{{trailerId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 10.2 Desactivar Remolque - Fallido (Con viajes activos)
+# @name deactivateTrailerWithTrips
+DELETE {{baseUrl}}/fleet/trailers/trailer-with-trips-id
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 400 Bad Request - "No se puede desactivar un remolque con viajes activos"
+
+### 10.3 Reactivar Remolque - Éxito
+# @name restoreTrailer
+POST {{baseUrl}}/fleet/trailers/{{trailerId}}/restore
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+###############################################################################
+# 11. CONDUCTORES (DRIVERS) - CRUD BÁSICO
+###############################################################################
+
+### 11.1 Listar Conductores - Éxito (paginado)
+# @name listDrivers
+GET {{baseUrl}}/drivers?page=1&limit=10
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 11.2 Listar Conductores - Con búsqueda
+# @name listDriversSearch
+GET {{baseUrl}}/drivers?search=Juan
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 11.3 Listar Conductores - Filtrar por disponibilidad
+# @name listDriversAvailable
+GET {{baseUrl}}/drivers?isAvailable=true
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 11.4 Listar Conductores - Filtrar por tipo de contrato
+# @name listDriversByContract
+GET {{baseUrl}}/drivers?contractType=MONTHLY
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 11.5 Crear Conductor - Éxito
+# @name createDriver
+POST {{baseUrl}}/drivers
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "firstName": "Juan",
+  "lastName": "Pérez Mamani",
+  "identityCard": "12345678 LP",
+  "phone": "+591 71234567",
+  "email": "juan.perez@templarios.com",
+  "address": "Zona Norte, La Paz",
+  "licenseNumber": "LIC-2024-001",
+  "licenseCategory": "A",
+  "licenseExpiryDate": "2025-12-31",
+  "contractType": "MONTHLY",
+  "branchId": "default-branch-id"
+}
+
+###
+
+### 11.6 Crear Conductor - Fallido (Cédula duplicada)
+# @name createDriverDuplicateCI
+POST {{baseUrl}}/drivers
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "firstName": "Pedro",
+  "lastName": "Gómez",
+  "identityCard": "12345678 LP",
+  "licenseNumber": "LIC-2024-002",
+  "branchId": "default-branch-id"
+}
+
+###
+# Expected: 409 Conflict - "Ya existe un empleado con esta cédula de identidad"
+
+### 11.7 Crear Conductor - Fallido (Licencia duplicada)
+# @name createDriverDuplicateLicense
+POST {{baseUrl}}/drivers
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "firstName": "Pedro",
+  "lastName": "Gómez",
+  "identityCard": "87654321 LP",
+  "licenseNumber": "LIC-2024-001",
+  "branchId": "default-branch-id"
+}
+
+###
+# Expected: 409 Conflict - "Ya existe un conductor con este número de licencia"
+
+### 11.8 Crear Conductor - Fallido (Campos requeridos vacíos)
+# @name createDriverEmptyFields
+POST {{baseUrl}}/drivers
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "firstName": "",
+  "lastName": "",
+  "identityCard": "",
+  "licenseNumber": ""
+}
+
+###
+# Expected: 400 Bad Request - Validación fallida
+
+### 11.9 Crear Conductor - Fallido (Tipo de contrato inválido)
+# @name createDriverInvalidContract
+POST {{baseUrl}}/drivers
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "firstName": "Test",
+  "lastName": "Driver",
+  "identityCard": "99999999 LP",
+  "licenseNumber": "LIC-TEST-001",
+  "contractType": "INVALID_TYPE",
+  "branchId": "default-branch-id"
+}
+
+###
+# Expected: 400 Bad Request - "Tipo de contrato inválido"
+
+###############################################################################
+# 12. CONDUCTORES - OPERACIONES INDIVIDUALES
+###############################################################################
+
+### 12.1 Obtener Conductor por ID - Éxito
+# @name getDriverById
+GET {{baseUrl}}/drivers/{{driverId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 12.2 Obtener Conductor por ID - Con estadísticas
+# @name getDriverWithStats
+GET {{baseUrl}}/drivers/{{driverId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: Incluye totalTrips, totalWeightTransported, avgDeliveryHours, rating
+
+### 12.3 Obtener Conductor por ID - Fallido (No existe)
+# @name getDriverNotFound
+GET {{baseUrl}}/drivers/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 404 Not Found - "Conductor no encontrado"
+
+### 12.4 Actualizar Conductor - Éxito
+# @name updateDriver
+PUT {{baseUrl}}/drivers/{{driverId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "phone": "+591 79999999",
+  "email": "juan.actualizado@templarios.com",
+  "licenseCategory": "A.I.a"
+}
+
+###
+
+### 12.5 Actualizar Conductor - Cambiar licencia
+# @name updateDriverLicense
+PUT {{baseUrl}}/drivers/{{driverId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "licenseNumber": "LIC-2024-001-UPDATED"
+}
+
+###
+
+###############################################################################
+# 13. CONDUCTORES - DISPONIBILIDAD
+###############################################################################
+
+### 13.1 Obtener Conductores Disponibles - Éxito
+# @name getAvailableDrivers
+GET {{baseUrl}}/drivers/available
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 13.2 Cambiar Disponibilidad - Éxito (No disponible)
+# @name setDriverUnavailable
+PATCH {{baseUrl}}/drivers/{{driverId}}/availability
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "isAvailable": false
+}
+
+###
+
+### 13.3 Cambiar Disponibilidad - Éxito (Disponible)
+# @name setDriverAvailable
+PATCH {{baseUrl}}/drivers/{{driverId}}/availability
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "isAvailable": true
+}
+
+###
+
+### 13.4 Cambiar Disponibilidad - Fallido (Conductor inactivo)
+# @name setInactiveDriverAvailability
+PATCH {{baseUrl}}/drivers/inactive-driver-id/availability
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "isAvailable": true
+}
+
+###
+# Expected: 400 Bad Request - "No se puede cambiar disponibilidad de un conductor inactivo"
+
+### 13.5 Búsqueda de Conductores
+# @name searchDrivers
+GET {{baseUrl}}/drivers/search?q=Juan
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+###############################################################################
+# 14. CONDUCTORES - ESTADÍSTICAS
+###############################################################################
+
+### 14.1 Obtener Estadísticas del Conductor - Éxito
+# @name getDriverStats
+GET {{baseUrl}}/drivers/{{driverId}}/stats
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+###############################################################################
+# 15. CONDUCTORES - DESACTIVAR/REACTIVAR
+###############################################################################
+
+### 15.1 Desactivar Conductor - Éxito
+# @name deactivateDriver
+DELETE {{baseUrl}}/drivers/{{driverId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 15.2 Desactivar Conductor - Fallido (Con viajes activos)
+# @name deactivateDriverWithTrips
+DELETE {{baseUrl}}/drivers/driver-with-trips-id
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 400 Bad Request - "No se puede desactivar un conductor con viajes activos"
+
+### 15.3 Reactivar Conductor - Éxito
+# @name restoreDriver
+POST {{baseUrl}}/drivers/{{driverId}}/restore
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+###############################################################################
+# 16. GASTOS (EXPENSES) - CRUD BÁSICO
+###############################################################################
+
+### 16.1 Listar Gastos - Éxito (paginado)
+# @name listExpenses
+GET {{baseUrl}}/expenses?page=1&limit=10
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 16.2 Listar Gastos - Filtrar por conductor
+# @name listExpensesByDriver
+GET {{baseUrl}}/expenses?driverId={{driverId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 16.3 Listar Gastos - Filtrar por categoría
+# @name listExpensesByCategory
+GET {{baseUrl}}/expenses?category=FUEL
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 16.4 Listar Gastos - Filtrar por rango de fechas
+# @name listExpensesByDate
+GET {{baseUrl}}/expenses?dateFrom=2024-01-01&dateTo=2024-12-31
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 16.5 Crear Gasto - Éxito (Combustible)
+# @name createExpense
+POST {{baseUrl}}/expenses
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "{{driverId}}",
+  "category": "FUEL",
+  "concept": "Carga de diésel en Desaguadero",
+  "amount": 1500.00,
+  "expenseDate": "2024-06-15",
+  "notes": "Tanque lleno antes de cruce fronterizo",
+  "receiptUrl": "https://storage.example.com/receipts/fuel-001.pdf"
+}
+
+###
+
+### 16.6 Crear Gasto - Éxito (Peaje)
+# @name createExpenseToll
+POST {{baseUrl}}/expenses
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "{{driverId}}",
+  "category": "TOLL",
+  "concept": "Peaje carretera Cochabamba - Oruro",
+  "amount": 50.00,
+  "expenseDate": "2024-06-15"
+}
+
+###
+
+### 16.7 Crear Gasto - Éxito (Alimentación)
+# @name createExpenseFood
+POST {{baseUrl}}/expenses
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "{{driverId}}",
+  "category": "FOOD",
+  "concept": "Almuerzo ruta",
+  "amount": 80.00,
+  "expenseDate": "2024-06-15"
+}
+
+###
+
+### 16.8 Crear Gasto - Fallido (Conductor no existe)
+# @name createExpenseInvalidDriver
+POST {{baseUrl}}/expenses
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "550e8400-e29b-41d4-a716-446655440000",
+  "category": "FUEL",
+  "concept": "Test",
+  "amount": 100
+}
+
+###
+# Expected: 404 Not Found - "Conductor no encontrado"
+
+### 16.9 Crear Gasto - Fallido (Categoría inválida)
+# @name createExpenseInvalidCategory
+POST {{baseUrl}}/expenses
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "{{driverId}}",
+  "category": "INVALID_CATEGORY",
+  "concept": "Test",
+  "amount": 100
+}
+
+###
+# Expected: 400 Bad Request - "Categoría inválida"
+
+### 16.10 Crear Gasto - Fallido (Monto negativo)
+# @name createExpenseNegativeAmount
+POST {{baseUrl}}/expenses
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "{{driverId}}",
+  "category": "FUEL",
+  "concept": "Test",
+  "amount": -100
+}
+
+###
+# Expected: 400 Bad Request - "El monto debe ser mayor a 0"
+
+### 16.11 Crear Gasto - Fallido (Concepto vacío)
+# @name createExpenseEmptyConcept
+POST {{baseUrl}}/expenses
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "{{driverId}}",
+  "category": "FUEL",
+  "concept": "",
+  "amount": 100
+}
+
+###
+# Expected: 400 Bad Request - "El concepto es requerido"
+
+###############################################################################
+# 17. GASTOS - OPERACIONES INDIVIDUALES
+###############################################################################
+
+### 17.1 Obtener Gasto por ID - Éxito
+# @name getExpenseById
+GET {{baseUrl}}/expenses/{{expenseId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 17.2 Obtener Gasto por ID - Fallido (No existe)
+# @name getExpenseNotFound
+GET {{baseUrl}}/expenses/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 404 Not Found - "Gasto no encontrado"
+
+### 17.3 Actualizar Gasto - Éxito
+# @name updateExpense
+PUT {{baseUrl}}/expenses/{{expenseId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "concept": "Carga de diésel actualizada",
+  "amount": 1650.00,
+  "notes": "Nota actualizada"
+}
+
+###
+
+### 17.4 Actualizar Gasto - Cambiar categoría
+# @name updateExpenseCategory
+PUT {{baseUrl}}/expenses/{{expenseId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "category": "MAINTENANCE"
+}
+
+###
+
+###############################################################################
+# 18. GASTOS - POR CONDUCTOR Y VIAJE
+###############################################################################
+
+### 18.1 Obtener Gastos por Conductor
+# @name getExpensesByDriver
+GET {{baseUrl}}/expenses/driver/{{driverId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 18.2 Obtener Gastos por Conductor - Con límite
+# @name getExpensesByDriverLimited
+GET {{baseUrl}}/expenses/driver/{{driverId}}?limit=5
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 18.3 Obtener Gastos por Viaje
+# @name getExpensesByTrip
+GET {{baseUrl}}/expenses/trip/trip-id-here
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+###############################################################################
+# 19. GASTOS - ESTADÍSTICAS Y CATEGORÍAS
+###############################################################################
+
+### 19.1 Obtener Categorías de Gastos
+# @name getExpenseCategories
+GET {{baseUrl}}/expenses/categories
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: [{ value: "FUEL", label: "Combustible" }, ...]
+
+### 19.2 Obtener Estadísticas de Gastos - General
+# @name getExpenseStats
+GET {{baseUrl}}/expenses/stats
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 19.3 Obtener Estadísticas de Gastos - Por conductor
+# @name getExpenseStatsByDriver
+GET {{baseUrl}}/expenses/stats?driverId={{driverId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 19.4 Obtener Estadísticas de Gastos - Por rango de fechas
+# @name getExpenseStatsByDate
+GET {{baseUrl}}/expenses/stats?dateFrom=2024-01-01&dateTo=2024-12-31
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+###############################################################################
+# 20. GASTOS - ELIMINACIÓN
+###############################################################################
+
+### 20.1 Eliminar Gasto - Éxito
+# @name deleteExpense
+DELETE {{baseUrl}}/expenses/{{expenseId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 20.2 Eliminar Gasto - Fallido (No existe)
+# @name deleteExpenseNotFound
+DELETE {{baseUrl}}/expenses/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: 404 Not Found - "Gasto no encontrado"
+
+###############################################################################
+# 21. CASOS ESPECIALES - FLOTAS
+###############################################################################
+
+### 21.1 Asignar el mismo remolque a múltiples camiones
+# Verificar que un remolque solo puede estar asignado a un camión
+# @name assignTrailerTwice
+PATCH {{baseUrl}}/fleet/trailers/{{trailerId}}/assign
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "truckId": "another-truck-id"
+}
+
+###
+# Expected: El remolque se reasigna al nuevo camión (desasigna del anterior)
+
+### 21.2 Verificar que remolque desasignado aparece en disponibles
+# @name checkAvailableAfterUnassign
+GET {{baseUrl}}/fleet/trailers/available
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+###############################################################################
+# 22. CASOS ESPECIALES - CONDUCTORES
+###############################################################################
+
+### 22.1 Conductor con licencia vencida (advertencia)
+# Verificar que el sistema alerta sobre licencias próximas a vencer
+# @name checkExpiringLicense
+GET {{baseUrl}}/drivers?licenseExpiringIn=30
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 22.2 Conductor con rating bajo
+# Verificar conductores con rating bajo (para posible capacitación)
+# @name checkLowRatingDrivers
+GET {{baseUrl}}/drivers?ratingBelow=3
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+###############################################################################
+# 23. CASOS ESPECIALES - GASTOS
+###############################################################################
+
+### 23.1 Gasto sin viaje asociado (gasto general)
+# @name createExpenseWithoutTrip
+POST {{baseUrl}}/expenses
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "{{driverId}}",
+  "category": "MAINTENANCE",
+  "concept": "Mantenimiento preventivo personal",
+  "amount": 200.00
+}
+
+###
+
+### 23.2 Verificar resumen de gastos incluye todas las categorías
+# @name checkExpenseSummary
+GET {{baseUrl}}/expenses?page=1&limit=100
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+# Expected: Incluye summary.byCategory con todas las categorías
+
+###############################################################################
+# 24. INTEGRACIÓN ENTRE MÓDULOS
+###############################################################################
+
+### 24.1 Verificar que camión desactivado no aparece en disponibles
+# @name checkTruckNotAvailableAfterDeactivate
+DELETE {{baseUrl}}/fleet/trucks/{{truckId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+GET {{baseUrl}}/fleet/trucks/available
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 24.2 Verificar que conductor desactivado no aparece en disponibles
+# @name checkDriverNotAvailableAfterDeactivate
+DELETE {{baseUrl}}/drivers/{{driverId}}
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+GET {{baseUrl}}/drivers/available
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+### 24.3 Reactivar para continuar pruebas
+POST {{baseUrl}}/fleet/trucks/{{truckId}}/restore
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+POST {{baseUrl}}/drivers/{{driverId}}/restore
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+###
+
+###############################################################################
+# FIN DE PRUEBAS SPRINT 3
+###############################################################################

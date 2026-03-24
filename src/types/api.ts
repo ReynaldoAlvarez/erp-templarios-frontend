@@ -1591,3 +1591,389 @@ export interface HistoryEventTypeOption {
   value: HistoryEventType;
   label: string;
 }
+
+// ============ Sprint 7 Finance Enhancement: Cash Flow, Payments, SIN Export, Notifications ============
+
+// ============ Cash Flow (Flujo de Caja) Types ============
+export type CashFlowType = 'INCOME' | 'EXPENSE';
+export type CashFlowCategory = 'FREIGHT' | 'FUEL' | 'MAINTENANCE' | 'SALARY' | 'TOLL' | 'OTHER';
+export type PaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'CHECK' | 'CARD' | 'OTHER';
+
+export interface CashFlow {
+  id: string;
+  type: CashFlowType;
+  category: CashFlowCategory;
+  concept: string;           // Backend usa "concept" no "description"
+  amount: number;
+  reference?: string;
+  entity?: string;           // Entidad relacionada (Trip, Invoice, etc.)
+  entityId?: string;         // ID de la entidad relacionada
+  paymentMethod: PaymentMethod;
+  paymentDate: string;       // Backend usa "paymentDate" no "date"
+  notes?: string;
+  createdBy?: string;
+  creator?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateCashFlowInput {
+  type: CashFlowType;
+  category: CashFlowCategory;
+  amount: number;
+  concept: string;           // Backend usa "concept"
+  paymentDate: string;       // Backend usa "paymentDate"
+  paymentMethod: PaymentMethod;
+  reference?: string;
+  entity?: string;
+  entityId?: string;
+  notes?: string;
+}
+
+export interface UpdateCashFlowInput {
+  type?: CashFlowType;
+  category?: CashFlowCategory;
+  amount?: number;
+  concept?: string;
+  paymentDate?: string;
+  paymentMethod?: PaymentMethod;
+  reference?: string;
+  entity?: string;
+  entityId?: string;
+  notes?: string;
+}
+
+export interface CashFlowListParams extends PaginationParams {
+  type?: CashFlowType;
+  category?: CashFlowCategory;
+  paymentMethod?: PaymentMethod;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface CashFlowSummary {
+  totalIncome: number;
+  totalExpense: number;
+  balance: number;
+  byCategory: Record<CashFlowCategory, { income: number; expense: number }>;
+  byPaymentMethod: Record<PaymentMethod, number>;
+}
+
+export interface CashFlowDaily {
+  date: string;
+  income: number;
+  expense: number;
+  balance: number;
+  transactions: CashFlow[];
+}
+
+export interface CashFlowMonthly {
+  year: number;
+  month: number;
+  income: number;
+  expense: number;
+  balance: number;
+  byCategory: Record<CashFlowCategory, { income: number; expense: number }>;
+}
+
+export interface CashFlowTypeOption {
+  value: CashFlowType;
+  label: string;
+}
+
+export interface CashFlowCategoryOption {
+  value: CashFlowCategory;
+  label: string;
+}
+
+export interface PaymentMethodOption {
+  value: PaymentMethod;
+  label: string;
+}
+
+// ============ Payments (Pagos y Anticipos) Types ============
+export type PaymentType = 'ADVANCE' | 'SETTLEMENT' | 'INVOICE' | 'EXPENSE_REIMBURSEMENT';
+export type PaymentStatus = 'PENDING' | 'APPROVED' | 'COMPLETED' | 'CANCELLED';
+export type PaymentCurrency = 'BOB' | 'USD';
+
+export interface Payment {
+  id: string;
+  type: PaymentType;
+  concept: string;              // Backend usa "concept" no "description"
+  amount: number | string;      // Backend devuelve string
+  currency: PaymentCurrency;
+  exchangeRate?: number | null;
+  amountBob: number | string;
+  paymentMethod: PaymentMethod;
+  reference?: string;
+  bankAccount?: string | null;
+  status: PaymentStatus;
+  tripId?: string | null;
+  invoiceId?: string | null;
+  settlementId?: string | null;
+  driverId?: string | null;
+  expenseId?: string | null;
+  approvedById?: string | null;
+  approvedAt?: string | null;
+  paidAt?: string | null;       // Backend usa "paidAt" no "completedAt"
+  scheduledDate?: string;
+  paymentDate?: string | null;
+  notes?: string;
+  createdBy?: string;
+  trip?: {
+    id: string;
+    micDta: string;
+    departureDate?: string;
+    arrivalDate?: string;
+    billOfLading?: {
+      id: string;
+      blNumber: string;
+      client?: {
+        id: string;
+        businessName: string;
+      };
+    };
+  };
+  driver?: {
+    id: string;
+    employeeId?: string;
+    licenseNumber?: string;
+    licenseCategory?: string;
+    contractType?: string;
+    isAvailable?: boolean;
+    rating?: string;
+    totalTrips?: number;
+    isActive?: boolean;
+    employee?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      identityCard?: string;
+      phone?: string;
+      email?: string;
+    };
+  };
+  invoice?: {
+    id: string;
+    invoiceNumber: string;
+  };
+  approvedBy?: {
+    firstName: string;
+    lastName: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePaymentInput {
+  type: PaymentType;
+  concept: string;              // Backend usa "concept"
+  amount: number;
+  currency?: PaymentCurrency;   // Default: BOB
+  exchangeRate?: number;        // Requerido si currency es USD
+  paymentMethod: PaymentMethod;
+  reference?: string;
+  driverId?: string;
+  tripId?: string;
+  settlementId?: string;
+  invoiceId?: string;
+  expenseId?: string;
+  scheduledDate?: string;
+  notes?: string;
+}
+
+export interface UpdatePaymentInput {
+  concept?: string;
+  amount?: number;
+  currency?: PaymentCurrency;
+  exchangeRate?: number;
+  paymentMethod?: PaymentMethod;
+  reference?: string;
+  scheduledDate?: string;
+  notes?: string;
+}
+
+export interface CompletePaymentInput {
+  paymentDate?: string;
+}
+
+export interface PaymentListParams extends PaginationParams {
+  type?: PaymentType;
+  status?: PaymentStatus;
+  driverId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface PaymentStats {
+  total: number;
+  totalAmount: number;
+  pendingAmount: number;
+  completedAmount: number;
+  byType: Record<PaymentType, { count: number; amount: number }>;
+  byStatus: Record<PaymentStatus, { count: number; amount: number }>;
+}
+
+export interface PaymentTypeOption {
+  value: PaymentType;
+  label: string;
+}
+
+export interface PaymentStatusOption {
+  value: PaymentStatus;
+  label: string;
+}
+
+// ============ SIN Export (Facturación Electrónica Bolivia) Types ============
+export type SINExportStatus = 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED';
+
+export interface SINExport {
+  id: string;
+  invoiceId: string;
+  status: SINExportStatus;
+  cuf?: string;                    // Código Único de Facturación
+  cufd?: string;                   // Código Único de Facturación Diaria
+  controlCode?: string;            // Código de Control
+  qrCode?: string;                 // QR Code para factura
+  sinResponse?: Record<string, unknown>;  // Respuesta del SIN
+  errorMessage?: string;
+  retryCount: number;
+  invoice?: {
+    id: string;
+    invoiceNumber: string;
+    client?: {
+      businessName: string;
+      nit: string;
+    };
+    totalAmount: number;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SINExportListParams extends PaginationParams {
+  status?: SINExportStatus;
+  invoiceId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface SINExportStats {
+  total: number;
+  pending: number;
+  success: number;
+  failed: number;
+  totalAmount: number;
+  successRate: number;
+}
+
+export interface SINExportStatusOption {
+  value: SINExportStatus;
+  label: string;
+}
+
+export interface SINInvoiceJSON {
+  cabecera: {
+    nitEmisor: string;
+    razonSocialEmisor: string;
+    municipio: string;
+    telefono: string;
+    numeroFactura: string;
+    cuf: string;
+    cufd: string;
+    codigoSucursal: number;
+    direccion: string;
+    codigoPuntoVenta: number;
+    fechaEmision: string;
+    nombreRazonSocial: string;
+    codigoTipoDocumentoIdentidad: number;
+    numeroDocumento: string;
+    complemento?: string;
+    codigoCliente: string;
+    codigoMetodoPago: number;
+    numeroTarjeta?: string;
+    montoTotal: number;
+    montoTotalSujetoIva: number;
+    codigoMoneda: number;
+    tipoCambio: number;
+    montoTotalMoneda: number;
+    montoGiftCard?: number;
+    descuentoAdicional?: number;
+    codigoExcepcion?: number;
+    cafc?: string;
+    leyenda: string;
+    usuario: string;
+    codigoDocumentoSector: number;
+  };
+  detalle: Array<{
+    actividadEconomica: string;
+    codigoProductoSin: string;
+    codigoProducto: string;
+    descripcion: string;
+    cantidad: number;
+    unidadMedida: number;
+    precioUnitario: number;
+    montoDescuento?: number;
+    subTotal: number;
+    numeroSerie?: string;
+    numeroImei?: string;
+  }>;
+}
+
+// ============ Notifications (Notificaciones) Types ============
+export type NotificationType = 'TRIP' | 'SETTLEMENT' | 'INVOICE' | 'MAINTENANCE' | 'DOCUMENT' | 'SYSTEM' | 'BORDER';
+export type NotificationPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  priority: NotificationPriority;
+  isRead: boolean;
+  readAt?: string;
+  actionUrl?: string;
+  entityType?: string;
+  entityId?: string;
+  data?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface NotificationListParams extends PaginationParams {
+  type?: NotificationType;
+  priority?: NotificationPriority;
+  isRead?: boolean;
+}
+
+export interface NotificationCounts {
+  total: number;
+  unread: number;
+  byPriority: Record<NotificationPriority, number>;
+  byType: Record<NotificationType, number>;
+}
+
+export interface CreateNotificationInput {
+  type: NotificationType;
+  title: string;
+  message: string;
+  priority?: NotificationPriority;
+  actionUrl?: string;
+  entityType?: string;
+  entityId?: string;
+  data?: Record<string, unknown>;
+}
+
+export interface NotificationTypeOption {
+  value: NotificationType;
+  label: string;
+}
+
+export interface NotificationPriorityOption {
+  value: NotificationPriority;
+  label: string;
+}
