@@ -107,6 +107,16 @@ const navigation: NavGroup[] = [
         icon: FileCheck,
       },
       {
+        title: 'Tipos de Documento',
+        href: '/dashboard/documentos-tipos',
+        icon: FileText,
+      },
+      {
+        title: 'Tramos',
+        href: '/dashboard/tramos',
+        icon: Route,
+      },
+      {
         title: 'Clientes',
         href: '/dashboard/clientes',
         icon: Users,

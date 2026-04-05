@@ -1977,3 +1977,112 @@ export interface NotificationPriorityOption {
   value: NotificationPriority;
   label: string;
 }
+
+// ============ Sprint 5: DocumentTypes and Tramos ============
+
+// ============ DocumentType (Tipos de Documento) Types ============
+export interface DocumentType {
+  id: string;
+  code: string;              // "MIC", "CRT", "ASPB", "NOTA_TARJA", "BALANZA", "FACTURA"
+  name: string;              // "Manifiesto Internacional de Carga"
+  description?: string;
+  isRequired: boolean;
+  isForSupportOnly: boolean; // true = solo para camiones de apoyo
+  displayOrder: number;      // Orden de presentación
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  documentsCount?: number;   // Solo en getById
+}
+
+export interface CreateDocumentTypeInput {
+  code: string;
+  name: string;
+  description?: string;
+  isRequired?: boolean;
+  isForSupportOnly?: boolean;
+  displayOrder?: number;
+}
+
+export interface UpdateDocumentTypeInput {
+  code?: string;
+  name?: string;
+  description?: string;
+  isRequired?: boolean;
+  isForSupportOnly?: boolean;
+  displayOrder?: number;
+  isActive?: boolean;
+}
+
+export interface DocumentTypeListParams extends PaginationParams {
+  isActive?: boolean;
+}
+
+export interface DocumentTypeStats {
+  total: number;
+  active: number;
+  inactive: number;
+  required: number;
+  optional: number;
+  forSupportOnly: number;
+}
+
+// ============ Tramo (Rutas Predefinidas) Types ============
+export interface Tramo {
+  id: string;
+  code: string;            // "MAT-CBA", "ARI-LPZ" (único)
+  name: string;            // "Matarani - Cochabamba"
+  origin: string;          // "Matarani"
+  destination: string;     // "Cochabamba"
+  distanceKm?: number;     // 845.50
+  estimatedHours?: number; // 18
+  baseRateUsd?: number;    // 1200.00
+  baseRateBob?: number;    // 8352.00
+  isActive: boolean;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  routesCount?: number;    // Solo en getById
+}
+
+export interface CreateTramoInput {
+  code: string;
+  name: string;
+  origin: string;
+  destination: string;
+  distanceKm?: number;
+  estimatedHours?: number;
+  baseRateUsd?: number;
+  baseRateBob?: number;
+  notes?: string;
+}
+
+export interface UpdateTramoInput {
+  code?: string;
+  name?: string;
+  origin?: string;
+  destination?: string;
+  distanceKm?: number;
+  estimatedHours?: number;
+  baseRateUsd?: number;
+  baseRateBob?: number;
+  notes?: string;
+  isActive?: boolean;
+}
+
+export interface TramoListParams extends PaginationParams {
+  isActive?: boolean;
+  origin?: string;
+  destination?: string;
+}
+
+export interface TramoStats {
+  total: number;
+  active: number;
+  inactive: number;
+  avgDistance: number;
+  avgEstimatedHours: number;
+  avgBaseRateUsd: number;
+  totalOrigins: number;
+  totalDestinations: number;
+}
