@@ -2119,30 +2119,35 @@ export const notificationsApi = {
 // ==========================================
 // Document Types API (Sprint 5)
 // ==========================================
+// Backend response structure:
+// { success: true, data: { data: [...], meta: {...} }, timestamp }
 interface BackendDocumentTypesResponse {
   success: boolean;
   message: string;
-  data: import('@/types/api').DocumentType[];
-  meta: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
+  data: {
+    data: import('@/types/api').DocumentType[];
+    meta: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
   };
+  timestamp: string;
 }
 
 export const documentTypesApi = {
   getAll: async (params?: import('@/types/api').DocumentTypeListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').DocumentType>> => {
     const response = await api.get<BackendDocumentTypesResponse>('/document-types', params);
     return {
-      data: response.data.data,
+      data: response.data.data.data,
       pagination: {
-        page: response.data.meta.page,
-        limit: response.data.meta.limit,
-        total: response.data.meta.total,
-        totalPages: response.data.meta.totalPages,
-        hasNext: response.data.meta.page < response.data.meta.totalPages,
-        hasPrev: response.data.meta.page > 1,
+        page: response.data.data.meta.page,
+        limit: response.data.data.meta.limit,
+        total: response.data.data.meta.total,
+        totalPages: response.data.data.meta.totalPages,
+        hasNext: response.data.data.meta.page < response.data.data.meta.totalPages,
+        hasPrev: response.data.data.meta.page > 1,
       },
     };
   },
