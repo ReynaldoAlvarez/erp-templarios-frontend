@@ -2116,4 +2116,186 @@ export const notificationsApi = {
   },
 };
 
+// ==========================================
+// Document Types API (Sprint 5)
+// ==========================================
+// Backend response structure:
+// { success: true, data: { data: [...], meta: {...} }, timestamp }
+interface BackendDocumentTypesResponse {
+  success: boolean;
+  message: string;
+  data: {
+    data: import('@/types/api').DocumentType[];
+    meta: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
+  timestamp: string;
+}
+
+export const documentTypesApi = {
+  getAll: async (params?: import('@/types/api').DocumentTypeListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').DocumentType>> => {
+    const response = await api.get<BackendDocumentTypesResponse>('/document-types', params);
+    return {
+      data: response.data.data.data,
+      pagination: {
+        page: response.data.data.meta.page,
+        limit: response.data.data.meta.limit,
+        total: response.data.data.meta.total,
+        totalPages: response.data.data.meta.totalPages,
+        hasNext: response.data.data.meta.page < response.data.data.meta.totalPages,
+        hasPrev: response.data.data.meta.page > 1,
+      },
+    };
+  },
+
+  getActive: async (): Promise<import('@/types/api').DocumentType[]> => {
+    const response = await api.get<{ data: import('@/types/api').DocumentType[] }>('/document-types/active');
+    return response.data.data;
+  },
+
+  getRequired: async (forSupportOnly?: boolean): Promise<import('@/types/api').DocumentType[]> => {
+    const params = forSupportOnly !== undefined ? { forSupportOnly } : undefined;
+    const response = await api.get<{ data: import('@/types/api').DocumentType[] }>('/document-types/required', params);
+    return response.data.data;
+  },
+
+  getStats: async (): Promise<import('@/types/api').DocumentTypeStats> => {
+    const response = await api.get<{ data: import('@/types/api').DocumentTypeStats }>('/document-types/stats');
+    return response.data.data;
+  },
+
+  getByCode: async (code: string): Promise<import('@/types/api').DocumentType> => {
+    const response = await api.get<{ data: import('@/types/api').DocumentType }>(`/document-types/code/${code}`);
+    return response.data.data;
+  },
+
+  getById: async (id: string): Promise<import('@/types/api').DocumentType> => {
+    const response = await api.get<{ data: import('@/types/api').DocumentType }>(`/document-types/${id}`);
+    return response.data.data;
+  },
+
+  create: async (data: import('@/types/api').CreateDocumentTypeInput): Promise<import('@/types/api').DocumentType> => {
+    const response = await api.post<{ data: import('@/types/api').DocumentType }>('/document-types', data);
+    return response.data.data;
+  },
+
+  update: async (id: string, data: import('@/types/api').UpdateDocumentTypeInput): Promise<import('@/types/api').DocumentType> => {
+    const response = await api.put<{ data: import('@/types/api').DocumentType }>(`/document-types/${id}`, data);
+    return response.data.data;
+  },
+
+  delete: async (id: string): Promise<import('@/types/api').DocumentType> => {
+    const response = await api.delete<{ data: import('@/types/api').DocumentType }>(`/document-types/${id}`);
+    return response.data.data;
+  },
+
+  restore: async (id: string): Promise<import('@/types/api').DocumentType> => {
+    const response = await api.post<{ data: import('@/types/api').DocumentType }>(`/document-types/${id}/restore`);
+    return response.data.data;
+  },
+
+  reorder: async (items: Array<{ id: string; displayOrder: number }>): Promise<import('@/types/api').DocumentType[]> => {
+    const response = await api.post<{ data: import('@/types/api').DocumentType[] }>('/document-types/reorder', { items });
+    return response.data.data;
+  },
+};
+
+// ==========================================
+// Tramos API (Sprint 5)
+// ==========================================
+interface BackendTramosResponse {
+  success: boolean;
+  message: string;
+  data: {
+    data: import('@/types/api').Tramo[];
+    meta: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
+}
+
+export const tramosApi = {
+  getAll: async (params?: import('@/types/api').TramoListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').Tramo>> => {
+    const response = await api.get<BackendTramosResponse>('/tramos', params);
+    return {
+      data: response.data.data.data,
+      pagination: {
+        page: response.data.data.meta.page,
+        limit: response.data.data.meta.limit,
+        total: response.data.data.meta.total,
+        totalPages: response.data.data.meta.totalPages,
+        hasNext: response.data.data.meta.page < response.data.data.meta.totalPages,
+        hasPrev: response.data.data.meta.page > 1,
+      },
+    };
+  },
+
+  getActive: async (): Promise<import('@/types/api').Tramo[]> => {
+    const response = await api.get<{ data: import('@/types/api').Tramo[] }>('/tramos/active');
+    return response.data.data;
+  },
+
+  getOrigins: async (): Promise<string[]> => {
+    const response = await api.get<{ data: string[] }>('/tramos/origins');
+    return response.data.data;
+  },
+
+  getDestinations: async (): Promise<string[]> => {
+    const response = await api.get<{ data: string[] }>('/tramos/destinations');
+    return response.data.data;
+  },
+
+  getStats: async (): Promise<import('@/types/api').TramoStats> => {
+    const response = await api.get<{ data: import('@/types/api').TramoStats }>('/tramos/stats');
+    return response.data.data;
+  },
+
+  getByOrigin: async (origin: string): Promise<import('@/types/api').Tramo[]> => {
+    const response = await api.get<{ data: import('@/types/api').Tramo[] }>(`/tramos/by-origin/${origin}`);
+    return response.data.data;
+  },
+
+  getByDestination: async (destination: string): Promise<import('@/types/api').Tramo[]> => {
+    const response = await api.get<{ data: import('@/types/api').Tramo[] }>(`/tramos/by-destination/${destination}`);
+    return response.data.data;
+  },
+
+  getByCode: async (code: string): Promise<import('@/types/api').Tramo> => {
+    const response = await api.get<{ data: import('@/types/api').Tramo }>(`/tramos/code/${code}`);
+    return response.data.data;
+  },
+
+  getById: async (id: string): Promise<import('@/types/api').Tramo> => {
+    const response = await api.get<{ data: import('@/types/api').Tramo }>(`/tramos/${id}`);
+    return response.data.data;
+  },
+
+  create: async (data: import('@/types/api').CreateTramoInput): Promise<import('@/types/api').Tramo> => {
+    const response = await api.post<{ data: import('@/types/api').Tramo }>('/tramos', data);
+    return response.data.data;
+  },
+
+  update: async (id: string, data: import('@/types/api').UpdateTramoInput): Promise<import('@/types/api').Tramo> => {
+    const response = await api.put<{ data: import('@/types/api').Tramo }>(`/tramos/${id}`, data);
+    return response.data.data;
+  },
+
+  delete: async (id: string): Promise<import('@/types/api').Tramo> => {
+    const response = await api.delete<{ data: import('@/types/api').Tramo }>(`/tramos/${id}`);
+    return response.data.data;
+  },
+
+  restore: async (id: string): Promise<import('@/types/api').Tramo> => {
+    const response = await api.post<{ data: import('@/types/api').Tramo }>(`/tramos/${id}/restore`);
+    return response.data.data;
+  },
+};
+
 export default apiClient;

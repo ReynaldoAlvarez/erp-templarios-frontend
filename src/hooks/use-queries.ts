@@ -26,6 +26,8 @@ import {
   paymentsApi,
   sinExportApi,
   notificationsApi,
+  documentTypesApi,
+  tramosApi,
 } from '@/lib/api-client';
 import {
   UserListParams,
@@ -1842,6 +1844,222 @@ export function useDeleteReadNotifications() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['notifications', 'counts'] });
+    },
+  });
+}
+
+// ==========================================
+// Sprint 5: DocumentTypes and Tramos
+// ==========================================
+
+// ============ DocumentTypes Hooks ============
+export function useDocumentTypes(params?: import('@/types/api').DocumentTypeListParams) {
+  return useQuery({
+    queryKey: ['documentTypes', params],
+    queryFn: () => documentTypesApi.getAll(params),
+  });
+}
+
+export function useDocumentType(id: string | undefined) {
+  return useQuery({
+    queryKey: ['documentTypes', id],
+    queryFn: () => documentTypesApi.getById(id!),
+    enabled: !!id,
+  });
+}
+
+export function useActiveDocumentTypes() {
+  return useQuery({
+    queryKey: ['documentTypes', 'active'],
+    queryFn: () => documentTypesApi.getActive(),
+    staleTime: 300000,
+  });
+}
+
+export function useRequiredDocumentTypes(forSupportOnly?: boolean) {
+  return useQuery({
+    queryKey: ['documentTypes', 'required', forSupportOnly],
+    queryFn: () => documentTypesApi.getRequired(forSupportOnly),
+    staleTime: 300000,
+  });
+}
+
+export function useDocumentTypeStats() {
+  return useQuery({
+    queryKey: ['documentTypes', 'stats'],
+    queryFn: () => documentTypesApi.getStats(),
+  });
+}
+
+export function useCreateDocumentType() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: import('@/types/api').CreateDocumentTypeInput) => documentTypesApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['documentTypes'] });
+      queryClient.invalidateQueries({ queryKey: ['documentTypes', 'stats'] });
+    },
+  });
+}
+
+export function useUpdateDocumentType() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: import('@/types/api').UpdateDocumentTypeInput }) =>
+      documentTypesApi.update(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['documentTypes'] });
+      queryClient.invalidateQueries({ queryKey: ['documentTypes', id] });
+      queryClient.invalidateQueries({ queryKey: ['documentTypes', 'stats'] });
+    },
+  });
+}
+
+export function useDeleteDocumentType() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => documentTypesApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['documentTypes'] });
+      queryClient.invalidateQueries({ queryKey: ['documentTypes', 'stats'] });
+    },
+  });
+}
+
+export function useRestoreDocumentType() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => documentTypesApi.restore(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['documentTypes'] });
+      queryClient.invalidateQueries({ queryKey: ['documentTypes', id] });
+      queryClient.invalidateQueries({ queryKey: ['documentTypes', 'stats'] });
+    },
+  });
+}
+
+export function useReorderDocumentTypes() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (items: Array<{ id: string; displayOrder: number }>) => documentTypesApi.reorder(items),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['documentTypes'] });
+    },
+  });
+}
+
+// ============ Tramos Hooks ============
+export function useTramos(params?: import('@/types/api').TramoListParams) {
+  return useQuery({
+    queryKey: ['tramos', params],
+    queryFn: () => tramosApi.getAll(params),
+  });
+}
+
+export function useTramo(id: string | undefined) {
+  return useQuery({
+    queryKey: ['tramos', id],
+    queryFn: () => tramosApi.getById(id!),
+    enabled: !!id,
+  });
+}
+
+export function useActiveTramos() {
+  return useQuery({
+    queryKey: ['tramos', 'active'],
+    queryFn: () => tramosApi.getActive(),
+    staleTime: 300000,
+  });
+}
+
+export function useTramoOrigins() {
+  return useQuery({
+    queryKey: ['tramos', 'origins'],
+    queryFn: () => tramosApi.getOrigins(),
+    staleTime: 300000,
+  });
+}
+
+export function useTramoDestinations() {
+  return useQuery({
+    queryKey: ['tramos', 'destinations'],
+    queryFn: () => tramosApi.getDestinations(),
+    staleTime: 300000,
+  });
+}
+
+export function useTramoStats() {
+  return useQuery({
+    queryKey: ['tramos', 'stats'],
+    queryFn: () => tramosApi.getStats(),
+  });
+}
+
+export function useTramosByOrigin(origin: string | undefined) {
+  return useQuery({
+    queryKey: ['tramos', 'origin', origin],
+    queryFn: () => tramosApi.getByOrigin(origin!),
+    enabled: !!origin,
+  });
+}
+
+export function useTramosByDestination(destination: string | undefined) {
+  return useQuery({
+    queryKey: ['tramos', 'destination', destination],
+    queryFn: () => tramosApi.getByDestination(destination!),
+    enabled: !!destination,
+  });
+}
+
+export function useCreateTramo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: import('@/types/api').CreateTramoInput) => tramosApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tramos'] });
+      queryClient.invalidateQueries({ queryKey: ['tramos', 'stats'] });
+      queryClient.invalidateQueries({ queryKey: ['tramos', 'origins'] });
+      queryClient.invalidateQueries({ queryKey: ['tramos', 'destinations'] });
+    },
+  });
+}
+
+export function useUpdateTramo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: import('@/types/api').UpdateTramoInput }) =>
+      tramosApi.update(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['tramos'] });
+      queryClient.invalidateQueries({ queryKey: ['tramos', id] });
+      queryClient.invalidateQueries({ queryKey: ['tramos', 'stats'] });
+      queryClient.invalidateQueries({ queryKey: ['tramos', 'origins'] });
+      queryClient.invalidateQueries({ queryKey: ['tramos', 'destinations'] });
+    },
+  });
+}
+
+export function useDeleteTramo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => tramosApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tramos'] });
+      queryClient.invalidateQueries({ queryKey: ['tramos', 'stats'] });
+      queryClient.invalidateQueries({ queryKey: ['tramos', 'origins'] });
+      queryClient.invalidateQueries({ queryKey: ['tramos', 'destinations'] });
+    },
+  });
+}
+
+export function useRestoreTramo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => tramosApi.restore(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['tramos'] });
+      queryClient.invalidateQueries({ queryKey: ['tramos', id] });
+      queryClient.invalidateQueries({ queryKey: ['tramos', 'stats'] });
     },
   });
 }
