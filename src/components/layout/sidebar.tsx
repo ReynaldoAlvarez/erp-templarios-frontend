@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   Users,
+  Lock,
   FileText,
   Route,
   Truck,
@@ -196,6 +197,11 @@ const navigation: NavGroup[] = [
         title: 'SIN Export',
         href: '/dashboard/sin-export',
         icon: FileSpreadsheet,
+      },
+      {
+        title: 'Bloqueo de Pagos',
+        href: '/dashboard/bloqueo-pagos',
+        icon: Lock,
       },
     ],
   },

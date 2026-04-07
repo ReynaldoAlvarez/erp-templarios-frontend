@@ -1277,6 +1277,169 @@ export interface BorderReport {
   borders: BorderReportItem[];
 }
 
+// ============ Sprint 5 Phase 3: Payment Block Types ============
+
+export interface PaymentBlockMissingDocument {
+  code: string;
+  name: string;
+  status: 'PENDING' | 'RECEIVED';
+}
+
+export interface BlockedSettlement {
+  id: string;
+  netPayment: number;
+  status: string;
+  isPaymentBlocked: boolean;
+  documentsComplete: boolean;
+  blockedDays: number;
+  missingDocuments: PaymentBlockMissingDocument[];
+  trip: {
+    id: string;
+    micDta: string;
+    driver: {
+      id: string;
+      employee: {
+        firstName: string;
+        lastName: string;
+        phone?: string;
+      };
+    };
+    truck: {
+      plateNumber: string;
+      isSupportTruck: boolean;
+    };
+    billOfLading: {
+      blNumber: string;
+    };
+  };
+  createdAt: string;
+}
+
+export interface PaymentBlockStats {
+  total: number;
+  blocked: number;
+  unblocked: number;
+  blockedPercentage: number;
+  totalBlockedAmount: number;
+  byDriver: Array<{
+    driverId: string;
+    driverName: string;
+    blockedCount: number;
+    totalAmount: number;
+  }>;
+  byMissingDocument: Array<{
+    code: string;
+    name: string;
+    count: number;
+  }>;
+  avgBlockedDays: number;
+}
+
+export interface PaymentBlockChecklist {
+  tripId: string;
+  micDta: string;
+  blNumber: string;
+  driverName: string;
+  truckPlate: string;
+  isSupportTruck: boolean;
+  documents: Array<{
+    id: string;
+    code: string;
+    name: string;
+    isRequired: boolean;
+    status: 'PENDING' | 'RECEIVED' | 'VERIFIED';
+    isBlocking: boolean;
+  }>;
+  paymentStatus: {
+    hasSettlement: boolean;
+    isBlocked: boolean;
+    blockReason: string | null;
+    documentsComplete: boolean;
+    canApprove: boolean;
+    canPay: boolean;
+  };
+  summary: {
+    total: number;
+    verified: number;
+    pending: number;
+    missing: number;
+    blockingCount: number;
+  };
+}
+
+export interface PaymentBlockCheckResult {
+  tripId: string;
+  documentsComplete: boolean;
+  isPaymentBlocked: boolean;
+  blockReason: string | null;
+  missingDocuments: string[];
+  previousState: {
+    documentsComplete: boolean;
+    isPaymentBlocked: boolean;
+  };
+  notificationSent: boolean;
+}
+
+export interface PaymentBlockCanProcess {
+  canProcess: boolean;
+  reason: string | null;
+  missingDocuments: string[];
+}
+
+export interface PaymentBlockUnblockResult {
+  settlement: {
+    id: string;
+    tripId: string;
+    isPaymentBlocked: boolean;
+    documentsComplete: boolean;
+    notes: string;
+  };
+  previousState: {
+    isPaymentBlocked: boolean;
+  };
+  auditLog: {
+    id: string;
+    userId: string;
+    action: string;
+    entity: string;
+    entityId: string;
+    createdAt: string;
+  };
+}
+
+export interface PaymentBlockProcessAllResult {
+  processed: number;
+  blocked: number;
+  unblocked: number;
+  errors: string[];
+}
+
+export interface PaymentBlockHistoryEntry {
+  action: string;
+  userId: string;
+  userName: string;
+  timestamp: string;
+  details: {
+    isPaymentBlocked: boolean;
+    reason?: string;
+  };
+}
+
+export interface PaymentBlockHistory {
+  settlementId: string;
+  currentStatus: {
+    isPaymentBlocked: boolean;
+    documentsComplete: boolean;
+  };
+  history: PaymentBlockHistoryEntry[];
+}
+
+export interface PaymentBlockListParams extends PaginationParams {
+  driverId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
 // ============ Sprint 7: Assets, Liabilities, Maintenance, Sanctions, Driver History ============
 
 // ============ Asset (Activos) Types ============

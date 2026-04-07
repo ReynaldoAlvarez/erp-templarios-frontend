@@ -29,6 +29,7 @@ import {
   documentTypesApi,
   tramosApi,
   documentAutomationApi,
+  paymentBlockApi,
 } from '@/lib/api-client';
 import {
   UserListParams,
@@ -926,6 +927,83 @@ export function useBordersReport(params?: import('@/types/api').ReportParams) {
     queryKey: ['reports', 'borders', params],
     queryFn: () => reportsApi.getBorders(params),
     enabled: !!params?.startDate && !!params?.endDate,
+  });
+}
+
+// ==========================================
+// Sprint 5 Phase 3: Payment Block Hooks
+// ==========================================
+
+export function usePaymentBlockStats() {
+  return useQuery({
+    queryKey: ['payment-block', 'stats'],
+    queryFn: () => paymentBlockApi.getStats(),
+    staleTime: 30000,
+  });
+}
+
+export function useBlockedPayments(params?: import('@/types/api').PaymentBlockListParams) {
+  return useQuery({
+    queryKey: ['payment-block', 'blocked', params],
+    queryFn: () => paymentBlockApi.getBlockedPayments(params),
+  });
+}
+
+export function usePaymentBlockChecklist(tripId: string | undefined) {
+  return useQuery({
+    queryKey: ['payment-block', 'checklist', tripId],
+    queryFn: () => paymentBlockApi.getChecklist(tripId!),
+    enabled: !!tripId,
+  });
+}
+
+export function usePaymentBlockHistory(settlementId: string | undefined) {
+  return useQuery({
+    queryKey: ['payment-block', 'history', settlementId],
+    queryFn: () => paymentBlockApi.getHistory(settlementId!),
+    enabled: !!settlementId,
+  });
+}
+
+export function useCheckPayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (tripId: string) => paymentBlockApi.checkPayment(tripId),
+    onSuccess: (_, tripId) => {
+      queryClient.invalidateQueries({ queryKey: ['payment-block', 'checklist', tripId] });
+      queryClient.invalidateQueries({ queryKey: ['payment-block', 'stats'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-block', 'blocked'] });
+      queryClient.invalidateQueries({ queryKey: ['settlements'] });
+    },
+  });
+}
+
+export function useCanProcessPayment() {
+  return useMutation({
+    mutationFn: (settlementId: string) => paymentBlockApi.canProcess(settlementId),
+  });
+}
+
+export function useUnblockPayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ settlementId, reason }: { settlementId: string; reason: string }) =>
+      paymentBlockApi.unblock(settlementId, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payment-block'] });
+      queryClient.invalidateQueries({ queryKey: ['settlements'] });
+    },
+  });
+}
+
+export function useProcessAllPayments() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => paymentBlockApi.processAll(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payment-block'] });
+      queryClient.invalidateQueries({ queryKey: ['settlements'] });
+    },
   });
 }
 

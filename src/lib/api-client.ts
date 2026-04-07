@@ -2412,4 +2412,80 @@ export const documentAutomationApi = {
   },
 };
 
+// ==========================================
+// Payment Block API (Sprint 5 Phase 3)
+// ==========================================
+interface BackendPaymentBlockStatsResponse {
+  success: boolean;
+  message: string;
+  data: import('@/types/api').PaymentBlockStats;
+  timestamp: string;
+}
+
+interface BackendPaymentBlockListResponse {
+  success: boolean;
+  message: string;
+  data: {
+    settlements: import('@/types/api').BlockedSettlement[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  timestamp: string;
+}
+
+export const paymentBlockApi = {
+  getStats: async (): Promise<import('@/types/api').PaymentBlockStats> => {
+    const response = await api.get<BackendPaymentBlockStatsResponse>('/payment-block/stats');
+    return response.data.data;
+  },
+
+  getBlockedPayments: async (params?: import('@/types/api').PaymentBlockListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').BlockedSettlement>> => {
+    const response = await api.get<BackendPaymentBlockListResponse>('/payment-block/blocked', params);
+    const { settlements, total, page, limit, totalPages } = response.data.data;
+    return {
+      data: settlements,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  },
+
+  getChecklist: async (tripId: string): Promise<import('@/types/api').PaymentBlockChecklist> => {
+    const response = await api.get<{ data: import('@/types/api').PaymentBlockChecklist }>(`/payment-block/checklist/${tripId}`);
+    return response.data.data;
+  },
+
+  checkPayment: async (tripId: string): Promise<import('@/types/api').PaymentBlockCheckResult> => {
+    const response = await api.post<{ data: import('@/types/api').PaymentBlockCheckResult }>(`/payment-block/check/${tripId}`);
+    return response.data.data;
+  },
+
+  canProcess: async (settlementId: string): Promise<import('@/types/api').PaymentBlockCanProcess> => {
+    const response = await api.get<{ data: import('@/types/api').PaymentBlockCanProcess }>(`/payment-block/can-process/${settlementId}`);
+    return response.data.data;
+  },
+
+  unblock: async (settlementId: string, reason: string): Promise<import('@/types/api').PaymentBlockUnblockResult> => {
+    const response = await api.post<{ data: import('@/types/api').PaymentBlockUnblockResult }>(`/payment-block/unblock/${settlementId}`, { reason });
+    return response.data.data;
+  },
+
+  processAll: async (): Promise<import('@/types/api').PaymentBlockProcessAllResult> => {
+    const response = await api.post<{ data: import('@/types/api').PaymentBlockProcessAllResult }>('/payment-block/process-all');
+    return response.data.data;
+  },
+
+  getHistory: async (settlementId: string): Promise<import('@/types/api').PaymentBlockHistory> => {
+    const response = await api.get<{ data: import('@/types/api').PaymentBlockHistory }>(`/payment-block/history/${settlementId}`);
+    return response.data.data;
+  },
+};
+
 export default apiClient;
