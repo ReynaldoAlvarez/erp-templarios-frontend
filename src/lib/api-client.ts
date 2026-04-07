@@ -2298,4 +2298,59 @@ export const tramosApi = {
   },
 };
 
+// ==========================================
+// Document Automation API (Sprint 5 Phase 2)
+// ==========================================
+interface BackendDocumentAutomationStatsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    stats: import('@/types/api').DocumentAutomationStats;
+  };
+  timestamp: string;
+}
+
+interface BackendBatchCreateDocumentsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    results: Array<{
+      tripId: string;
+      created: number;
+      skipped: number;
+      errors?: string[];
+    }>;
+    totalCreated: number;
+    totalSkipped: number;
+  };
+  timestamp: string;
+}
+
+export const documentAutomationApi = {
+  getStats: async (): Promise<import('@/types/api').DocumentAutomationStats> => {
+    const response = await api.get<BackendDocumentAutomationStatsResponse>('/document-automation/stats');
+    return response.data.data.stats;
+  },
+
+  getChecklist: async (tripId: string): Promise<import('@/types/api').DocumentChecklistResponse> => {
+    const response = await api.get<import('@/types/api').DocumentChecklistResponse>(`/document-automation/trips/${tripId}/checklist`);
+    return response.data.data;
+  },
+
+  verifyTrip: async (tripId: string): Promise<import('@/types/api').DocumentChecklistResponse> => {
+    const response = await api.get<import('@/types/api').DocumentChecklistResponse>(`/document-automation/trips/${tripId}/verify`);
+    return response.data.data;
+  },
+
+  createDocumentsForTrip: async (tripId: string, documentTypeIds?: string[]): Promise<{ created: number; skipped: number }> => {
+    const response = await api.post<{ created: number; skipped: number }>('/document-automation/trips/' + tripId + '/create-documents', { documentTypeIds });
+    return response.data.data;
+  },
+
+  batchCreateDocuments: async (input: import('@/types/api').BatchCreateDocumentsInput): Promise<import('@/types/api').BatchCreateDocumentsInput & { results: Array<{ tripId: string; created: number; skipped: number }> }> => {
+    const response = await api.post<BackendBatchCreateDocumentsResponse>('/document-automation/batch-create', input);
+    return { ...input, results: response.data.data.results };
+  },
+};
+
 export default apiClient;
