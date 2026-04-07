@@ -16,23 +16,21 @@ vi.mock('framer-motion', () => ({
 
 const mockChecklistData: DocumentChecklistResponse = {
   tripId: 'trip-1',
-  truckId: 'truck-1',
-  truckPlate: 'ABC-123',
   isSupportTruck: false,
   checklist: [
     {
-      id: 'item-1',
+      id: 'doc-uuid-1',
       code: 'MIC',
-      name: 'Manifesto de Carga',
+      name: 'Manifiesto de Carga',
       isRequired: true,
       isForSupportOnly: false,
       order: 1,
+      documentId: 'doc-uuid-1',
       status: 'VERIFIED',
-      verifiedAt: '2026-04-01T10:00:00Z',
-      verifiedByName: 'Juan Pérez',
+      documentNumber: 'MIC-001',
     },
     {
-      id: 'item-2',
+      id: 'doc-uuid-2',
       code: 'CRT',
       name: 'Certificado de Recepción de Transporte',
       isRequired: true,
@@ -41,7 +39,7 @@ const mockChecklistData: DocumentChecklistResponse = {
       status: 'PENDING',
     },
     {
-      id: 'item-3',
+      id: 'doc-uuid-3',
       code: 'ASPB',
       name: 'Aduana',
       isRequired: false,
@@ -49,6 +47,7 @@ const mockChecklistData: DocumentChecklistResponse = {
       order: 3,
       status: 'RECEIVED',
       fileUrl: 'https://example.com/aspb.pdf',
+      documentNumber: 'ASPB-001',
     },
   ],
   summary: {
@@ -90,7 +89,7 @@ describe('DocumentChecklist', () => {
     
     // Check all checklist items are rendered
     expect(screen.getByText('MIC')).toBeInTheDocument();
-    expect(screen.getByText('Manifesto de Carga')).toBeInTheDocument();
+    expect(screen.getByText('Manifiesto de Carga')).toBeInTheDocument();
     expect(screen.getByText('CRT')).toBeInTheDocument();
     expect(screen.getByText('Certificado de Recepción de Transporte')).toBeInTheDocument();
     expect(screen.getByText('ASPB')).toBeInTheDocument();
@@ -186,5 +185,14 @@ describe('DocumentChecklist', () => {
     const requiredBadges = screen.getAllByText('Req.');
     // MIC and CRT are required (2 items)
     expect(requiredBadges.length).toBe(2);
+  });
+
+  it('displays document numbers when present', () => {
+    render(
+      <DocumentChecklist data={mockChecklistData} />
+    );
+
+    expect(screen.getByText('MIC-001')).toBeInTheDocument();
+    expect(screen.getByText('ASPB-001')).toBeInTheDocument();
   });
 });

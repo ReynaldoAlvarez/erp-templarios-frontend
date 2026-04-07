@@ -74,7 +74,7 @@ export function DocumentChecklist({ data, isLoading, onCreateDocuments, isCreati
     );
   }
 
-  if (!data) return null;
+  if (!data || !data.checklist || !Array.isArray(data.checklist)) return null;
 
   const { checklist, summary, isSupportTruck, truckPlate } = data;
   const completionPercent = summary.total > 0 ? Math.round((summary.verified / summary.total) * 100) : 0;
@@ -149,7 +149,7 @@ export function DocumentChecklist({ data, isLoading, onCreateDocuments, isCreati
           {/* Checklist Items */}
           <div className="max-h-96 overflow-y-auto space-y-2 pr-1">
             {checklist.map((item: DocumentChecklistItem) => {
-              const status = statusConfig[item.status];
+              const status = statusConfig[item.status] || statusConfig['PENDING'];
               const StatusIcon = status.icon;
               return (
                 <div
@@ -184,10 +184,10 @@ export function DocumentChecklist({ data, isLoading, onCreateDocuments, isCreati
                     {status.label}
                   </Badge>
 
-                  {/* Verified Info */}
-                  {item.status === 'VERIFIED' && item.verifiedByName && (
-                    <span className="flex-shrink-0 text-[10px] text-gray-500 max-w-[100px] truncate" title={item.verifiedByName}>
-                      {item.verifiedByName}
+                  {/* Document Number */}
+                  {item.documentNumber && (
+                    <span className="flex-shrink-0 text-[10px] text-gray-500 max-w-[100px] truncate font-mono" title={item.documentNumber}>
+                      {item.documentNumber}
                     </span>
                   )}
                 </div>
