@@ -28,6 +28,7 @@ import {
   notificationsApi,
   documentTypesApi,
   tramosApi,
+  documentAutomationApi,
 } from '@/lib/api-client';
 import {
   UserListParams,
@@ -2063,3 +2064,49 @@ export function useRestoreTramo() {
     },
   });
 }
+
+// ============ Document Automation Hooks ============
+export const useDocumentAutomationStats = () =>
+  useQuery({
+    queryKey: ['document-automation', 'stats'],
+    queryFn: () => documentAutomationApi.getStats(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+export const useDocumentChecklist = (tripId: string | null | undefined) =>
+  useQuery({
+    queryKey: ['document-automation', 'checklist', tripId],
+    queryFn: () => documentAutomationApi.getChecklist(tripId!),
+    enabled: !!tripId,
+  });
+
+export const useVerifyTripDocuments = (tripId: string | null | undefined) =>
+  useQuery({
+    queryKey: ['document-automation', 'verify', tripId],
+    queryFn: () => documentAutomationApi.verifyTrip(tripId!),
+    enabled: false,
+  });
+
+export const useCreateDocumentsForTrip = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ tripId, documentTypeIds }: { tripId: string; documentTypeIds?: string[] }) =>
+      documentAutomationApi.createDocumentsForTrip(tripId, documentTypeIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['document-automation'] });
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+    },
+  });
+};
+
+export const useBatchCreateDocuments = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: import('@/types/api').BatchCreateDocumentsInput) =>
+      documentAutomationApi.batchCreateDocuments(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['document-automation'] });
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+    },
+  });
+};

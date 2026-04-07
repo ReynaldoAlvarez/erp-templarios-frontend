@@ -34,6 +34,7 @@ import {
   DollarSign,
   Bell,
   FileSpreadsheet,
+  Settings2,
 } from 'lucide-react';
 
 import {
@@ -115,6 +116,11 @@ const navigation: NavGroup[] = [
         title: 'Tramos',
         href: '/dashboard/tramos',
         icon: Route,
+      },
+      {
+        title: 'Automatización',
+        href: '/dashboard/automatizacion',
+        icon: Settings2,
       },
       {
         title: 'Clientes',

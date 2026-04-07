@@ -2298,4 +2298,118 @@ export const tramosApi = {
   },
 };
 
+// ==========================================
+// Document Automation API (Sprint 5 Phase 2)
+// ==========================================
+
+interface BackendChecklistResponse {
+  success: boolean;
+  message: string;
+  data: {
+    tripId: string;
+    isSupportTruck: boolean;
+    documents: Array<{
+      id: string | null;
+      code: string;
+      name: string;
+      isRequired: boolean;
+      status: 'PENDING' | 'RECEIVED' | 'VERIFIED' | null;
+      documentNumber?: string | null;
+      fileUrl?: string | null;
+      receivedAt?: string | null;
+    }>;
+    summary: {
+      total: number;
+      verified: number;
+      pending: number;
+      received: number;
+      missing: number;
+    };
+  };
+  timestamp: string;
+}
+
+interface BackendVerifyResponse {
+  success: boolean;
+  message: string;
+  data: {
+    documentsComplete: boolean;
+    isPaymentBlocked: boolean;
+    missingDocuments: string[];
+    verifiedCount: number;
+    pendingCount: number;
+    totalCount: number;
+  };
+  timestamp: string;
+}
+
+interface BackendBatchCreateResponse {
+  success: boolean;
+  message: string;
+  data: {
+    processed: number;
+    totalCreated: number;
+    results: Array<{ tripId: string; created: number }>;
+  };
+  timestamp: string;
+}
+
+export const documentAutomationApi = {
+  getStats: async (): Promise<import('@/types/api').DocumentAutomationStats> => {
+    const response = await api.get<{ data: import('@/types/api').DocumentAutomationStats }>('/document-automation/stats');
+    return response.data.data;
+  },
+
+  getChecklist: async (tripId: string): Promise<import('@/types/api').DocumentChecklistResponse> => {
+    const response = await api.get<BackendChecklistResponse>(`/document-automation/trips/${tripId}/checklist`);
+    const raw = response.data.data;
+
+    // Map backend response to frontend-friendly format
+    const checklist: import('@/types/api').DocumentChecklistItem[] = (raw.documents || []).map((doc, index) => ({
+      id: doc.id || `pending-${doc.code}-${index}`,
+      code: doc.code,
+      name: doc.name,
+      isRequired: doc.isRequired,
+      isForSupportOnly: false,
+      order: index + 1,
+      documentId: doc.id || undefined,
+      status: doc.status || 'PENDING',
+      fileUrl: doc.fileUrl || undefined,
+      documentNumber: doc.documentNumber || undefined,
+      receivedAt: doc.receivedAt || undefined,
+    }));
+
+    const documentsComplete = raw.summary.missing === 0 && raw.summary.total > 0;
+
+    return {
+      tripId: raw.tripId,
+      isSupportTruck: raw.isSupportTruck,
+      checklist,
+      summary: {
+        total: raw.summary.total,
+        verified: raw.summary.verified,
+        received: raw.summary.received,
+        pending: raw.summary.pending,
+        missing: raw.summary.missing,
+        documentsComplete,
+      },
+    };
+  },
+
+  verifyTrip: async (tripId: string): Promise<import('@/types/api').DocumentVerifyResponse> => {
+    const response = await api.get<BackendVerifyResponse>(`/document-automation/trips/${tripId}/verify`);
+    return response.data.data;
+  },
+
+  createDocumentsForTrip: async (tripId: string, documentTypeIds?: string[]): Promise<{ created: number }> => {
+    const response = await api.post<{ data: { created: number } }>('/document-automation/trips/' + tripId + '/create-documents', { documentTypeIds });
+    return response.data.data;
+  },
+
+  batchCreateDocuments: async (input: import('@/types/api').BatchCreateDocumentsInput): Promise<{ processed: number; totalCreated: number; results: import('@/types/api').BatchCreateTripResult[] }> => {
+    const response = await api.post<BackendBatchCreateResponse>('/document-automation/batch-create', input);
+    return response.data.data;
+  },
+};
+
 export default apiClient;

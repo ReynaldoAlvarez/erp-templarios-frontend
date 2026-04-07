@@ -2086,3 +2086,86 @@ export interface TramoStats {
   totalOrigins: number;
   totalDestinations: number;
 }
+
+// ============ Sprint 5 Phase 2: Document Automation ============
+
+// Raw backend document item from checklist
+export interface DocumentChecklistItemRaw {
+  id: string | null;
+  code: string;
+  name: string;
+  isRequired: boolean;
+  status: 'PENDING' | 'RECEIVED' | 'VERIFIED' | null;
+  documentNumber?: string | null;
+  fileUrl?: string | null;
+  receivedAt?: string | null;
+}
+
+// Frontend-friendly checklist item (mapped from raw)
+export interface DocumentChecklistItem {
+  id: string;
+  code: string;
+  name: string;
+  isRequired: boolean;
+  isForSupportOnly: boolean;
+  order: number;
+  documentId?: string | null;
+  status: 'PENDING' | 'RECEIVED' | 'VERIFIED';
+  fileUrl?: string | null;
+  documentNumber?: string | null;
+  receivedAt?: string | null;
+}
+
+// Frontend-friendly checklist response (mapped from backend)
+export interface DocumentChecklistResponse {
+  tripId: string;
+  truckId?: string;
+  truckPlate?: string;
+  isSupportTruck: boolean;
+  checklist: DocumentChecklistItem[];
+  summary: {
+    total: number;
+    verified: number;
+    received: number;
+    pending: number;
+    missing: number;
+    documentsComplete: boolean;
+  };
+}
+
+// Stats from backend
+export interface DocumentAutomationStats {
+  totalTrips: number;
+  tripsWithCompleteDocs: number;
+  tripsWithIncompleteDocs: number;
+  tripsWithBlockedPayments: number;
+  documentsByType: Array<{
+    code: string;
+    name: string;
+    total: number;
+    verified: number;
+    pending: number;
+  }>;
+}
+
+// Verify trip response
+export interface DocumentVerifyResponse {
+  documentsComplete: boolean;
+  isPaymentBlocked: boolean;
+  missingDocuments: string[];
+  verifiedCount: number;
+  pendingCount: number;
+  totalCount: number;
+}
+
+// Batch create input
+export interface BatchCreateDocumentsInput {
+  tripIds: string[];
+  documentTypeIds?: string[];
+}
+
+// Batch create result per trip
+export interface BatchCreateTripResult {
+  tripId: string;
+  created: number;
+}
