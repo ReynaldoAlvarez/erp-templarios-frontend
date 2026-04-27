@@ -1,6 +1,74 @@
 # TEMPLARIOS S.R.L. - ERP Development Worklog
 
 ---
+## Task ID: Sprint 5 Phase 4 - Sanciones Automaticas
+### Agent: Super Z (Main)
+### Task: Implementar automatizacion de sanciones (Sprint 5 Fase 4)
+
+### Work Summary
+
+#### 1. Tipos actualizados en `src/types/api.ts`
+- `SanctionReason`: 'DOCUMENT_DELAY' | 'REPEATED_OFFENSE' | 'SAFETY_VIOLATION' | 'OTHER'
+- `Sanction`: Campos nuevos: sanctionReason, tripId, daysDelayed, automatic
+- `SanctionStats`: Campos nuevos: automaticCount, manualCount, byReason
+- `SanctionListParams`: Filtros nuevos: sanctionReason, automatic
+- Nuevos tipos: `SanctionReasonOption`, `SanctionConfig`, `DelayedTrip`
+- Nuevos tipos: `GenerateAutomaticSanctionsInput`, `GeneratedSanctionPreview`, `GenerateAutomaticSanctionsResult`
+- Nuevos tipos: `RecurringOffenseCheck`, `ProcessDriverSanctionsResult`, `SanctionAutomationStats`
+
+#### 2. API Client actualizado en `src/lib/api-client.ts`
+- `sanctionsAutomationApi` con 7 endpoints:
+  - getConfig() - Configuracion de automatizacion
+  - getReasons() - Razones de sancion
+  - getDelayedTrips() - Viajes con retraso
+  - generateAutomatic(data) - Generar sanciones automaticas
+  - checkRecurring(driverId) - Verificar reincidencia
+  - processDriver(driverId) - Procesar conductor
+  - getAutomationStats() - Estadisticas de automatizacion
+
+#### 3. Hooks actualizados en `src/hooks/use-queries.ts`
+- `useSanctionConfig()` - Configuracion con staleTime 5 min
+- `useSanctionReasons()` - Razones con staleTime 5 min
+- `useDelayedTrips()` - Viajes retrasados, refetch cada minuto
+- `useGenerateAutomaticSanctions()` - Mutation con invalidacion
+- `useCheckRecurringOffense(driverId)` - Verificar reincidencia
+- `useProcessDriverSanctions()` - Mutation con invalidacion
+- `useSanctionAutomationStats()` - Estadisticas
+
+#### 4. Nuevo componente `SanctionGenerationModal.tsx`
+- Flujo de 3 pasos: Seleccionar → Previsualizar → Resultado
+- Tabla de viajes con retraso con checkboxes
+- Indicadores de dias (amarillo/naranja/rojo)
+- Resumen con total, multas, suspensiones, amonestaciones
+- Tabla de preview con tipo, razon, monto por sancion
+- Soporte para dry run y generacion real
+
+#### 5. Pagina Sanciones mejorada (`sanciones/page.tsx`)
+- **Tab Sanciones**: CRUD completo + filtros por razon y origen (auto/manual)
+- **Tab Retrasos**: Tabla de viajes con retraso con estadisticas
+- **Tab Automatizacion**: Configuracion, tasa de automatizacion, top conductores sancionados
+- 5 tarjetas de stats: Total, Pendientes, Multas, Automaticas, Manuales
+- Badge Auto/Manual en cada sancion
+- Badge de razon de sancion (DOCUMENT_DELAY, REPEATED_OFFENSE, etc.)
+- Dialog mejorado con campos nuevos (sanctionReason, daysDelayed, automatic)
+
+#### 6. Tests unitarios (17 tests)
+- API tests (9): getConfig, getReasons, getDelayedTrips, generateAutomatic, checkRecurring, processDriver, getAutomationStats
+- Componente tests (8): render, empty state, delayed trips, close, days colors, preview, offenses badge
+
+### Build Verificado
+- Next.js 16.1.3 (Turbopack) - Build exitoso
+- 36 rutas estaticas generadas
+- Sin errores de TypeScript
+
+### Branch
+- `feature/sprint-5-phase4-sanctions-automation`
+
+### Commit
+- `d49f373` - feat(sprint-5-phase4): Implement sanctions automation
+
+---
+
 ## Task ID: Sprint 4 Frontend Automation - Auto-Calculation Features
 ### Work Task
 Implement automatic calculation features for Liquidaciones and Facturas pages using new API endpoints.
