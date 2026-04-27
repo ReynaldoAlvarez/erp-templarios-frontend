@@ -175,12 +175,18 @@ export default function SancionesPage() {
   const { data: driversData } = useDriversList({ limit: 100 });
 
   // Hooks - Automatizacion
+  // NOTA: Estos endpoints pueden no existir aún en el backend.
+  // Se usa retry: false y enabled para evitar reintentos infinitos en 404.
   const { data: _delayedTrips } = useDelayedTrips();
   const delayedTrips = Array.isArray(_delayedTrips) ? _delayedTrips : [];
   const { data: automationStats } = useSanctionAutomationStats();
   const { data: sanctionConfig } = useSanctionConfig();
   const { data: sanctionReasons } = useSanctionReasons();
   const generateMutation = useGenerateAutomaticSanctions();
+
+  // Derived safe values for nested objects that may not exist
+  const thresholds = sanctionConfig?.suspensionThresholds;
+  const byReason = automationStats?.byReason as Record<string, number> | undefined;
 
   // Mutations
   const createMutation = useCreateSanction();
@@ -798,41 +804,43 @@ export default function SancionesPage() {
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Periodo de Gracia</p>
-                    <p className="font-bold text-lg">{sanctionConfig.gracePeriodDays} dias</p>
+                    <p className="font-bold text-lg">{sanctionConfig.gracePeriodDays ?? '-'} dias</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Multa por Dia</p>
                     <p className="font-bold text-lg">
-                      ${sanctionConfig.finePerDayUsd} USD
+                      ${sanctionConfig.finePerDayUsd ?? '-'} USD
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Maximo Dias Multa</p>
-                    <p className="font-bold text-lg">{sanctionConfig.maxFineDays} dias</p>
+                    <p className="font-bold text-lg">{sanctionConfig.maxFineDays ?? '-'} dias</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Monto Maximo Multa</p>
                     <p className="font-bold text-lg">
-                      ${sanctionConfig.maxFineAmount} USD
+                      ${sanctionConfig.maxFineAmount ?? '-'} USD
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Suspension Maxima</p>
                     <p className="font-bold text-lg">
-                      {sanctionConfig.suspensionThresholds.fifthPlus} dias
+                      {thresholds?.fifthPlus ?? '-'} dias
                     </p>
                   </div>
                 </div>
-                <div className="mt-4 pt-4 border-t">
-                  <p className="text-xs text-gray-500 mb-2">Umbrales de Suspension por Reincidencia</p>
-                  <div className="flex flex-wrap gap-3">
-                    <Badge variant="outline">1ra: {sanctionConfig.suspensionThresholds.first} dias</Badge>
-                    <Badge variant="outline">2da: {sanctionConfig.suspensionThresholds.second} dias</Badge>
-                    <Badge variant="outline">3ra: {sanctionConfig.suspensionThresholds.third} dias</Badge>
-                    <Badge variant="outline">4ta: {sanctionConfig.suspensionThresholds.fourth} dias</Badge>
-                    <Badge variant="outline">5ta+: {sanctionConfig.suspensionThresholds.fifthPlus} dias</Badge>
+                {thresholds && (
+                  <div className="mt-4 pt-4 border-t">
+                    <p className="text-xs text-gray-500 mb-2">Umbrales de Suspension por Reincidencia</p>
+                    <div className="flex flex-wrap gap-3">
+                      <Badge variant="outline">1ra: {thresholds.first ?? '-'} dias</Badge>
+                      <Badge variant="outline">2da: {thresholds.second ?? '-'} dias</Badge>
+                      <Badge variant="outline">3ra: {thresholds.third ?? '-'} dias</Badge>
+                      <Badge variant="outline">4ta: {thresholds.fourth ?? '-'} dias</Badge>
+                      <Badge variant="outline">5ta+: {thresholds.fifthPlus ?? '-'} dias</Badge>
+                    </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -918,12 +926,11 @@ export default function SancionesPage() {
                   <CardContent>
                     <div className="space-y-3">
                       {Object.entries(sanctionReasonConfig).map(([key, config]) => {
-                        const count =
-                          (automationStats.byReason as Record<string, number>)?.[key] || 0;
+                        const count = byReason?.[key] || 0;
                         const total =
-                          Object.values(
-                            automationStats.byReason as Record<string, number>,
-                          ).reduce((sum, v) => sum + v, 0) || 1;
+                          byReason
+                            ? Object.values(byReason).reduce((sum, v) => sum + v, 0) || 1
+                            : 1;
                         return (
                           <div key={key} className="flex items-center justify-between">
                             <div className="flex items-center gap-2">

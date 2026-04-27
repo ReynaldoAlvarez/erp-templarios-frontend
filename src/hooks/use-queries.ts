@@ -1383,6 +1383,7 @@ export function useSanctionConfig() {
     queryKey: ['sanctions', 'config'],
     queryFn: () => sanctionsAutomationApi.getConfig(),
     staleTime: 300000, // 5 minutes
+    retry: 1,
   });
 }
 
@@ -1391,6 +1392,7 @@ export function useSanctionReasons() {
     queryKey: ['sanctions', 'reasons'],
     queryFn: () => sanctionsAutomationApi.getReasons(),
     staleTime: 300000, // 5 minutes
+    retry: 1,
   });
 }
 
@@ -1399,6 +1401,7 @@ export function useDelayedTrips() {
     queryKey: ['sanctions', 'delayed-trips'],
     queryFn: () => sanctionsAutomationApi.getDelayedTrips(),
     refetchInterval: 60000, // Refetch every minute
+    retry: 1,
   });
 }
 
@@ -1420,6 +1423,7 @@ export function useCheckRecurringOffense(driverId: string | undefined) {
     queryKey: ['sanctions', 'recurring', driverId],
     queryFn: () => sanctionsAutomationApi.checkRecurring(driverId!),
     enabled: !!driverId,
+    retry: 1,
   });
 }
 
@@ -1439,6 +1443,7 @@ export function useSanctionAutomationStats() {
   return useQuery({
     queryKey: ['sanctions', 'automation-stats'],
     queryFn: () => sanctionsAutomationApi.getAutomationStats(),
+    retry: 1,
   });
 }
 
