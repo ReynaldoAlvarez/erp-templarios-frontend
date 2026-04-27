@@ -48,7 +48,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import SanctionGenerationModal from '@/components/sprint5/SanctionGenerationModal';
+import SanctionGenerationModal from '@/components/modules/sanctions/SanctionGenerationModal';
 import {
   Plus,
   Search,
@@ -175,7 +175,8 @@ export default function SancionesPage() {
   const { data: driversData } = useDriversList({ limit: 100 });
 
   // Hooks - Automatizacion
-  const { data: delayedTrips = [] } = useDelayedTrips();
+  const { data: _delayedTrips } = useDelayedTrips();
+  const delayedTrips = Array.isArray(_delayedTrips) ? _delayedTrips : [];
   const { data: automationStats } = useSanctionAutomationStats();
   const { data: sanctionConfig } = useSanctionConfig();
   const { data: sanctionReasons } = useSanctionReasons();

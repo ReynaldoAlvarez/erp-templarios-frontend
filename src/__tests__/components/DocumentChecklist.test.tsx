@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import { DocumentChecklist } from '@/components/sprint5/DocumentChecklist';
+import { DocumentChecklist } from '@/components/modules/documents/DocumentChecklist';
 import type { DocumentChecklistResponse } from '@/types/api';
 
 // Mock framer-motion

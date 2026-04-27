@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import SanctionGenerationModal from '@/components/sprint5/SanctionGenerationModal';
+import SanctionGenerationModal from '@/components/modules/sanctions/SanctionGenerationModal';
 
 // Mock lucide-react icons
 vi.mock('lucide-react', () => ({
