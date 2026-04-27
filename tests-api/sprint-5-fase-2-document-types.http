@@ -1,0 +1,823 @@
+### ============================================
+### SPRINT 5 - FASE 2: DOCUMENT TYPES CRUD
+### Pruebas de API para el catálogo de tipos de documento
+### ============================================
+### 
+### 📋 INSTRUCCIONES DE USO:
+### 1. Asegúrate de haber corrido el seed: npm run prisma:seed
+### 2. Primero ejecuta la petición "0.1 Login" para obtener el token
+### 3. El token tiene una duración de 15 minutos
+### 4. Si el token expira, ejecuta nuevamente el login o usa "0.2 Refresh Token"
+### 
+### ⚠️ Si obtienes error 403 Forbidden:
+###    - Corre: npm run prisma:seed
+###    - El usuario admin@templarios.com necesita los nuevos permisos
+### ============================================
+
+@baseUrl = http://localhost:3001/api/v1
+@token = {{login.response.body.$.data.accessToken}}
+@refreshToken = {{login.response.body.$.data.refreshToken}}
+
+### ============================================
+### 0. AUTENTICACIÓN
+### ============================================
+
+### 0.1 Login para obtener token
+### ⚠️ EJECUTA ESTO PRIMERO - El token dura 15 minutos
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@templarios.com",
+  "password": "Admin123!"
+}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Login successful",
+###   "data": {
+###     "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+###     "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+###     "user": {
+###       "id": "uuid-del-usuario",
+###       "email": "admin@templarios.com",
+###       "firstName": "Super",
+###       "lastName": "Admin",
+###       "phone": "+591 70000000",
+###       "avatar": null,
+###       "company": {
+###         "id": "uuid-company",
+###         "name": "TEMPLARIOS S.R.L.",
+###         "nit": "1234567890",
+###         "address": "Cochabamba, Bolivia",
+###         "phone": "+591 4 1234567",
+###         "email": "info@templarios.com",
+###         "isActive": true
+###       },
+###       "roles": ["Super Admin"],
+###       "permissions": ["iam:usuarios:crear", "iam:usuarios:leer", ..., "documentos:tipos:listar", ...]
+###     }
+###   },
+###   "timestamp": "2026-03-29T23:42:00.000Z"
+### }
+
+### 0.2 Refresh Token - Usa esto si el access token expiró
+### Necesitas ejecutar el login primero para obtener el refresh token
+# @name refreshToken
+POST {{baseUrl}}/auth/refresh-token
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Token refreshed successfully",
+###   "data": {
+###     "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+###     "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+###   },
+###   "timestamp": "2026-03-29T23:42:00.000Z"
+### }
+
+### ============================================
+### 1. DOCUMENT TYPES - ESTADÍSTICAS Y LISTAS
+### ============================================
+
+### 1.1 Obtener estadísticas de tipos de documento
+# @name getStats
+GET {{baseUrl}}/document-types/stats
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Estadisticas de tipos de documento obtenidas correctamente",
+###   "data": {
+###     "total": 8,
+###     "active": 8,
+###     "inactive": 0,
+###     "required": 7,
+###     "optional": 1,
+###     "forSupportOnly": 1
+###   },
+###   "timestamp": "2026-03-29T23:42:46.361Z"
+### }
+
+### 1.2 Obtener tipos de documento activos (para dropdowns)
+# @name getActive
+GET {{baseUrl}}/document-types/active
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tipos de documento activos obtenidos correctamente",
+###   "data": [
+###     {
+###       "id": "uuid-mic",
+###       "code": "MIC",
+###       "name": "Manifiesto Internacional de Carga",
+###       "description": "Documento aduanero principal que ampara el transporte internacional de mercancías",
+###       "isRequired": true,
+###       "isForSupportOnly": false,
+###       "displayOrder": 1,
+###       "isActive": true,
+###       "createdAt": "2026-03-29T01:02:57.662Z",
+###       "updatedAt": "2026-03-29T23:25:56.962Z"
+###     },
+###     {
+###       "id": "uuid-crt",
+###       "code": "CRT",
+###       "name": "Carta de Porte",
+###       "description": "Documento que certifica el transporte de la mercancía desde origen hasta destino",
+###       "isRequired": true,
+###       "isForSupportOnly": false,
+###       "displayOrder": 2,
+###       "isActive": true,
+###       "createdAt": "2026-03-29T01:02:57.662Z",
+###       "updatedAt": "2026-03-29T23:25:56.965Z"
+###     },
+###     {
+###       "id": "uuid-aspb",
+###       "code": "ASPB",
+###       "name": "Autorización de Servicio de Transporte de Carga",
+###       "description": "Documento emitido por la Aduana Nacional de Bolivia",
+###       "isRequired": true,
+###       "isForSupportOnly": false,
+###       "displayOrder": 3,
+###       "isActive": true,
+###       "createdAt": "2026-03-29T01:02:57.662Z",
+###       "updatedAt": "2026-03-29T23:25:56.966Z"
+###     },
+###     {
+###       "id": "uuid-nota-tarja",
+###       "code": "NOTA_TARJA",
+###       "name": "Nota de Tarja",
+###       "description": "Documento de control de carga en puerto, registro de unidades recibidas",
+###       "isRequired": true,
+###       "isForSupportOnly": false,
+###       "displayOrder": 4,
+###       "isActive": true,
+###       "createdAt": "2026-03-29T01:02:57.662Z",
+###       "updatedAt": "2026-03-29T23:25:56.967Z"
+###     },
+###     {
+###       "id": "uuid-balanza",
+###       "code": "BALANZA",
+###       "name": "Comprobante de Balanza",
+###       "description": "Comprobante de pesaje de la carga, verifica el peso declarado",
+###       "isRequired": true,
+###       "isForSupportOnly": false,
+###       "displayOrder": 5,
+###       "isActive": true,
+###       "createdAt": "2026-03-29T01:02:57.662Z",
+###       "updatedAt": "2026-03-29T23:25:56.967Z"
+###     },
+###     {
+###       "id": "uuid-factura",
+###       "code": "FACTURA",
+###       "name": "Factura de Servicio de Transporte",
+###       "description": "Factura comercial del servicio de transporte - requerida solo para transportistas de apoyo",
+###       "isRequired": true,
+###       "isForSupportOnly": true,
+###       "displayOrder": 6,
+###       "isActive": true,
+###       "createdAt": "2026-03-29T01:02:57.662Z",
+###       "updatedAt": "2026-03-29T23:25:56.968Z"
+###     }
+###   ],
+###   "timestamp": "2026-03-29T23:43:19.967Z"
+### }
+
+### 1.3 Obtener tipos de documento requeridos
+# @name getRequired
+GET {{baseUrl}}/document-types/required
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tipos de documento requeridos obtenidos correctamente",
+###   "data": [
+###     {
+###       "id": "uuid-mic",
+###       "code": "MIC",
+###       "name": "Manifiesto Internacional de Carga",
+###       "description": "Documento aduanero principal...",
+###       "isRequired": true,
+###       "isForSupportOnly": false,
+###       "displayOrder": 1,
+###       "isActive": true,
+###       "createdAt": "2026-03-29T01:02:57.662Z",
+###       "updatedAt": "2026-03-29T23:25:56.962Z"
+###     },
+###     {
+###       "id": "uuid-crt",
+###       "code": "CRT",
+###       "name": "Carta de Porte",
+###       "description": "Documento que certifica el transporte...",
+###       "isRequired": true,
+###       "isForSupportOnly": false,
+###       "displayOrder": 2,
+###       "isActive": true,
+###       "createdAt": "2026-03-29T01:02:57.662Z",
+###       "updatedAt": "2026-03-29T23:25:56.965Z"
+###     }
+###     // ... más documentos requeridos
+###   ],
+###   "timestamp": "2026-03-29T23:45:00.000Z"
+### }
+
+### 1.4 Obtener tipos de documento requeridos para camiones de apoyo
+# @name getRequiredForSupport
+GET {{baseUrl}}/document-types/required?forSupportOnly=true
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tipos de documento requeridos obtenidos correctamente",
+###   "data": [
+###     {
+###       "id": "uuid-factura",
+###       "code": "FACTURA",
+###       "name": "Factura de Servicio de Transporte",
+###       "description": "Factura comercial del servicio de transporte - requerida solo para transportistas de apoyo",
+###       "isRequired": true,
+###       "isForSupportOnly": true,
+###       "displayOrder": 6,
+###       "isActive": true,
+###       "createdAt": "2026-03-29T01:02:57.662Z",
+###       "updatedAt": "2026-03-29T23:25:56.968Z"
+###     }
+###   ],
+###   "timestamp": "2026-03-29T23:45:00.000Z"
+### }
+
+### ============================================
+### 2. DOCUMENT TYPES - LECTURA
+### ============================================
+
+### 2.1 Obtener todos los tipos de documento (paginado)
+# @name getAllDocumentTypes
+GET {{baseUrl}}/document-types?page=1&limit=10
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tipos de documento obtenidos correctamente",
+###   "data": [
+###     {
+###       "id": "uuid-mic",
+###       "code": "MIC",
+###       "name": "Manifiesto Internacional de Carga",
+###       "description": "Documento aduanero principal que ampara el transporte internacional de mercancías",
+###       "isRequired": true,
+###       "isForSupportOnly": false,
+###       "displayOrder": 1,
+###       "isActive": true,
+###       "createdAt": "2026-03-29T01:02:57.662Z",
+###       "updatedAt": "2026-03-29T23:25:56.962Z"
+###     },
+###     {
+###       "id": "uuid-crt",
+###       "code": "CRT",
+###       "name": "Carta de Porte",
+###       "description": "Documento que certifica el transporte de la mercancía desde origen hasta destino",
+###       "isRequired": true,
+###       "isForSupportOnly": false,
+###       "displayOrder": 2,
+###       "isActive": true,
+###       "createdAt": "2026-03-29T01:02:57.662Z",
+###       "updatedAt": "2026-03-29T23:25:56.965Z"
+###     }
+###     // ... más tipos de documento
+###   ],
+###   "meta": {
+###     "total": 8,
+###     "page": 1,
+###     "limit": 10,
+###     "totalPages": 1
+###   },
+###   "timestamp": "2026-03-29T23:46:00.000Z"
+### }
+
+### 2.2 Obtener tipos de documento con filtro de búsqueda
+# @name searchDocumentTypes
+GET {{baseUrl}}/document-types?search=MIC
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tipos de documento obtenidos correctamente",
+###   "data": [
+###     {
+###       "id": "uuid-mic",
+###       "code": "MIC",
+###       "name": "Manifiesto Internacional de Carga",
+###       "description": "Documento aduanero principal que ampara el transporte internacional de mercancías",
+###       "isRequired": true,
+###       "isForSupportOnly": false,
+###       "displayOrder": 1,
+###       "isActive": true,
+###       "createdAt": "2026-03-29T01:02:57.662Z",
+###       "updatedAt": "2026-03-29T23:25:56.962Z"
+###     }
+###   ],
+###   "meta": {
+###     "total": 1,
+###     "page": 1,
+###     "limit": 10,
+###     "totalPages": 1
+###   },
+###   "timestamp": "2026-03-29T23:46:00.000Z"
+### }
+
+### 2.3 Obtener tipos de documento solo activos
+# @name getActiveOnly
+GET {{baseUrl}}/document-types?isActive=true
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA: Igual que 2.1 pero solo con isActive: true
+
+### 2.4 Obtener tipos de documento inactivos
+# @name getInactiveOnly
+GET {{baseUrl}}/document-types?isActive=false
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tipos de documento obtenidos correctamente",
+###   "data": [],
+###   "meta": {
+###     "total": 0,
+###     "page": 1,
+###     "limit": 10,
+###     "totalPages": 0
+###   },
+###   "timestamp": "2026-03-29T23:46:00.000Z"
+### }
+
+### 2.5 Obtener tipo de documento por código
+# @name getByCode
+GET {{baseUrl}}/document-types/code/MIC
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tipo de documento obtenido correctamente",
+###   "data": {
+###     "id": "uuid-mic",
+###     "code": "MIC",
+###     "name": "Manifiesto Internacional de Carga",
+###     "description": "Documento aduanero principal que ampara el transporte internacional de mercancías",
+###     "isRequired": true,
+###     "isForSupportOnly": false,
+###     "displayOrder": 1,
+###     "isActive": true,
+###     "createdAt": "2026-03-29T01:02:57.662Z",
+###     "updatedAt": "2026-03-29T23:25:56.962Z"
+###   },
+###   "timestamp": "2026-03-29T23:47:00.000Z"
+### }
+
+### 2.6 Obtener tipo de documento por ID
+# @name getById
+GET {{baseUrl}}/document-types/{{documentTypeId}}
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tipo de documento obtenido correctamente",
+###   "data": {
+###     "id": "uuid-mic",
+###     "code": "MIC",
+###     "name": "Manifiesto Internacional de Carga",
+###     "description": "Documento aduanero principal que ampara el transporte internacional de mercancías",
+###     "isRequired": true,
+###     "isForSupportOnly": false,
+###     "displayOrder": 1,
+###     "isActive": true,
+###     "createdAt": "2026-03-29T01:02:57.662Z",
+###     "updatedAt": "2026-03-29T23:25:56.962Z",
+###     "documentsCount": 5
+###   },
+###   "timestamp": "2026-03-29T23:47:00.000Z"
+### }
+
+### ============================================
+### 3. DOCUMENT TYPES - CREACIÓN
+### ============================================
+
+### 3.1 Crear nuevo tipo de documento (mínimo requerido)
+# @name createMinimal
+POST {{baseUrl}}/document-types
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "TEST_DOC",
+  "name": "Documento de Prueba"
+}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tipo de documento creado correctamente",
+###   "data": {
+###     "id": "uuid-nuevo",
+###     "code": "TEST_DOC",
+###     "name": "Documento de Prueba",
+###     "description": null,
+###     "isRequired": true,
+###     "isForSupportOnly": false,
+###     "displayOrder": 0,
+###     "isActive": true,
+###     "createdAt": "2026-03-29T23:48:00.000Z",
+###     "updatedAt": "2026-03-29T23:48:00.000Z"
+###   },
+###   "timestamp": "2026-03-29T23:48:00.000Z"
+### }
+
+### 3.2 Crear tipo de documento completo
+# @name createFull
+POST {{baseUrl}}/document-types
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "CERT_ORIG",
+  "name": "Certificado de Origen",
+  "description": "Documento que certifica el país de origen de la mercancía",
+  "isRequired": false,
+  "isForSupportOnly": false,
+  "displayOrder": 7,
+  "isActive": true
+}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tipo de documento creado correctamente",
+###   "data": {
+###     "id": "uuid-nuevo",
+###     "code": "CERT_ORIG",
+###     "name": "Certificado de Origen",
+###     "description": "Documento que certifica el país de origen de la mercancía",
+###     "isRequired": false,
+###     "isForSupportOnly": false,
+###     "displayOrder": 7,
+###     "isActive": true,
+###     "createdAt": "2026-03-29T23:49:00.000Z",
+###     "updatedAt": "2026-03-29T23:49:00.000Z"
+###   },
+###   "timestamp": "2026-03-29T23:49:00.000Z"
+### }
+
+### 3.3 Intentar crear con código duplicado (debe fallar)
+# @name createDuplicate
+POST {{baseUrl}}/document-types
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "MIC",
+  "name": "Otro MIC"
+}
+
+### 📤 RESPUESTA ESPERADA (Error 409 Conflict):
+### {
+###   "success": false,
+###   "status": "fail",
+###   "message": "El codigo de documento \"MIC\" ya existe",
+###   "code": "CONFLICT"
+### }
+
+### 3.4 Intentar crear con código inválido (debe fallar)
+# @name createInvalidCode
+POST {{baseUrl}}/document-types
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "codigo-invalid",
+  "name": "Documento con código inválido"
+}
+
+### 📤 RESPUESTA ESPERADA (Error 400 Bad Request):
+### {
+###   "success": false,
+###   "status": "fail",
+###   "message": "Errores de validación",
+###   "code": "VALIDATION_ERROR",
+###   "errors": [
+###     {
+###       "field": "code",
+###       "message": "El codigo solo puede contener letras mayusculas, numeros y guiones bajos"
+###     }
+###   ]
+### }
+
+### ============================================
+### 4. DOCUMENT TYPES - ACTUALIZACIÓN
+### ============================================
+
+### 4.1 Actualizar nombre del tipo de documento
+# @name updateName
+PUT {{baseUrl}}/document-types/{{documentTypeId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Manifiesto Internacional de Carga - Actualizado"
+}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tipo de documento actualizado correctamente",
+###   "data": {
+###     "id": "uuid-mic",
+###     "code": "MIC",
+###     "name": "Manifiesto Internacional de Carga - Actualizado",
+###     "description": "Documento aduanero principal que ampara el transporte internacional de mercancías",
+###     "isRequired": true,
+###     "isForSupportOnly": false,
+###     "displayOrder": 1,
+###     "isActive": true,
+###     "createdAt": "2026-03-29T01:02:57.662Z",
+###     "updatedAt": "2026-03-29T23:50:00.000Z"
+###   },
+###   "timestamp": "2026-03-29T23:50:00.000Z"
+### }
+
+### 4.2 Actualizar descripción
+# @name updateDescription
+PUT {{baseUrl}}/document-types/{{documentTypeId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Documento aduanero principal que ampara el transporte internacional de mercancías - Versión 2024"
+}
+
+### 📤 RESPUESTA ESPERADA: Similar a 4.1 con descripción actualizada
+
+### 4.3 Actualizar orden de visualización
+# @name updateOrder
+PUT {{baseUrl}}/document-types/{{documentTypeId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "displayOrder": 1
+}
+
+### 📤 RESPUESTA ESPERADA: Similar a 4.1 con displayOrder actualizado
+
+### 4.4 Actualizar múltiples campos
+# @name updateMultiple
+PUT {{baseUrl}}/document-types/{{documentTypeId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Manifiesto Internacional de Carga",
+  "description": "Documento aduanero principal que ampara el transporte internacional de mercancías",
+  "isRequired": true,
+  "displayOrder": 1
+}
+
+### 📤 RESPUESTA ESPERADA: Similar a 4.1 con todos los campos actualizados
+
+### ============================================
+### 5. DOCUMENT TYPES - REORDENAMIENTO
+### ============================================
+
+### 5.1 Reordenar tipos de documento
+# @name reorder
+POST {{baseUrl}}/document-types/reorder
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "items": [
+    { "id": "uuid-mic", "displayOrder": 1 },
+    { "id": "uuid-crt", "displayOrder": 2 },
+    { "id": "uuid-aspb", "displayOrder": 3 }
+  ]
+}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Orden de tipos de documento actualizado correctamente",
+###   "data": [
+###     {
+###       "id": "uuid-mic",
+###       "code": "MIC",
+###       "name": "Manifiesto Internacional de Carga",
+###       "displayOrder": 1,
+###       ...
+###     },
+###     {
+###       "id": "uuid-crt",
+###       "code": "CRT",
+###       "name": "Carta de Porte",
+###       "displayOrder": 2,
+###       ...
+###     },
+###     {
+###       "id": "uuid-aspb",
+###       "code": "ASPB",
+###       "name": "Autorización de Servicio de Transporte de Carga",
+###       "displayOrder": 3,
+###       ...
+###     }
+###   ],
+###   "timestamp": "2026-03-29T23:51:00.000Z"
+### }
+
+### ============================================
+### 6. DOCUMENT TYPES - ELIMINACIÓN
+### ============================================
+
+### 6.1 Eliminar tipo de documento (soft delete si tiene documentos)
+# @name deleteDocumentType
+DELETE {{baseUrl}}/document-types/{{documentTypeId}}
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA (si tiene documentos asociados - soft delete):
+### {
+###   "success": true,
+###   "message": "Tipo de documento eliminado correctamente",
+###   "data": {
+###     "id": "uuid-mic",
+###     "code": "MIC",
+###     "name": "Manifiesto Internacional de Carga",
+###     "isActive": false,
+###     ...
+###   },
+###   "timestamp": "2026-03-29T23:52:00.000Z"
+### }
+
+### 📤 RESPUESTA ESPERADA (si NO tiene documentos asociados - hard delete):
+### {
+###   "success": true,
+###   "message": "Tipo de documento eliminado correctamente",
+###   "data": {
+###     "id": "uuid-doc",
+###     "code": "TEST_DOC",
+###     "name": "Documento de Prueba",
+###     ...
+###   },
+###   "timestamp": "2026-03-29T23:52:00.000Z"
+### }
+
+### 6.2 Restaurar tipo de documento eliminado
+# @name restoreDocumentType
+POST {{baseUrl}}/document-types/{{documentTypeId}}/restore
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tipo de documento restaurado correctamente",
+###   "data": {
+###     "id": "uuid-mic",
+###     "code": "MIC",
+###     "name": "Manifiesto Internacional de Carga",
+###     "isActive": true,
+###     ...
+###   },
+###   "timestamp": "2026-03-29T23:53:00.000Z"
+### }
+
+### ============================================
+### 7. CASOS DE ERROR
+### ============================================
+
+### 7.1 Obtener tipo de documento inexistente
+# @name getNonExistent
+GET {{baseUrl}}/document-types/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA (Error 404 Not Found):
+### {
+###   "success": false,
+###   "status": "fail",
+###   "message": "Tipo de documento con ID 00000000-0000-0000-0000-000000000000 no encontrado",
+###   "code": "NOT_FOUND"
+### }
+
+### 7.2 Actualizar tipo de documento inexistente
+# @name updateNonExistent
+PUT {{baseUrl}}/document-types/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "No existe"
+}
+
+### 📤 RESPUESTA ESPERADA (Error 404 Not Found):
+### {
+###   "success": false,
+###   "status": "fail",
+###   "message": "Tipo de documento con ID 00000000-0000-0000-0000-000000000000 no encontrado",
+###   "code": "NOT_FOUND"
+### }
+
+### 7.3 Eliminar tipo de documento inexistente
+# @name deleteNonExistent
+DELETE {{baseUrl}}/document-types/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA (Error 404 Not Found):
+### {
+###   "success": false,
+###   "status": "fail",
+###   "message": "Tipo de documento con ID 00000000-0000-0000-0000-000000000000 no encontrado",
+###   "code": "NOT_FOUND"
+### }
+
+### 7.4 Obtener por código inexistente
+# @name getByCodeNonExistent
+GET {{baseUrl}}/document-types/code/CODIGO_INEXISTENTE
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA (Error 404 Not Found):
+### {
+###   "success": false,
+###   "status": "fail",
+###   "message": "Tipo de documento con codigo CODIGO_INEXISTENTE no encontrado",
+###   "code": "NOT_FOUND"
+### }
+
+### ============================================
+### 8. VERIFICACIÓN FINAL
+### ============================================
+
+### 8.1 Verificar listado final
+# @name finalCheck
+GET {{baseUrl}}/document-types?page=1&limit=20
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA: Lista paginada de todos los tipos de documento
+
+### 8.2 Verificar estadísticas finales
+# @name finalStats
+GET {{baseUrl}}/document-types/stats
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Estadisticas de tipos de documento obtenidas correctamente",
+###   "data": {
+###     "total": 8,
+###     "active": 8,
+###     "inactive": 0,
+###     "required": 7,
+###     "optional": 1,
+###     "forSupportOnly": 1
+###   },
+###   "timestamp": "2026-03-29T23:55:00.000Z"
+### }
+
+### ============================================
+### 📋 RESUMEN DE ENDPOINTS PARA FRONTEND
+### ============================================
+###
+### | Endpoint | Método | Descripción | Permisos Requeridos |
+### |----------|--------|-------------|---------------------|
+### | /document-types | GET | Listar paginado | documentos:tipos:listar |
+### | /document-types/active | GET | Listar activos | documentos:tipos:listar |
+### | /document-types/required | GET | Listar requeridos | documentos:tipos:listar |
+### | /document-types/stats | GET | Estadísticas | documentos:tipos:listar |
+### | /document-types/code/:code | GET | Obtener por código | documentos:tipos:leer |
+### | /document-types/:id | GET | Obtener por ID | documentos:tipos:leer |
+### | /document-types | POST | Crear | documentos:tipos:crear |
+### | /document-types/:id | PUT | Actualizar | documentos:tipos:actualizar |
+### | /document-types/:id | DELETE | Eliminar | documentos:tipos:eliminar |
+### | /document-types/:id/restore | POST | Restaurar | documentos:tipos:actualizar |
+### | /document-types/reorder | POST | Reordenar | documentos:tipos:actualizar |
+###
+### 📝 NOTAS PARA FRONTEND:
+### - El campo "displayOrder" se usa para ordenar los documentos en UI
+### - El campo "isForSupportOnly" indica si el documento es solo para camiones de apoyo
+### - El campo "isRequired" indica si el documento es obligatorio
+### - Al eliminar un tipo con documentos asociados, se hace soft delete (isActive: false)
+### - Al eliminar un tipo sin documentos asociados, se hace hard delete
+### - El campo "documentsCount" en getById indica cuántos documentos usan este tipo
+### ============================================

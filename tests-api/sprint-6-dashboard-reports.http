@@ -1,0 +1,603 @@
+###############################################################################
+# SPRINT 6 - DASHBOARD, REPORTS & NOTIFICATIONS
+# ERP TEMPLARIOS - Sistema de Gestión de Transporte Internacional
+###############################################################################
+
+@baseUrl = http://localhost:3001/api/v1
+@contentType = application/json
+
+###############################################################################
+# VARIABLES
+###############################################################################
+
+# Credentials
+@email = admin@templarios.com
+@password = Admin123!
+
+# Tokens (se actualizarán después del login)
+@accessToken = {{login.response.body.data.accessToken}}
+@refreshToken = {{login.response.body.data.refreshToken}}
+
+# IDs (se actualizarán después de crear registros)
+@notificationId = 
+@userId = 
+
+###############################################################################
+# AUTHENTICATION
+###############################################################################
+
+### Login
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Get Current User
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{accessToken}}
+
+### Refresh Token
+POST {{baseUrl}}/auth/refresh-token
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+###############################################################################
+# DASHBOARD ENDPOINTS
+###############################################################################
+
+### Get Main Dashboard Statistics
+GET {{baseUrl}}/dashboard/main
+Authorization: Bearer {{accessToken}}
+
+### Get Main Dashboard with Date Range
+GET {{baseUrl}}/dashboard/main?startDate=2025-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+### Get Financial Dashboard Statistics
+GET {{baseUrl}}/dashboard/financial
+Authorization: Bearer {{accessToken}}
+
+### Get Financial Dashboard with Date Range
+GET {{baseUrl}}/dashboard/financial?startDate=2025-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+### Get Operational Dashboard Statistics
+GET {{baseUrl}}/dashboard/operational
+Authorization: Bearer {{accessToken}}
+
+### Get Operational Dashboard with Date Range
+GET {{baseUrl}}/dashboard/operational?startDate=2025-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+### Get Fleet Dashboard Statistics
+GET {{baseUrl}}/dashboard/fleet
+Authorization: Bearer {{accessToken}}
+
+### Get HR Dashboard Statistics
+GET {{baseUrl}}/dashboard/hr
+Authorization: Bearer {{accessToken}}
+
+### Get Complete Dashboard Summary
+GET {{baseUrl}}/dashboard/summary
+Authorization: Bearer {{accessToken}}
+
+### Get Complete Dashboard Summary with Date Range
+GET {{baseUrl}}/dashboard/summary?startDate=2025-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+###############################################################################
+# REPORTS ENDPOINTS
+###############################################################################
+
+### Get Available Report Types
+GET {{baseUrl}}/reports/types
+Authorization: Bearer {{accessToken}}
+
+### Generate Trips Report
+GET {{baseUrl}}/reports/trips?startDate=2025-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+### Generate Trips Report with Filters
+GET {{baseUrl}}/reports/trips?startDate=2025-01-01&endDate=2026-12-31&status=DELIVERED
+Authorization: Bearer {{accessToken}}
+
+### Generate Trips Report by Client
+GET {{baseUrl}}/reports/trips?startDate=2025-01-01&endDate=2026-12-31&clientId=client-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Generate Trips Report by Driver
+GET {{baseUrl}}/reports/trips?startDate=2025-01-01&endDate=2026-12-31&driverId=driver-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Generate Trips Report by Truck
+GET {{baseUrl}}/reports/trips?startDate=2025-01-01&endDate=2026-12-31&truckId=truck-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Generate Financial Report
+GET {{baseUrl}}/reports/financial?startDate=2025-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+### Generate Clients Report
+GET {{baseUrl}}/reports/clients?startDate=2025-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+### Generate Drivers Report
+GET {{baseUrl}}/reports/drivers?startDate=2025-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+### Generate Fleet Report
+GET {{baseUrl}}/reports/fleet?startDate=2025-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+### Generate Border Crossings Report
+GET {{baseUrl}}/reports/borders?startDate=2025-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+### Export Trips Report (JSON Download)
+GET {{baseUrl}}/reports/export/trips?startDate=2025-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+### Export Financial Report (JSON Download)
+GET {{baseUrl}}/reports/export/financial?startDate=2025-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+### Export Clients Report (JSON Download)
+GET {{baseUrl}}/reports/export/clients?startDate=2025-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+### Export Drivers Report (JSON Download)
+GET {{baseUrl}}/reports/export/drivers?startDate=2025-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+### Export Fleet Report (JSON Download)
+GET {{baseUrl}}/reports/export/fleet?startDate=2025-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+### Export Borders Report (JSON Download)
+GET {{baseUrl}}/reports/export/borders?startDate=2025-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+###############################################################################
+# NOTIFICATIONS ENDPOINTS
+###############################################################################
+
+### Get Notification Types
+GET {{baseUrl}}/notifications/types
+Authorization: Bearer {{accessToken}}
+
+### Get Notification Priorities
+GET {{baseUrl}}/notifications/priorities
+Authorization: Bearer {{accessToken}}
+
+### Get Notification Counts
+GET {{baseUrl}}/notifications/counts
+Authorization: Bearer {{accessToken}}
+
+### Get All Notifications
+GET {{baseUrl}}/notifications
+Authorization: Bearer {{accessToken}}
+
+### Get All Notifications with Pagination
+GET {{baseUrl}}/notifications?page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+### Get Unread Notifications Only
+GET {{baseUrl}}/notifications?isRead=false
+Authorization: Bearer {{accessToken}}
+
+### Get Notifications by Type
+GET {{baseUrl}}/notifications?type=WARNING
+Authorization: Bearer {{accessToken}}
+
+### Get Notifications by Priority
+GET {{baseUrl}}/notifications?priority=HIGH
+Authorization: Bearer {{accessToken}}
+
+### Get Unread Notifications (Shortcut)
+GET {{baseUrl}}/notifications/unread
+Authorization: Bearer {{accessToken}}
+
+### Get Notification by ID
+GET {{baseUrl}}/notifications/{{notificationId}}
+Authorization: Bearer {{accessToken}}
+
+### Create Notification (Admin Only)
+POST {{baseUrl}}/notifications
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "userId": "user-uuid-here",
+  "title": "Notificación de Prueba",
+  "message": "Esta es una notificación de prueba del sistema",
+  "type": "INFO",
+  "priority": "MEDIUM",
+  "entityType": "Trip",
+  "entityId": "trip-uuid-here",
+  "actionUrl": "/trips/trip-uuid-here"
+}
+
+### Create Warning Notification
+POST {{baseUrl}}/notifications
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "userId": "user-uuid-here",
+  "title": "Advertencia Importante",
+  "message": "Se requiere atención inmediata",
+  "type": "WARNING",
+  "priority": "HIGH"
+}
+
+### Create Urgent Notification
+POST {{baseUrl}}/notifications
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "userId": "user-uuid-here",
+  "title": "¡URGENTE!",
+  "message": "Acción inmediata requerida",
+  "type": "ERROR",
+  "priority": "URGENT"
+}
+
+### Create Notification with Expiration
+POST {{baseUrl}}/notifications
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "userId": "user-uuid-here",
+  "title": "Notificación Temporal",
+  "message": "Esta notificación expirará en 7 días",
+  "type": "INFO",
+  "priority": "LOW",
+  "expiresAt": "2026-12-31T23:59:59Z"
+}
+
+### Create Bulk Notifications (Admin Only)
+POST {{baseUrl}}/notifications/bulk
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "userIds": [
+    "user-uuid-1",
+    "user-uuid-2",
+    "user-uuid-3"
+  ],
+  "title": "Notificación Global",
+  "message": "Este mensaje es para todos los usuarios seleccionados",
+  "type": "INFO",
+  "priority": "MEDIUM"
+}
+
+### Mark Notification as Read
+POST {{baseUrl}}/notifications/{{notificationId}}/read
+Authorization: Bearer {{accessToken}}
+
+### Mark All Notifications as Read
+POST {{baseUrl}}/notifications/read-all
+Authorization: Bearer {{accessToken}}
+
+### Delete Notification
+DELETE {{baseUrl}}/notifications/{{notificationId}}
+Authorization: Bearer {{accessToken}}
+
+### Delete All Read Notifications
+DELETE {{baseUrl}}/notifications/read
+Authorization: Bearer {{accessToken}}
+
+###############################################################################
+# SYSTEM NOTIFICATION HELPERS (Internal Use)
+# These demonstrate the notification helper methods available
+###############################################################################
+
+### Note: The following are internal service methods that would typically be
+### called by other services when events occur:
+
+# notifyTripCreated(userId, tripId, micDta)
+# notifyTripStatusChange(userId, tripId, micDta, status)
+# notifySettlementPending(userId, settlementId, amount)
+# notifySettlementPaid(userId, settlementId, amount)
+# notifyInvoiceOverdue(userId, invoiceId, invoiceNumber, amount)
+# notifyMaintenanceDue(userId, maintenanceId, truckPlate, date)
+# notifyDocumentPending(userId, documentId, documentType)
+# notifyBorderAlert(userId, borderCrossingId, borderName, channel)
+# notifyPermitExpiring(userId, truckId, truckPlate, expiryDate)
+
+###############################################################################
+# DASHBOARD WORKFLOW EXAMPLES
+###############################################################################
+
+### Dashboard - Daily Review
+# 1. Get main stats for today
+GET {{baseUrl}}/dashboard/main?startDate=2026-03-14&endDate=2026-03-14
+Authorization: Bearer {{accessToken}}
+
+### Dashboard - Weekly Review
+# 1. Get all dashboard summaries for the week
+GET {{baseUrl}}/dashboard/summary?startDate=2026-03-08&endDate=2026-03-14
+Authorization: Bearer {{accessToken}}
+
+### Dashboard - Monthly Financial Review
+# 1. Get financial stats for the month
+GET {{baseUrl}}/dashboard/financial?startDate=2026-03-01&endDate=2026-03-31
+Authorization: Bearer {{accessToken}}
+
+### Dashboard - Fleet Status Check
+# 1. Check fleet status
+GET {{baseUrl}}/dashboard/fleet
+Authorization: Bearer {{accessToken}}
+
+### Dashboard - HR Overview
+# 1. Check driver status
+GET {{baseUrl}}/dashboard/hr
+Authorization: Bearer {{accessToken}}
+
+###############################################################################
+# REPORTS WORKFLOW EXAMPLES
+###############################################################################
+
+### Report - End of Month Trip Report
+# 1. Generate trips report for the month
+GET {{baseUrl}}/reports/trips?startDate=2026-03-01&endDate=2026-03-31
+Authorization: Bearer {{accessToken}}
+
+### Report - Client Performance Report
+# 1. Generate clients report to see top clients
+GET {{baseUrl}}/reports/clients?startDate=2026-01-01&endDate=2026-03-31
+Authorization: Bearer {{accessToken}}
+
+### Report - Driver Performance Report
+# 1. Generate drivers report to see top performers
+GET {{baseUrl}}/reports/drivers?startDate=2026-01-01&endDate=2026-03-31
+Authorization: Bearer {{accessToken}}
+
+### Report - Fleet Utilization Report
+# 1. Generate fleet report for utilization analysis
+GET {{baseUrl}}/reports/fleet?startDate=2026-01-01&endDate=2026-03-31
+Authorization: Bearer {{accessToken}}
+
+### Report - Border Crossing Analysis
+# 1. Generate borders report for analysis
+GET {{baseUrl}}/reports/borders?startDate=2026-01-01&endDate=2026-03-31
+Authorization: Bearer {{accessToken}}
+
+### Report - Annual Financial Report
+# 1. Generate financial report for the year
+GET {{baseUrl}}/reports/financial?startDate=2026-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+###############################################################################
+# NOTIFICATION WORKFLOW EXAMPLES
+###############################################################################
+
+### Notification Workflow - Daily Check
+# 1. Get notification counts
+GET {{baseUrl}}/notifications/counts
+Authorization: Bearer {{accessToken}}
+
+# 2. Get unread notifications
+GET {{baseUrl}}/notifications/unread
+Authorization: Bearer {{accessToken}}
+
+# 3. Mark all as read
+POST {{baseUrl}}/notifications/read-all
+Authorization: Bearer {{accessToken}}
+
+# 4. Delete read notifications
+DELETE {{baseUrl}}/notifications/read
+Authorization: Bearer {{accessToken}}
+
+### Notification Workflow - Priority Check
+# 1. Get urgent notifications
+GET {{baseUrl}}/notifications?priority=URGENT&isRead=false
+Authorization: Bearer {{accessToken}}
+
+# 2. Get high priority notifications
+GET {{baseUrl}}/notifications?priority=HIGH&isRead=false
+Authorization: Bearer {{accessToken}}
+
+# 3. Get all unread warning notifications
+GET {{baseUrl}}/notifications?type=WARNING&isRead=false
+Authorization: Bearer {{accessToken}}
+
+###############################################################################
+# INTEGRATION EXAMPLES
+###############################################################################
+
+### Full Morning Dashboard Routine
+# Step 1: Login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+# Step 2: Get notification counts
+GET {{baseUrl}}/notifications/counts
+Authorization: Bearer {{accessToken}}
+
+# Step 3: Get main dashboard
+GET {{baseUrl}}/dashboard/main
+Authorization: Bearer {{accessToken}}
+
+# Step 4: Get fleet status
+GET {{baseUrl}}/dashboard/fleet
+Authorization: Bearer {{accessToken}}
+
+# Step 5: Get HR status
+GET {{baseUrl}}/dashboard/hr
+Authorization: Bearer {{accessToken}}
+
+# Step 6: Get pending items
+GET {{baseUrl}}/dashboard/operational
+Authorization: Bearer {{accessToken}}
+
+### Weekly Report Generation
+# Step 1: Generate all weekly reports
+GET {{baseUrl}}/reports/trips?startDate=2026-03-08&endDate=2026-03-14
+Authorization: Bearer {{accessToken}}
+
+GET {{baseUrl}}/reports/financial?startDate=2026-03-08&endDate=2026-03-14
+Authorization: Bearer {{accessToken}}
+
+GET {{baseUrl}}/reports/drivers?startDate=2026-03-08&endDate=2026-03-14
+Authorization: Bearer {{accessToken}}
+
+GET {{baseUrl}}/reports/fleet?startDate=2026-03-08&endDate=2026-03-14
+Authorization: Bearer {{accessToken}}
+
+GET {{baseUrl}}/reports/borders?startDate=2026-03-08&endDate=2026-03-14
+Authorization: Bearer {{accessToken}}
+
+### Monthly Management Report
+# Export all monthly reports
+GET {{baseUrl}}/reports/export/trips?startDate=2026-03-01&endDate=2026-03-31
+Authorization: Bearer {{accessToken}}
+
+GET {{baseUrl}}/reports/export/financial?startDate=2026-03-01&endDate=2026-03-31
+Authorization: Bearer {{accessToken}}
+
+GET {{baseUrl}}/reports/export/clients?startDate=2026-03-01&endDate=2026-03-31
+Authorization: Bearer {{accessToken}}
+
+GET {{baseUrl}}/reports/export/drivers?startDate=2026-03-01&endDate=2026-03-31
+Authorization: Bearer {{accessToken}}
+
+GET {{baseUrl}}/reports/export/fleet?startDate=2026-03-01&endDate=2026-03-31
+Authorization: Bearer {{accessToken}}
+
+###############################################################################
+# ERROR HANDLING TESTS
+###############################################################################
+
+### Get Dashboard - Invalid Date Range (Should fail)
+GET {{baseUrl}}/dashboard/main?startDate=invalid&endDate=invalid
+Authorization: Bearer {{accessToken}}
+
+### Generate Report - Missing Dates (Should fail)
+GET {{baseUrl}}/reports/trips
+Authorization: Bearer {{accessToken}}
+
+### Export Report - Invalid Type (Should fail)
+GET {{baseUrl}}/reports/export/invalid?startDate=2026-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+### Create Notification - Missing Required Fields (Should fail)
+POST {{baseUrl}}/notifications
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "title": "Missing userId"
+}
+
+### Create Bulk Notification - Empty Users (Should fail)
+POST {{baseUrl}}/notifications/bulk
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "userIds": [],
+  "title": "Test",
+  "message": "Test message"
+}
+
+### Get Notification - Invalid ID (Should fail)
+GET {{baseUrl}}/notifications/invalid-uuid
+Authorization: Bearer {{accessToken}}
+
+### Mark Notification as Read - Already Read (Should fail if already read)
+POST {{baseUrl}}/notifications/{{notificationId}}/read
+Authorization: Bearer {{accessToken}}
+
+### Unauthorized Access (Should fail)
+GET {{baseUrl}}/dashboard/main
+
+### Unauthorized Report Access (Should fail)
+GET {{baseUrl}}/reports/trips?startDate=2026-01-01&endDate=2026-12-31
+
+### Unauthorized Notification Access (Should fail)
+GET {{baseUrl}}/notifications
+
+###############################################################################
+# PERFORMANCE TESTS
+###############################################################################
+
+### Load Test - Multiple Dashboard Requests
+GET {{baseUrl}}/dashboard/main
+Authorization: Bearer {{accessToken}}
+
+###
+GET {{baseUrl}}/dashboard/financial
+Authorization: Bearer {{accessToken}}
+
+###
+GET {{baseUrl}}/dashboard/operational
+Authorization: Bearer {{accessToken}}
+
+###
+GET {{baseUrl}}/dashboard/fleet
+Authorization: Bearer {{accessToken}}
+
+###
+GET {{baseUrl}}/dashboard/hr
+Authorization: Bearer {{accessToken}}
+
+### Load Test - Multiple Reports
+GET {{baseUrl}}/reports/trips?startDate=2026-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+###
+GET {{baseUrl}}/reports/financial?startDate=2026-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+###
+GET {{baseUrl}}/reports/clients?startDate=2026-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+###
+GET {{baseUrl}}/reports/drivers?startDate=2026-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+###
+GET {{baseUrl}}/reports/fleet?startDate=2026-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+### Load Test - Notifications Pagination
+GET {{baseUrl}}/notifications?page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+###
+GET {{baseUrl}}/notifications?page=2&limit=10
+Authorization: Bearer {{accessToken}}
+
+###
+GET {{baseUrl}}/notifications?page=3&limit=10
+Authorization: Bearer {{accessToken}}
+
+###############################################################################
+# LOGOUT
+###############################################################################
+
+### Logout
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}

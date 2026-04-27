@@ -1,0 +1,117 @@
+@baseUrl = http://localhost:3001/api/v1
+@token = {{login.response.body.data.accessToken}}
+
+### Login
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@templarios.com",
+  "password": "Admin123!"
+}
+
+### Crear viaje con generación automática de documentos
+# @name create-trip-auto-docs
+POST {{baseUrl}}/trips
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "blId": "{{blId}}",
+  "truckId": "{{truckId}}",
+  "driverId": "{{driverId}}",
+  "routeId": "{{routeId}}",
+  "status": "SCHEDULED"
+}
+
+### Verificar documentos generados automáticamente
+# @name verify-auto-generated-docs
+GET {{baseUrl}}/document-automation/trips/{{tripId}}/checklist
+Authorization: Bearer {{token}}
+
+### Verificar TripReport generado
+# @name trip-report-generated
+GET {{baseUrl}}/trip-reports/trip/{{tripId}}
+Authorization: Bearer {{token}}
+
+### Verificar estadísticas Sprint 5
+# @name sprint5-dashboard
+GET {{baseUrl}}/dashboard/sprint5/stats
+Authorization: Bearer {{token}}
+
+### Verificar tendencias Sprint 5
+# @name sprint5-trends
+GET {{baseUrl}}/dashboard/sprint5/trends
+Authorization: Bearer {{token}}
+
+### Obtener viajes con retraso de documentación
+# @name delayed-trips
+GET {{baseUrl}}/sanctions/delayed-trips?minDaysDelayed=4
+Authorization: Bearer {{token}}
+
+### Generar sanciones automáticas
+# @name generate-automatic-sanctions
+POST {{baseUrl}}/sanctions/generate-automatic
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+### Obtener estadísticas de automatización
+# @name sanction-automation-stats
+GET {{baseUrl}}/sanctions/automation-stats
+Authorization: Bearer {{token}}
+
+### Obtener configuración de sanciones
+# @name sanction-config
+GET {{baseUrl}}/sanctions/config
+Authorization: Bearer {{token}}
+
+### Obtener lista de pagos bloqueados
+# @name blocked-payments
+GET {{baseUrl}}/payment-block/blocked?page=1&limit=10
+Authorization: Bearer {{token}}
+
+### Obtener checklist de pago para un viaje
+# @name payment-checklist
+GET {{baseUrl}}/payment-block/checklist/{{tripId}}
+Authorization: Bearer {{token}}
+
+### Obtener historial de bloqueo de pagos
+# @name block-history
+GET {{baseUrl}}/payment-block/history/{{settlementId}}
+Authorization: Bearer {{token}}
+
+### Obtener estadísticas de bloqueo de pagos
+# @name block-stats
+GET {{baseUrl}}/payment-block/stats
+Authorization: Bearer {{token}}
+
+### Verificar documento individual
+# @name verify-document
+POST {{baseUrl}}/documents/{{docId}}/verify
+Authorization: Bearer {{token}}
+
+### Verificar estado de documentos de viaje
+# @name verify-trip-documents
+GET {{baseUrl}}/document-automation/trips/{{tripId}}/verify
+Authorization: Bearer {{token}}
+
+### Crear documentos para múltiples viajes
+# @name batch-create-documents
+POST {{baseUrl}}/document-automation/batch-create
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "tripIds": ["{{tripId}}", "{{tripId2}}"]
+}
+
+### Obtener estadísticas de documentos
+# @name document-stats
+GET {{baseUrl}}/documents/stats
+Authorization: Bearer {{token}}
+
+### Obtener tipos de documentos
+# @name document-types
+GET {{baseUrl}}/document-types
+Authorization: Bearer {{token}}

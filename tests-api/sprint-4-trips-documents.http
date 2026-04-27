@@ -1,0 +1,970 @@
+### ============================================================================
+### ERP TEMPLARIOS - SPRINT 4: TRIPS, BORDER CROSSINGS, DOCUMENTS, SETTLEMENTS, INVOICES
+### Archivo de pruebas para VS Code REST Client
+### ============================================================================
+
+### Variables de entorno
+@baseUrl = http://localhost:3001/api/v1
+@contentType = application/json
+
+### ============================================================================
+### AUTENTICACIÓN (Login para obtener token)
+### ============================================================================
+
+### Login como admin
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@templarios.com",
+  "password": "Admin123!"
+}
+
+### Guardar token de acceso
+@accessToken = {{login.response.body.data.accessToken}}
+
+### ============================================================================
+### MÓDULO TRIPS (VIAJES)
+### ============================================================================
+
+### Obtener todos los viajes
+GET {{baseUrl}}/trips
+Authorization: Bearer {{accessToken}}
+
+### Obtener viajes con paginación
+GET {{baseUrl}}/trips?page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+### Obtener viajes por estado
+GET {{baseUrl}}/trips?status=SCHEDULED
+Authorization: Bearer {{accessToken}}
+
+### Obtener viajes por BL
+GET {{baseUrl}}/trips?blId=BL_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Obtener viajes por conductor
+GET {{baseUrl}}/trips?driverId=DRIVER_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Obtener viajes por rango de fechas
+GET {{baseUrl}}/trips?dateFrom=2024-01-01&dateTo=2024-12-31
+Authorization: Bearer {{accessToken}}
+
+### Buscar viajes
+GET {{baseUrl}}/trips/search?q=MIC
+Authorization: Bearer {{accessToken}}
+
+### Obtener recursos disponibles (camiones, conductores, remolques)
+GET {{baseUrl}}/trips/available
+Authorization: Bearer {{accessToken}}
+
+### Obtener estadísticas de viajes
+GET {{baseUrl}}/trips/stats
+Authorization: Bearer {{accessToken}}
+
+### Obtener estadísticas de viajes por conductor
+GET {{baseUrl}}/trips/stats?driverId=DRIVER_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Obtener viajes de un conductor específico
+GET {{baseUrl}}/trips/driver/DRIVER_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Obtener viajes de un BL específico
+GET {{baseUrl}}/trips/bl/BL_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Obtener viaje por ID
+GET {{baseUrl}}/trips/TRIP_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Crear nuevo viaje
+# @name createTrip
+POST {{baseUrl}}/trips
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "micDta": "MIC-2024-001",
+  "departureDate": "2024-06-15T08:00:00Z",
+  "billOfLadingId": "BL_ID_HERE",
+  "truckId": "84186cc4-a1ed-4fd2-a577-e0bc74a74f56",
+  "driverId": "4b84f6a9-c1d2-4d9c-a106-f8a33247bccb",
+  "trailerId": "eee31447-833c-4534-af1f-ec02e6aa5ebc",
+  "weight": 25.5,
+  "ratePerTon": 150.00,
+  "notes": "Viaje de prueba"
+}
+
+### Actualizar viaje
+PUT {{baseUrl}}/trips/TRIP_ID_HERE
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "weight": 28.0,
+  "ratePerTon": 160.00,
+  "notes": "Notas actualizadas"
+}
+
+### Actualizar estado de viaje
+PATCH {{baseUrl}}/trips/TRIP_ID_HERE/status
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "status": "IN_TRANSIT"
+}
+
+### ============================================================================
+### CASOS DE ERROR - TRIPS
+### ============================================================================
+
+### Error: Crear viaje sin MIC/DTA (400)
+POST {{baseUrl}}/trips
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "departureDate": "2024-06-15T08:00:00Z",
+  "billOfLadingId": "BL_ID_HERE",
+  "truckId": "TRUCK_ID_HERE",
+  "driverId": "DRIVER_ID_HERE",
+  "weight": 25.5
+}
+
+### Error: Crear viaje con BL inexistente (404)
+POST {{baseUrl}}/trips
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "micDta": "MIC-2024-002",
+  "departureDate": "2024-06-15T08:00:00Z",
+  "billOfLadingId": "non-existent-bl-id",
+  "truckId": "TRUCK_ID_HERE",
+  "driverId": "DRIVER_ID_HERE",
+  "weight": 25.5
+}
+
+### Error: Crear viaje con MIC/DTA duplicado (409)
+POST {{baseUrl}}/trips
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "micDta": "MIC-EXISTENTE",
+  "departureDate": "2024-06-15T08:00:00Z",
+  "billOfLadingId": "BL_ID_HERE",
+  "truckId": "TRUCK_ID_HERE",
+  "driverId": "DRIVER_ID_HERE",
+  "weight": 25.5
+}
+
+### Error: Obtener viaje inexistente (404)
+GET {{baseUrl}}/trips/non-existent-trip-id
+Authorization: Bearer {{accessToken}}
+
+### Error: Transición de estado inválida (400)
+PATCH {{baseUrl}}/trips/TRIP_ID_HERE/status
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "status": "DELIVERED"
+}
+
+### Error: Sin token (401)
+GET {{baseUrl}}/trips
+
+### ============================================================================
+### MÓDULO BORDER CROSSINGS (CRUCES DE FRONTERA)
+### ============================================================================
+
+### Obtener fronteras activas
+GET {{baseUrl}}/border-crossings/active
+Authorization: Bearer {{accessToken}}
+
+### Obtener estadísticas de fronteras
+GET {{baseUrl}}/border-crossings/stats
+Authorization: Bearer {{accessToken}}
+
+### Obtener cruces por viaje
+GET {{baseUrl}}/border-crossings/trip/TRIP_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Obtener cruce por ID
+GET {{baseUrl}}/border-crossings/BORDER_CROSSING_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Obtener historial de canales de un cruce
+GET {{baseUrl}}/border-crossings/BORDER_CROSSING_ID_HERE/history
+Authorization: Bearer {{accessToken}}
+
+### Registrar llegada a frontera
+# @name createBorderCrossing
+POST {{baseUrl}}/border-crossings
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "tripId": "9e1e09c0-b3ef-4d80-a0fd-9001ee0d106b",
+  "borderName": "Aduana Tambo Quemado",
+  "arrivedAt": "2024-06-15T14:30:00Z"
+}
+
+### Registrar salida de frontera
+POST {{baseUrl}}/border-crossings/c3dd8630-bf35-4073-967c-d553ef6495ef/exit
+Authorization: Bearer {{accessToken}}
+
+### Agregar cambio de canal (historial)
+POST {{baseUrl}}/border-crossings/c3dd8630-bf35-4073-967c-d553ef6495ef/channel
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "channel": "YELLOW",
+  "reason": "Revisión documental",
+  "notes": "Documentos en orden",
+  "responsible": "Oficial Aduanero Pérez"
+}
+
+### Cambiar a canal verde
+POST {{baseUrl}}/border-crossings/BORDER_CROSSING_ID_HERE/channel
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "channel": "GREEN",
+  "reason": "Sin novedades"
+}
+
+### Cambiar a canal rojo
+POST {{baseUrl}}/border-crossings/BORDER_CROSSING_ID_HERE/channel
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "channel": "RED",
+  "reason": "Inspección física requerida",
+  "notes": "Revisión completa del cargamento"
+}
+
+### ============================================================================
+### CASOS DE ERROR - BORDER CROSSINGS
+### ============================================================================
+
+### Error: Crear cruce sin viaje (404)
+POST {{baseUrl}}/border-crossings
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "tripId": "non-existent-trip-id",
+  "borderName": "Aduana Tambo Quemado"
+}
+
+### Error: Registrar salida en cruce ya finalizado (400)
+POST {{baseUrl}}/border-crossings/BORDER_CROSSING_ID_HERE/exit
+Authorization: Bearer {{accessToken}}
+
+### Error: Canal inválido (400)
+POST {{baseUrl}}/border-crossings/BORDER_CROSSING_ID_HERE/channel
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "channel": "BLUE"
+}
+
+### ============================================================================
+### MÓDULO DOCUMENTS (DOCUMENTOS)
+### ============================================================================
+
+### Obtener todos los documentos
+GET {{baseUrl}}/documents
+Authorization: Bearer {{accessToken}}
+
+### Obtener documentos con filtros
+GET {{baseUrl}}/documents?status=PENDING&documentType=BL
+Authorization: Bearer {{accessToken}}
+
+### Obtener documentos pendientes
+GET {{baseUrl}}/documents/pending
+Authorization: Bearer {{accessToken}}
+
+### Obtener tipos de documento
+GET {{baseUrl}}/documents/types
+Authorization: Bearer {{accessToken}}
+
+### Obtener estadísticas de documentos
+GET {{baseUrl}}/documents/stats
+Authorization: Bearer {{accessToken}}
+
+### Obtener documentos por viaje
+GET {{baseUrl}}/documents/trip/TRIP_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Obtener documento por ID
+GET {{baseUrl}}/documents/DOCUMENT_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Crear documento
+# @name createDocument
+POST {{baseUrl}}/documents
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "tripId": "9e1e09c0-b3ef-4d80-a0fd-9001ee0d106b",
+  "documentType": "BL Original",
+  "documentNumber": "BL-2024-001",
+  "documentDate": "2024-06-15",
+  "fileUrl": "/uploads/documents/bl-2024-001.pdf",
+  "isLocalFile": true,
+  "notes": "Documento recibido del cliente"
+}
+
+### Actualizar documento
+PUT {{baseUrl}}/documents/DOCUMENT_ID_HERE
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "documentNumber": "BL-2024-001-ACT",
+  "notes": "Documento actualizado"
+}
+
+### Actualizar estado de documento
+PATCH {{baseUrl}}/documents/DOCUMENT_ID_HERE/status
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "status": "RECEIVED"
+}
+
+### Recibir documento
+POST {{baseUrl}}/documents/DOCUMENT_ID_HERE/receive
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "notes": "Recibido en oficina central"
+}
+
+### Verificar documento
+POST {{baseUrl}}/documents/DOCUMENT_ID_HERE/verify
+Authorization: Bearer {{accessToken}}
+
+### ============================================================================
+### CASOS DE ERROR - DOCUMENTS
+### ============================================================================
+
+### Error: Crear documento sin tipo (400)
+POST {{baseUrl}}/documents
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "tripId": "TRIP_ID_HERE",
+  "documentNumber": "BL-2024-002"
+}
+
+### Error: Crear documento con viaje inexistente (404)
+POST {{baseUrl}}/documents
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "tripId": "non-existent-trip-id",
+  "documentType": "Factura"
+}
+
+### Error: Verificar documento no recibido (400)
+POST {{baseUrl}}/documents/DOCUMENT_ID_HERE/verify
+Authorization: Bearer {{accessToken}}
+
+### Error: Recibir documento ya recibido (400)
+POST {{baseUrl}}/documents/DOCUMENT_ID_HERE/receive
+Authorization: Bearer {{accessToken}}
+
+### ============================================================================
+### MÓDULO ROUTES (RUTAS)
+### ============================================================================
+
+### Obtener rutas comunes
+GET {{baseUrl}}/routes/common
+Authorization: Bearer {{accessToken}}
+
+### Obtener rutas por viaje
+GET {{baseUrl}}/routes/trip/TRIP_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Obtener ruta por ID
+GET {{baseUrl}}/routes/ROUTE_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Crear ruta
+# @name createRoute
+POST {{baseUrl}}/routes
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "tripId": "TRIP_ID_HERE",
+  "origin": "Arica, Chile",
+  "destination": "La Paz, Bolivia",
+  "distanceKm": 550.5,
+  "rate": 1200.00,
+  "durationHours": 12
+}
+
+### Actualizar ruta
+PUT {{baseUrl}}/routes/ROUTE_ID_HERE
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "distanceKm": 560.0,
+  "durationHours": 13
+}
+
+### Eliminar ruta
+DELETE {{baseUrl}}/routes/ROUTE_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### ============================================================================
+### CASOS DE ERROR - ROUTES
+### ============================================================================
+
+### Error: Crear ruta sin origen (400)
+POST {{baseUrl}}/routes
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "tripId": "TRIP_ID_HERE",
+  "destination": "La Paz, Bolivia"
+}
+
+### Error: Crear ruta con distancia negativa (400)
+POST {{baseUrl}}/routes
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "tripId": "TRIP_ID_HERE",
+  "origin": "Arica, Chile",
+  "destination": "La Paz, Bolivia",
+  "distanceKm": -100
+}
+
+### ============================================================================
+### MÓDULO SETTLEMENTS (LIQUIDACIONES)
+### ============================================================================
+
+### Obtener todas las liquidaciones
+GET {{baseUrl}}/settlements
+Authorization: Bearer {{accessToken}}
+
+### Obtener liquidaciones por estado
+GET {{baseUrl}}/settlements?status=PENDING
+Authorization: Bearer {{accessToken}}
+
+### Obtener liquidaciones por rango de fechas
+GET {{baseUrl}}/settlements?dateFrom=2024-01-01&dateTo=2024-12-31
+Authorization: Bearer {{accessToken}}
+
+### Obtener liquidaciones pendientes
+GET {{baseUrl}}/settlements/pending
+Authorization: Bearer {{accessToken}}
+
+### Obtener estadísticas de liquidaciones
+GET {{baseUrl}}/settlements/stats
+Authorization: Bearer {{accessToken}}
+
+### Obtener liquidación por viaje
+GET {{baseUrl}}/settlements/trip/TRIP_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Obtener liquidación por ID
+GET {{baseUrl}}/settlements/SETTLEMENT_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Crear liquidación
+# @name createSettlement
+POST {{baseUrl}}/settlements
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "tripId": "TRIP_ID_HERE",
+  "freightUsd": 3500.00,
+  "freightBob": 24250.00,
+  "exchangeRate": 6.93,
+  "pricePerTon": 140.00,
+  "taxIt3Percent": 727.50,
+  "retention7Percent": 1697.50,
+  "externalCommission": 200.00,
+  "advance": 5000.00,
+  "notes": "Liquidación de viaje internacional"
+}
+
+### Actualizar liquidación (solo pendientes)
+PUT {{baseUrl}}/settlements/SETTLEMENT_ID_HERE
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "freightBob": 25000.00,
+  "notes": "Monto actualizado"
+}
+
+### Aprobar liquidación
+POST {{baseUrl}}/settlements/SETTLEMENT_ID_HERE/approve
+Authorization: Bearer {{accessToken}}
+
+### Marcar liquidación como pagada
+POST {{baseUrl}}/settlements/SETTLEMENT_ID_HERE/pay
+Authorization: Bearer {{accessToken}}
+
+### ============================================================================
+### CASOS DE ERROR - SETTLEMENTS
+### ============================================================================
+
+### Error: Crear liquidación duplicada (409)
+POST {{baseUrl}}/settlements
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "tripId": "TRIP_ID_WITH_SETTLEMENT",
+  "freightUsd": 3500.00,
+  "freightBob": 24250.00,
+  "exchangeRate": 6.93,
+  "pricePerTon": 140.00,
+  "taxIt3Percent": 727.50,
+  "retention7Percent": 1697.50
+}
+
+### Error: Actualizar liquidación aprobada (400)
+PUT {{baseUrl}}/settlements/APPROVED_SETTLEMENT_ID
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "freightBob": 25000.00
+}
+
+### Error: Aprobar liquidación ya aprobada (400)
+POST {{baseUrl}}/settlements/APPROVED_SETTLEMENT_ID/approve
+Authorization: Bearer {{accessToken}}
+
+### Error: Pagar liquidación no aprobada (400)
+POST {{baseUrl}}/settlements/PENDING_SETTLEMENT_ID/pay
+Authorization: Bearer {{accessToken}}
+
+### ============================================================================
+### MÓDULO INVOICES (FACTURAS)
+### ============================================================================
+
+### Obtener todas las facturas
+GET {{baseUrl}}/invoices
+Authorization: Bearer {{accessToken}}
+
+### Obtener facturas por estado
+GET {{baseUrl}}/invoices?status=PENDING
+Authorization: Bearer {{accessToken}}
+
+### Obtener facturas por cliente
+GET {{baseUrl}}/invoices?clientId=CLIENT_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Obtener facturas por rango de fechas
+GET {{baseUrl}}/invoices?dateFrom=2024-01-01&dateTo=2024-12-31
+Authorization: Bearer {{accessToken}}
+
+### Obtener facturas pendientes
+GET {{baseUrl}}/invoices/pending
+Authorization: Bearer {{accessToken}}
+
+### Obtener estadísticas de facturas
+GET {{baseUrl}}/invoices/stats
+Authorization: Bearer {{accessToken}}
+
+### Obtener facturas por cliente (endpoint específico)
+GET {{baseUrl}}/invoices/client/CLIENT_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Obtener factura por número
+GET {{baseUrl}}/invoices/number/INV-2024-001
+Authorization: Bearer {{accessToken}}
+
+### Obtener factura por ID
+GET {{baseUrl}}/invoices/INVOICE_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Crear factura
+# @name createInvoice
+POST {{baseUrl}}/invoices
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "invoiceNumber": "INV-2024-001",
+  "clientId": "CLIENT_ID_HERE",
+  "invoiceDate": "2024-06-15",
+  "totalAmount": 25000.00,
+  "amountUsd": 3600.00,
+  "exchangeRate": 6.94,
+  "notes": "Factura por servicios de transporte",
+  "tripIds": ["TRIP_ID_1", "TRIP_ID_2"]
+}
+
+### Actualizar factura (solo pendientes)
+PUT {{baseUrl}}/invoices/INVOICE_ID_HERE
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "totalAmount": 26000.00,
+  "notes": "Monto actualizado"
+}
+
+### Aprobar/Emitir factura
+POST {{baseUrl}}/invoices/INVOICE_ID_HERE/approve
+Authorization: Bearer {{accessToken}}
+
+### Marcar factura como pagada
+POST {{baseUrl}}/invoices/INVOICE_ID_HERE/pay
+Authorization: Bearer {{accessToken}}
+
+### Cancelar factura
+POST {{baseUrl}}/invoices/INVOICE_ID_HERE/cancel
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "reason": "Solicitud del cliente - datos incorrectos"
+}
+
+### Agregar viaje a factura
+POST {{baseUrl}}/invoices/INVOICE_ID_HERE/trips
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "tripId": "TRIP_ID_HERE"
+}
+
+### Remover viaje de factura
+DELETE {{baseUrl}}/invoices/INVOICE_ID_HERE/trips/TRIP_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### ============================================================================
+### CASOS DE ERROR - INVOICES
+### ============================================================================
+
+### Error: Crear factura con número duplicado (409)
+POST {{baseUrl}}/invoices
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "invoiceNumber": "INV-EXISTENTE",
+  "clientId": "CLIENT_ID_HERE",
+  "totalAmount": 10000.00
+}
+
+### Error: Crear factura con cliente inexistente (404)
+POST {{baseUrl}}/invoices
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "invoiceNumber": "INV-2024-002",
+  "clientId": "non-existent-client-id",
+  "totalAmount": 10000.00
+}
+
+### Error: Crear factura con viajes ya facturados (400)
+POST {{baseUrl}}/invoices
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "invoiceNumber": "INV-2024-003",
+  "clientId": "CLIENT_ID_HERE",
+  "totalAmount": 10000.00,
+  "tripIds": ["ALREADY_INVOICED_TRIP_ID"]
+}
+
+### Error: Cancelar factura pagada (400)
+POST {{baseUrl}}/invoices/PAID_INVOICE_ID/cancel
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "reason": "Intento de cancelación"
+}
+
+### Error: Cancelar sin razón (400)
+POST {{baseUrl}}/invoices/INVOICE_ID_HERE/cancel
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{}
+
+### Error: Actualizar factura emitida (400)
+PUT {{baseUrl}}/invoices/ISSUED_INVOICE_ID
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "totalAmount": 30000.00
+}
+
+### Error: Agregar viaje ya facturado (400)
+POST {{baseUrl}}/invoices/INVOICE_ID_HERE/trips
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "tripId": "ALREADY_INVOICED_TRIP_ID"
+}
+
+### Error: Pagar factura no emitida (400)
+POST {{baseUrl}}/invoices/PENDING_INVOICE_ID/pay
+Authorization: Bearer {{accessToken}}
+
+### ============================================================================
+### FLUJO COMPLETO DE TRABAJO (WORKFLOW)
+### ============================================================================
+
+### 1. Login
+# @name workflowLogin
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@templarios.com",
+  "password": "Admin123!"
+}
+
+@workflowToken = {{workflowLogin.response.body.data.accessToken}}
+
+### 2. Crear viaje
+# @name workflowTrip
+POST {{baseUrl}}/trips
+Authorization: Bearer {{workflowToken}}
+Content-Type: {{contentType}}
+
+{
+  "micDta": "MIC-WORKFLOW-001",
+  "departureDate": "2024-06-20T06:00:00Z",
+  "billOfLadingId": "EXISTING_BL_ID",
+  "truckId": "EXISTING_TRUCK_ID",
+  "driverId": "EXISTING_DRIVER_ID",
+  "weight": 30.0,
+  "ratePerTon": 150.00
+}
+
+@tripId = {{workflowTrip.response.body.data.id}}
+
+### 3. Agregar ruta al viaje
+POST {{baseUrl}}/routes
+Authorization: Bearer {{workflowToken}}
+Content-Type: {{contentType}}
+
+{
+  "tripId": "{{tripId}}",
+  "origin": "Arica, Chile",
+  "destination": "La Paz, Bolivia",
+  "distanceKm": 550,
+  "durationHours": 12
+}
+
+### 4. Subir documentos
+POST {{baseUrl}}/documents
+Authorization: Bearer {{workflowToken}}
+Content-Type: {{contentType}}
+
+{
+  "tripId": "{{tripId}}",
+  "documentType": "MIC/DTA",
+  "documentNumber": "MIC-WORKFLOW-001",
+  "isLocalFile": false
+}
+
+### 5. Iniciar viaje
+PATCH {{baseUrl}}/trips/{{tripId}}/status
+Authorization: Bearer {{workflowToken}}
+Content-Type: {{contentType}}
+
+{
+  "status": "IN_TRANSIT"
+}
+
+### 6. Llegada a frontera
+# @name workflowBorder
+POST {{baseUrl}}/border-crossings
+Authorization: Bearer {{workflowToken}}
+Content-Type: {{contentType}}
+
+{
+  "tripId": "{{tripId}}",
+  "borderName": "Aduana Tambo Quemado"
+}
+
+@borderId = {{workflowBorder.response.body.data.id}}
+
+### 7. Cambio de canal
+POST {{baseUrl}}/border-crossings/{{borderId}}/channel
+Authorization: Bearer {{workflowToken}}
+Content-Type: {{contentType}}
+
+{
+  "channel": "YELLOW",
+  "reason": "Revisión documental"
+}
+
+### 8. Salida de frontera
+POST {{baseUrl}}/border-crossings/{{borderId}}/exit
+Authorization: Bearer {{workflowToken}}
+
+### 9. Entrega completada
+PATCH {{baseUrl}}/trips/{{tripId}}/status
+Authorization: Bearer {{workflowToken}}
+Content-Type: {{contentType}}
+
+{
+  "status": "DELIVERED"
+}
+
+### 10. Crear liquidación
+# @name workflowSettlement
+POST {{baseUrl}}/settlements
+Authorization: Bearer {{workflowToken}}
+Content-Type: {{contentType}}
+
+{
+  "tripId": "{{tripId}}",
+  "freightUsd": 4500.00,
+  "freightBob": 31185.00,
+  "exchangeRate": 6.93,
+  "pricePerTon": 150.00,
+  "taxIt3Percent": 935.55,
+  "retention7Percent": 2182.95,
+  "advance": 5000.00
+}
+
+@settlementId = {{workflowSettlement.response.body.data.id}}
+
+### 11. Aprobar liquidación
+POST {{baseUrl}}/settlements/{{settlementId}}/approve
+Authorization: Bearer {{workflowToken}}
+
+### 12. Crear factura
+# @name workflowInvoice
+POST {{baseUrl}}/invoices
+Authorization: Bearer {{workflowToken}}
+Content-Type: {{contentType}}
+
+{
+  "invoiceNumber": "INV-WORKFLOW-001",
+  "clientId": "CLIENT_ID_HERE",
+  "totalAmount": 31185.00,
+  "tripIds": ["{{tripId}}"]
+}
+
+@invoiceId = {{workflowInvoice.response.body.data.id}}
+
+### 13. Emitir factura
+POST {{baseUrl}}/invoices/{{invoiceId}}/approve
+Authorization: Bearer {{workflowToken}}
+
+### 14. Marcar como pagada
+POST {{baseUrl}}/invoices/{{invoiceId}}/pay
+Authorization: Bearer {{workflowToken}}
+
+### 15. Pagar liquidación
+POST {{baseUrl}}/settlements/{{settlementId}}/pay
+Authorization: Bearer {{workflowToken}}
+
+### ============================================================================
+### RESUMEN DE ENDPOINTS - SPRINT 4
+### ============================================================================
+###
+### TRIPS:
+### - GET    /trips                    - Listar viajes
+### - GET    /trips/available          - Recursos disponibles
+### - GET    /trips/stats              - Estadísticas
+### - GET    /trips/search             - Buscar viajes
+### - GET    /trips/driver/:driverId   - Viajes por conductor
+### - GET    /trips/bl/:blId           - Viajes por BL
+### - GET    /trips/:id                - Detalle de viaje
+### - POST   /trips                    - Crear viaje
+### - PUT    /trips/:id                - Actualizar viaje
+### - PATCH  /trips/:id/status         - Cambiar estado
+###
+### BORDER CROSSINGS:
+### - GET    /border-crossings/active     - Fronteras activas
+### - GET    /border-crossings/stats      - Estadísticas
+### - GET    /border-crossings/trip/:tripId - Cruces por viaje
+### - GET    /border-crossings/:id        - Detalle de cruce
+### - GET    /border-crossings/:id/history - Historial de canales
+### - POST   /border-crossings            - Registrar llegada
+### - POST   /border-crossings/:id/exit   - Registrar salida
+### - POST   /border-crossings/:id/channel - Cambiar canal
+###
+### DOCUMENTS:
+### - GET    /documents               - Listar documentos
+### - GET    /documents/pending       - Documentos pendientes
+### - GET    /documents/types         - Tipos de documento
+### - GET    /documents/stats         - Estadísticas
+### - GET    /documents/trip/:tripId  - Documentos por viaje
+### - GET    /documents/:id           - Detalle de documento
+### - POST   /documents               - Crear documento
+### - PUT    /documents/:id           - Actualizar documento
+### - PATCH  /documents/:id/status    - Cambiar estado
+### - POST   /documents/:id/receive   - Recibir documento
+### - POST   /documents/:id/verify    - Verificar documento
+###
+### ROUTES:
+### - GET    /routes/common           - Rutas comunes
+### - GET    /routes/trip/:tripId     - Rutas por viaje
+### - GET    /routes/:id              - Detalle de ruta
+### - POST   /routes                  - Crear ruta
+### - PUT    /routes/:id              - Actualizar ruta
+### - DELETE /routes/:id              - Eliminar ruta
+###
+### SETTLEMENTS:
+### - GET    /settlements             - Listar liquidaciones
+### - GET    /settlements/pending     - Liquidaciones pendientes
+### - GET    /settlements/stats       - Estadísticas
+### - GET    /settlements/trip/:tripId - Liquidación por viaje
+### - GET    /settlements/:id         - Detalle de liquidación
+### - POST   /settlements             - Crear liquidación
+### - PUT    /settlements/:id         - Actualizar liquidación
+### - POST   /settlements/:id/approve - Aprobar liquidación
+### - POST   /settlements/:id/pay     - Marcar como pagada
+###
+### INVOICES:
+### - GET    /invoices                - Listar facturas
+### - GET    /invoices/pending        - Facturas pendientes
+### - GET    /invoices/stats          - Estadísticas
+### - GET    /invoices/client/:clientId - Facturas por cliente
+### - GET    /invoices/number/:invoiceNumber - Por número
+### - GET    /invoices/:id            - Detalle de factura
+### - POST   /invoices                - Crear factura
+### - PUT    /invoices/:id            - Actualizar factura
+### - POST   /invoices/:id/approve    - Emitir factura
+### - POST   /invoices/:id/pay        - Marcar como pagada
+### - POST   /invoices/:id/cancel     - Cancelar factura
+### - POST   /invoices/:invoiceId/trips - Agregar viaje
+### - DELETE /invoices/:invoiceId/trips/:tripId - Remover viaje
+###
+### ============================================================================

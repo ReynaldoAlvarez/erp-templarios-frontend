@@ -1,0 +1,723 @@
+# ============================================================================
+# SPRINT 5 - FASE 1: SCHEMA CHANGES
+# ============================================================================
+# Tests para verificar los cambios en el schema de base de datos
+# 
+# IMPORTANTE: Este archivo documenta las respuestas esperadas para el frontend
+# después de aplicar la migración del Sprint 5 Fase 1
+# ============================================================================
+
+@baseUrl = http://localhost:3001/api/v1
+@token = {{login.response.body.data.token}}
+
+# ============================================================================
+# AUTENTICACIÓN
+# ============================================================================
+
+### Login - Obtener token
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@templarios.com",
+  "password": "Admin123!"
+}
+
+# ============================================================================
+# RESPUESTA ESPERADA (Login):
+# ============================================================================
+# {
+#   "success": true,
+#   "message": "Login exitoso",
+#   "data": {
+#     "token": "eyJhbGciOiJIUzI1NiIs...",
+#     "refreshToken": "eyJhbGciOiJIUzI1NiIs...",
+#     "user": {
+#       "id": "uuid",
+#       "email": "admin@templarios.com",
+#       "firstName": "Super",
+#       "lastName": "Admin",
+#       "company": {
+#         "id": "uuid",
+#         "name": "TEMPLARIOS S.R.L.",
+#         "companyName": "TEMPLARIOS S.R.L.",  // ← NUEVO: Nombre comercial
+#         "companyType": "OWN"                  // ← NUEVO: Tipo de empresa
+#       },
+#       "roles": [
+#         {
+#           "id": "uuid",
+#           "name": "Super Admin"
+#         }
+#       ]
+#     }
+#   }
+# }
+# ============================================================================
+
+# ============================================================================
+# DOCUMENT TYPES - Catálogo de tipos de documento (NUEVO)
+# ============================================================================
+
+### Listar todos los tipos de documento
+# @name listDocumentTypes
+GET {{baseUrl}}/document-types
+Authorization: Bearer {{token}}
+
+# ============================================================================
+# RESPUESTA ESPERADA (Listar DocumentTypes):
+# ============================================================================
+# {
+#   "success": true,
+#   "data": [
+#     {
+#       "id": "uuid",
+#       "code": "MIC",
+#       "name": "Manifiesto Internacional de Carga",
+#       "description": "Documento aduanero principal que ampara el transporte internacional de mercancías",
+#       "isRequired": true,
+#       "isForSupportOnly": false,
+#       "order": 1,
+#       "isActive": true,
+#       "createdAt": "2025-03-25T12:00:00.000Z",
+#       "updatedAt": "2025-03-25T12:00:00.000Z"
+#     },
+#     {
+#       "id": "uuid",
+#       "code": "CRT",
+#       "name": "Carta de Porte",
+#       "description": "Documento que certifica el transporte de la mercancía desde origen hasta destino",
+#       "isRequired": true,
+#       "isForSupportOnly": false,
+#       "order": 2,
+#       "isActive": true,
+#       "createdAt": "2025-03-25T12:00:00.000Z",
+#       "updatedAt": "2025-03-25T12:00:00.000Z"
+#     },
+#     {
+#       "id": "uuid",
+#       "code": "ASPB",
+#       "name": "Autorización de Servicio de Transporte de Carga",
+#       "description": "Documento emitido por la Aduana Nacional de Bolivia",
+#       "isRequired": true,
+#       "isForSupportOnly": false,
+#       "order": 3,
+#       "isActive": true,
+#       "createdAt": "2025-03-25T12:00:00.000Z",
+#       "updatedAt": "2025-03-25T12:00:00.000Z"
+#     },
+#     {
+#       "id": "uuid",
+#       "code": "NOTA_TARJA",
+#       "name": "Nota de Tarja",
+#       "description": "Documento de control de carga en puerto, registro de unidades recibidas",
+#       "isRequired": true,
+#       "isForSupportOnly": false,
+#       "order": 4,
+#       "isActive": true,
+#       "createdAt": "2025-03-25T12:00:00.000Z",
+#       "updatedAt": "2025-03-25T12:00:00.000Z"
+#     },
+#     {
+#       "id": "uuid",
+#       "code": "BALANZA",
+#       "name": "Comprobante de Balanza",
+#       "description": "Comprobante de pesaje de la carga, verifica el peso declarado",
+#       "isRequired": true,
+#       "isForSupportOnly": false,
+#       "order": 5,
+#       "isActive": true,
+#       "createdAt": "2025-03-25T12:00:00.000Z",
+#       "updatedAt": "2025-03-25T12:00:00.000Z"
+#     },
+#     {
+#       "id": "uuid",
+#       "code": "FACTURA",
+#       "name": "Factura de Servicio de Transporte",
+#       "description": "Factura comercial del servicio de transporte - requerida solo para transportistas de apoyo",
+#       "isRequired": true,
+#       "isForSupportOnly": true,    // ← Solo para camiones de apoyo
+#       "order": 6,
+#       "isActive": true,
+#       "createdAt": "2025-03-25T12:00:00.000Z",
+#       "updatedAt": "2025-03-25T12:00:00.000Z"
+#     }
+#   ],
+#   "meta": {
+#     "total": 6,
+#     "page": 1,
+#     "limit": 10
+#   }
+# }
+# ============================================================================
+
+### Obtener tipo de documento por código
+# @name getDocumentTypeByCode
+GET {{baseUrl}}/document-types/MIC
+Authorization: Bearer {{token}}
+
+# ============================================================================
+# RESPUESTA ESPERADA (Obtener DocumentType por código):
+# ============================================================================
+# {
+#   "success": true,
+#   "data": {
+#     "id": "uuid",
+#     "code": "MIC",
+#     "name": "Manifiesto Internacional de Carga",
+#     "description": "Documento aduanero principal que ampara el transporte internacional de mercancías",
+#     "isRequired": true,
+#     "isForSupportOnly": false,
+#     "order": 1,
+#     "isActive": true,
+#     "createdAt": "2025-03-25T12:00:00.000Z",
+#     "updatedAt": "2025-03-25T12:00:00.000Z"
+#   }
+# }
+# ============================================================================
+
+### Listar documentos requeridos para camiones propios
+# @name getRequiredDocumentsOwn
+GET {{baseUrl}}/document-types?filter=required&isForSupportOnly=false
+Authorization: Bearer {{token}}
+
+# ============================================================================
+# RESPUESTA ESPERADA (Documentos para camiones propios):
+# ============================================================================
+# Retorna solo documentos donde isForSupportOnly = false
+# {
+#   "success": true,
+#   "data": [
+#     { "code": "MIC", "name": "Manifiesto Internacional de Carga", ... },
+#     { "code": "CRT", "name": "Carta de Porte", ... },
+#     { "code": "ASPB", "name": "Autorización de Servicio de Transporte de Carga", ... },
+#     { "code": "NOTA_TARJA", "name": "Nota de Tarja", ... },
+#     { "code": "BALANZA", "name": "Comprobante de Balanza", ... }
+#   ],
+#   "meta": { "total": 5 }
+# }
+# ============================================================================
+
+### Listar documentos requeridos para camiones de apoyo
+# @name getRequiredDocumentsSupport
+GET {{baseUrl}}/document-types?filter=required
+Authorization: Bearer {{token}}
+
+# ============================================================================
+# RESPUESTA ESPERADA (Documentos para camiones de apoyo):
+# ============================================================================
+# Retorna TODOS los documentos incluyendo FACTURA
+# {
+#   "success": true,
+#   "data": [
+#     { "code": "MIC", ... },
+#     { "code": "CRT", ... },
+#     { "code": "ASPB", ... },
+#     { "code": "NOTA_TARJA", ... },
+#     { "code": "BALANZA", ... },
+#     { "code": "FACTURA", ... }    // ← Incluido para apoyo
+#   ],
+#   "meta": { "total": 6 }
+# }
+# ============================================================================
+
+# ============================================================================
+# TRAMOS - Catálogo de rutas predefinidas (NUEVO)
+# ============================================================================
+
+### Listar todos los tramos
+# @name listTramos
+GET {{baseUrl}}/tramos
+Authorization: Bearer {{token}}
+
+# ============================================================================
+# RESPUESTA ESPERADA (Listar Tramos):
+# ============================================================================
+# {
+#   "success": true,
+#   "data": [
+#     {
+#       "id": "uuid",
+#       "code": "MAT-CBA",
+#       "name": "Matarani - Cochabamba",
+#       "origin": "Matarani",
+#       "destination": "Cochabamba",
+#       "distanceKm": 845.50,
+#       "estimatedHours": 18,
+#       "baseRateUsd": 1200.00,
+#       "baseRateBob": null,
+#       "isActive": true,
+#       "notes": null,
+#       "createdAt": "2025-03-25T12:00:00.000Z",
+#       "updatedAt": "2025-03-25T12:00:00.000Z"
+#     },
+#     {
+#       "id": "uuid",
+#       "code": "ARI-LPZ",
+#       "name": "Arica - La Paz",
+#       "origin": "Arica",
+#       "destination": "La Paz",
+#       "distanceKm": 520.00,
+#       "estimatedHours": 12,
+#       "baseRateUsd": 850.00,
+#       "baseRateBob": null,
+#       "isActive": true,
+#       "notes": null,
+#       "createdAt": "2025-03-25T12:00:00.000Z",
+#       "updatedAt": "2025-03-25T12:00:00.000Z"
+#     },
+#     {
+#       "id": "uuid",
+#       "code": "MAT-SCZ",
+#       "name": "Matarani - Santa Cruz",
+#       "origin": "Matarani",
+#       "destination": "Santa Cruz",
+#       "distanceKm": 1250.00,
+#       "estimatedHours": 26,
+#       "baseRateUsd": 1800.00,
+#       "baseRateBob": null,
+#       "isActive": true,
+#       "notes": null,
+#       "createdAt": "2025-03-25T12:00:00.000Z",
+#       "updatedAt": "2025-03-25T12:00:00.000Z"
+#     },
+#     {
+#       "id": "uuid",
+#       "code": "MAT-LPZ",
+#       "name": "Matarani - La Paz",
+#       "origin": "Matarani",
+#       "destination": "La Paz",
+#       "distanceKm": 680.00,
+#       "estimatedHours": 15,
+#       "baseRateUsd": 950.00,
+#       "baseRateBob": null,
+#       "isActive": true,
+#       "notes": null,
+#       "createdAt": "2025-03-25T12:00:00.000Z",
+#       "updatedAt": "2025-03-25T12:00:00.000Z"
+#     },
+#     {
+#       "id": "uuid",
+#       "code": "DES-CBA",
+#       "name": "Desaguadero - Cochabamba",
+#       "origin": "Desaguadero",
+#       "destination": "Cochabamba",
+#       "distanceKm": 380.00,
+#       "estimatedHours": 8,
+#       "baseRateUsd": 650.00,
+#       "baseRateBob": null,
+#       "isActive": true,
+#       "notes": null,
+#       "createdAt": "2025-03-25T12:00:00.000Z",
+#       "updatedAt": "2025-03-25T12:00:00.000Z"
+#     },
+#     {
+#       "id": "uuid",
+#       "code": "DES-SCZ",
+#       "name": "Desaguadero - Santa Cruz",
+#       "origin": "Desaguadero",
+#       "destination": "Santa Cruz",
+#       "distanceKm": 850.00,
+#       "estimatedHours": 18,
+#       "baseRateUsd": 1400.00,
+#       "baseRateBob": null,
+#       "isActive": true,
+#       "notes": null,
+#       "createdAt": "2025-03-25T12:00:00.000Z",
+#       "updatedAt": "2025-03-25T12:00:00.000Z"
+#     }
+#   ],
+#   "meta": {
+#     "total": 6,
+#     "page": 1,
+#     "limit": 10
+#   }
+# }
+# ============================================================================
+
+### Obtener tramo por código
+# @name getTramoByCode
+GET {{baseUrl}}/tramos/MAT-CBA
+Authorization: Bearer {{token}}
+
+# ============================================================================
+# RESPUESTA ESPERADA (Obtener Tramo por código):
+# ============================================================================
+# {
+#   "success": true,
+#   "data": {
+#     "id": "uuid",
+#     "code": "MAT-CBA",
+#     "name": "Matarani - Cochabamba",
+#     "origin": "Matarani",
+#     "destination": "Cochabamba",
+#     "distanceKm": 845.50,
+#     "estimatedHours": 18,
+#     "baseRateUsd": 1200.00,
+#     "baseRateBob": null,
+#     "isActive": true,
+#     "notes": null,
+#     "createdAt": "2025-03-25T12:00:00.000Z",
+#     "updatedAt": "2025-03-25T12:00:00.000Z"
+#   }
+# }
+# ============================================================================
+
+# ============================================================================
+# CAMBIOS EN MODELOS EXISTENTES
+# ============================================================================
+
+### Listar camiones - Verificar nuevo campo isSupportTruck
+# @name listTrucks
+GET {{baseUrl}}/trucks
+Authorization: Bearer {{token}}
+
+# ============================================================================
+# RESPUESTA ESPERADA (Listar Trucks - CAMPOS NUEVOS):
+# ============================================================================
+# {
+#   "success": true,
+#   "data": [
+#     {
+#       "id": "uuid",
+#       "plateNumber": "ABC-123",
+#       "brand": "Volvo",
+#       "model": "FH 460",
+#       "year": 2022,
+#       "axles": 3,
+#       "capacityTons": 29.00,
+#       "isSupportTruck": false,     // ← NUEVO: Indica si es camión de apoyo
+#       "status": "SCHEDULED",
+#       "company": {
+#         "id": "uuid",
+#         "name": "TEMPLARIOS S.R.L.",
+#         "companyName": "TEMPLARIOS S.R.L.",  // ← NUEVO
+#         "companyType": "OWN"                  // ← NUEVO
+#       }
+#     }
+#   ]
+# }
+# ============================================================================
+
+### Listar viajes - Verificar nuevos campos lineNumber y unitCount
+# @name listTrips
+GET {{baseUrl}}/trips
+Authorization: Bearer {{token}}
+
+# ============================================================================
+# RESPUESTA ESPERADA (Listar Trips - CAMPOS NUEVOS):
+# ============================================================================
+# {
+#   "success": true,
+#   "data": [
+#     {
+#       "id": "uuid",
+#       "micDta": "MIC-2024-001",
+#       "lineNumber": 1,              // ← NUEVO: Número de línea en BL
+#       "unitCount": 1,               // ← NUEVO: Cantidad de unidades asignadas
+#       "departureDate": "2025-03-25T08:00:00.000Z",
+#       "arrivalDate": null,
+#       "weight": 26000.00,
+#       "status": "IN_TRANSIT",
+#       "billOfLading": {
+#         "id": "uuid",
+#         "blNumber": "BL-2024-001",
+#         "totalWeight": 52000.00,
+#         "unitCount": 2
+#       },
+#       "truck": {
+#         "id": "uuid",
+#         "plateNumber": "ABC-123",
+#         "isSupportTruck": false     // ← NUEVO
+#       },
+#       "driver": {
+#         "id": "uuid",
+#         "firstName": "Juan",
+#         "lastName": "Pérez"
+#       },
+#       "routes": [
+#         {
+#           "id": "uuid",
+#           "origin": "Matarani",
+#           "destination": "Cochabamba",
+#           "tramoId": "uuid",        // ← NUEVO: Referencia al tramo
+#           "tramo": {                // ← NUEVO: Tramo expandido
+#             "code": "MAT-CBA",
+#             "name": "Matarani - Cochabamba"
+#           }
+#         }
+#       ]
+#     }
+#   ]
+# }
+# ============================================================================
+
+### Obtener liquidación - Verificar nuevos campos
+# @name getSettlement
+GET {{baseUrl}}/settlements/{{tripId}}
+Authorization: Bearer {{token}}
+
+# ============================================================================
+# RESPUESTA ESPERADA (Settlement - CAMPOS NUEVOS):
+# ============================================================================
+# {
+#   "success": true,
+#   "data": {
+#     "id": "uuid",
+#     "tripId": "uuid",
+#     "freightUsd": 1500.00,
+#     "freightBob": 10500.00,
+#     "exchangeRate": 7.00,
+#     "pricePerTon": 57.69,
+#     "taxIt3Percent": 45.00,
+#     "retentionPercent": 7.00,       // ← NUEVO: Porcentaje variable (era fijo 7%)
+#     "retentionAmount": 105.00,      // ← RENOMBRADO: era retention7Percent
+#     "externalCommission": null,
+#     "advance": 0.00,
+#     "netPayment": 10350.00,
+#     "documentsComplete": false,     // ← NUEVO: Documentos completos
+#     "isPaymentBlocked": true,       // ← NUEVO: Pago bloqueado
+#     "status": "PENDING",
+#     "trip": {
+#       "id": "uuid",
+#       "micDta": "MIC-2024-001",
+#       "documents": [
+#         {
+#           "id": "uuid",
+#           "documentTypeId": "uuid",   // ← NUEVO: FK a DocumentType
+#           "documentType": {           // ← NUEVO: Relación expandida
+#             "code": "MIC",
+#             "name": "Manifiesto Internacional de Carga"
+#           },
+#           "status": "PENDING"
+#         }
+#       ]
+#     }
+#   }
+# }
+# ============================================================================
+
+# ============================================================================
+# TRIP REPORTS - Tabla intermedia para reportes (NUEVO)
+# ============================================================================
+
+### Listar trip reports
+# @name listTripReports
+GET {{baseUrl}}/trip-reports
+Authorization: Bearer {{token}}
+
+# ============================================================================
+# RESPUESTA ESPERADA (Listar TripReports):
+# ============================================================================
+# {
+#   "success": true,
+#   "data": [
+#     {
+#       "id": "uuid",
+#       "tripId": "uuid",
+#       "micDta": "MIC-2024-001",
+#       "blNumber": "BL-2024-001",
+#       "lineNumber": 1,
+#       "clientId": "uuid",
+#       "clientName": "SIDERURGICA BOLIVIA S.R.L.",
+#       "clientNit": "1023456789",
+#       "origin": "Matarani",
+#       "destination": "Cochabamba",
+#       "tramoCode": "MAT-CBA",
+#       "truckPlate": "ABC-123",
+#       "trailerPlate": "XYZ-456",
+#       "driverName": "Juan Pérez",
+#       "driverCi": "12345678",
+#       "isSupportTruck": false,
+#       "weightKg": 26000.00,
+#       "unitCount": 1,
+#       "freightAmount": 1500.00,
+#       "retentionPercent": 7.00,
+#       "retentionAmount": 105.00,
+#       "netAmount": 1395.00,
+#       "documentsComplete": false,
+#       "documentsPending": 3,
+#       "missingDocuments": "MIC,BALANZA,NOTA_TARJA",
+#       "isPaymentBlocked": true,
+#       "paymentStatus": "pending",
+#       "departureDate": "2025-03-25T08:00:00.000Z",
+#       "arrivalDate": null,
+#       "documentDate": null,
+#       "createdAt": "2025-03-25T12:00:00.000Z",
+#       "updatedAt": "2025-03-25T12:00:00.000Z"
+#     }
+#   ],
+#   "meta": {
+#     "total": 1,
+#     "page": 1,
+#     "limit": 10
+#   }
+# }
+# ============================================================================
+
+### Obtener trip report por MIC/DTA
+# @name getTripReportByMicDta
+GET {{baseUrl}}/trip-reports/mic/MIC-2024-001
+Authorization: Bearer {{token}}
+
+# ============================================================================
+# RESPUESTA ESPERADA (Obtener TripReport por MIC/DTA):
+# ============================================================================
+# {
+#   "success": true,
+#   "data": {
+#     "id": "uuid",
+#     "tripId": "uuid",
+#     "micDta": "MIC-2024-001",
+#     "blNumber": "BL-2024-001",
+#     ... (todos los campos del trip report)
+#   }
+# }
+# ============================================================================
+
+### Exportar trip reports a Excel
+# @name exportTripReports
+GET {{baseUrl}}/trip-reports/export?format=xlsx&blNumber=BL-2024-001
+Authorization: Bearer {{token}}
+
+# ============================================================================
+# RESPUESTA ESPERADA (Exportar a Excel):
+# ============================================================================
+# Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+# Content-Disposition: attachment; filename="trip-reports-BL-2024-001.xlsx"
+# 
+# (Archivo Excel binario)
+# ============================================================================
+
+# ============================================================================
+# ERRORES COMUNES - Para manejo en Frontend
+# ============================================================================
+
+### Error: Tipo de documento no encontrado
+# @name getDocumentTypeNotFound
+GET {{baseUrl}}/document-types/INVALID_CODE
+Authorization: Bearer {{token}}
+
+# ============================================================================
+# RESPUESTA ESPERADA (Error 404):
+# ============================================================================
+# {
+#   "success": false,
+#   "error": {
+#     "code": "DOCUMENT_TYPE_NOT_FOUND",
+#     "message": "Tipo de documento no encontrado",
+#     "statusCode": 404
+#   }
+# }
+# ============================================================================
+
+### Error: Tramo no encontrado
+# @name getTramoNotFound
+GET {{baseUrl}}/tramos/INVALID_CODE
+Authorization: Bearer {{token}}
+
+# ============================================================================
+# RESPUESTA ESPERADA (Error 404):
+# ============================================================================
+# {
+#   "success": false,
+#   "error": {
+#     "code": "TRAMO_NOT_FOUND",
+#     "message": "Tramo no encontrado",
+#     "statusCode": 404
+#   }
+# }
+# ============================================================================
+
+### Error: MIC/DTA duplicado
+# @name createTripWithDuplicateMicDta
+POST {{baseUrl}}/trips
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "micDta": "MIC-2024-001",
+  "billOfLadingId": "uuid",
+  "truckId": "uuid",
+  "driverId": "uuid",
+  "weight": 26000
+}
+
+# ============================================================================
+# RESPUESTA ESPERADA (Error 409 - Conflicto):
+# ============================================================================
+# {
+#   "success": false,
+#   "error": {
+#     "code": "MIC_DTA_ALREADY_EXISTS",
+#     "message": "El MIC/DTA ya existe en el sistema",
+#     "statusCode": 409,
+#     "details": {
+#       "field": "micDta",
+#       "value": "MIC-2024-001"
+#     }
+#   }
+# }
+# ============================================================================
+
+### Error: Pago bloqueado por documentos faltantes
+# @name processPaymentBlocked
+POST {{baseUrl}}/settlements/{{settlementId}}/pay
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "paymentMethod": "BANK_TRANSFER",
+  "reference": "TRF-001"
+}
+
+# ============================================================================
+# RESPUESTA ESPERADA (Error 400 - Pago bloqueado):
+# ============================================================================
+# {
+#   "success": false,
+#   "error": {
+#     "code": "PAYMENT_BLOCKED",
+#     "message": "El pago está bloqueado debido a documentos faltantes",
+#     "statusCode": 400,
+#     "details": {
+#       "isPaymentBlocked": true,
+#       "documentsComplete": false,
+#       "missingDocuments": ["MIC", "BALANZA", "NOTA_TARJA"]
+#     }
+#   }
+# }
+# ============================================================================
+
+# ============================================================================
+# NOTAS PARA EL FRONTEND
+# ============================================================================
+# 
+# 1. NUEVOS ENDPOINTS DISPONIBLES:
+#    - GET /document-types - Listar tipos de documento
+#    - GET /document-types/:code - Obtener tipo por código
+#    - GET /tramos - Listar tramos
+#    - GET /tramos/:code - Obtener tramo por código
+#    - GET /trip-reports - Listar reportes
+#    - GET /trip-reports/mic/:micDta - Obtener por MIC/DTA
+#    - GET /trip-reports/export - Exportar a Excel
+#
+# 2. CAMPOS NUEVOS EN RESPUESTAS EXISTENTES:
+#    - Company: companyName, companyType
+#    - Truck: isSupportTruck
+#    - Trip: lineNumber, unitCount
+#    - Route: tramoId, tramo (expandido)
+#    - Settlement: retentionPercent, retentionAmount, documentsComplete, isPaymentBlocked
+#    - Document: documentTypeId, documentType (expandido)
+#
+# 3. LÓGICA DE NEGOCIO IMPORTANTE:
+#    - isForSupportOnly=true en DocumentType: Solo requerido para camiones de apoyo
+#    - isSupportTruck=true en Truck: Requiere FACTURA adicional
+#    - isPaymentBlocked=true en Settlement: No se puede procesar el pago
+#    - MIC/DTA debe ser único en todo el sistema
+#
+# 4. CHECKLIST DE DOCUMENTOS:
+#    - Para camiones propios (isSupportTruck=false): 5 documentos
+#    - Para camiones de apoyo (isSupportTruck=true): 6 documentos (incluye FACTURA)
+#
+# ============================================================================

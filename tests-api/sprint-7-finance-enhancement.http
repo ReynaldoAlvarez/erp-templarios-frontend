@@ -1,0 +1,630 @@
+###############################################################################
+# SPRINT 7 - FINANCE ENHANCEMENT
+# ERP TEMPLARIOS - Sistema de Gestión de Transporte Internacional
+# Módulos: Cash Flow, Payments, SIN Export
+###############################################################################
+
+@baseUrl = http://localhost:3001/api/v1
+@contentType = application/json
+
+###############################################################################
+# VARIABLES
+###############################################################################
+
+# Credentials
+@email = admin@templarios.com
+@password = Admin123!
+
+# Tokens (se actualizarán después del login)
+@accessToken = {{login.response.body.data.accessToken}}
+@refreshToken = {{login.response.body.data.refreshToken}}
+
+# IDs (se actualizarán después de crear registros)
+@cashFlowId = 
+@paymentId = 
+@sinExportId = 
+@invoiceId = 
+
+###############################################################################
+# AUTHENTICATION
+###############################################################################
+
+### Login
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Get Current User
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{accessToken}}
+
+###############################################################################
+# CASH FLOW (FLUJO DE CAJA) ENDPOINTS
+###############################################################################
+
+### Get Cash Flow Types
+GET {{baseUrl}}/cash-flow/types
+Authorization: Bearer {{accessToken}}
+
+### Get Cash Flow Categories
+GET {{baseUrl}}/cash-flow/categories
+Authorization: Bearer {{accessToken}}
+
+### Get Payment Methods
+GET {{baseUrl}}/cash-flow/payment-methods
+Authorization: Bearer {{accessToken}}
+
+### Get All Cash Flow Records
+GET {{baseUrl}}/cash-flow
+Authorization: Bearer {{accessToken}}
+
+### Get Cash Flow with Pagination
+GET {{baseUrl}}/cash-flow?page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+### Get Cash Flow by Type (Income)
+GET {{baseUrl}}/cash-flow?type=INCOME
+Authorization: Bearer {{accessToken}}
+
+### Get Cash Flow by Type (Expense)
+GET {{baseUrl}}/cash-flow?type=EXPENSE
+Authorization: Bearer {{accessToken}}
+
+### Get Cash Flow by Category
+GET {{baseUrl}}/cash-flow?category=FUEL
+Authorization: Bearer {{accessToken}}
+
+### Get Cash Flow by Date Range
+GET {{baseUrl}}/cash-flow?startDate=2026-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+### Get Cash Flow Summary
+GET {{baseUrl}}/cash-flow/summary
+Authorization: Bearer {{accessToken}}
+
+### Get Cash Flow Summary with Date Range
+GET {{baseUrl}}/cash-flow/summary?startDate=2026-01-01&endDate=2026-03-31
+Authorization: Bearer {{accessToken}}
+
+### Get Daily Cash Flow
+GET {{baseUrl}}/cash-flow/daily?date=2026-03-14
+Authorization: Bearer {{accessToken}}
+
+### Get Monthly Cash Flow Report
+GET {{baseUrl}}/cash-flow/monthly?year=2026&month=3
+Authorization: Bearer {{accessToken}}
+
+### Create Income Cash Flow
+POST {{baseUrl}}/cash-flow
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "type": "INCOME",
+  "category": "FREIGHT",
+  "concept": "Ingreso por flete - Viaje MIC-2026-001",
+  "amount": 15000.00,
+  "reference": "FACT-001",
+  "entity": "Trip",
+  "entityId": "trip-uuid-here",
+  "paymentMethod": "BANK_TRANSFER",
+  "paymentDate": "2026-03-14",
+  "notes": "Pago recibido por servicio de transporte"
+}
+
+### Create Expense Cash Flow (Fuel)
+POST {{baseUrl}}/cash-flow
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "type": "EXPENSE",
+  "category": "FUEL",
+  "concept": "Combustible - Estación Tambo Quemado",
+  "amount": 2500.00,
+  "reference": "REC-001",
+  "paymentMethod": "CASH",
+  "paymentDate": "2026-03-14",
+  "notes": "Carga de diésel para viaje"
+}
+
+### Create Expense Cash Flow (Maintenance)
+POST {{baseUrl}}/cash-flow
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "type": "EXPENSE",
+  "category": "MAINTENANCE",
+  "concept": "Mantenimiento preventivo - Camión ABC-123",
+  "amount": 3500.00,
+  "reference": "SERV-001",
+  "paymentMethod": "BANK_TRANSFER",
+  "notes": "Cambio de aceite y filtros"
+}
+
+### Create Expense Cash Flow (Salary)
+POST {{baseUrl}}/cash-flow
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "type": "EXPENSE",
+  "category": "SALARY",
+  "concept": "Salario conductor Juan Pérez - Marzo 2026",
+  "amount": 8000.00,
+  "paymentMethod": "BANK_TRANSFER",
+  "paymentDate": "2026-03-31"
+}
+
+### Create Expense Cash Flow (Toll)
+POST {{baseUrl}}/cash-flow
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "type": "EXPENSE",
+  "category": "TOLL",
+  "concept": "Peajes ruta La Paz - Santa Cruz",
+  "amount": 450.00,
+  "paymentMethod": "CASH",
+  "entity": "Trip",
+  "entityId": "trip-uuid-here"
+}
+
+### Get Cash Flow by ID
+GET {{baseUrl}}/cash-flow/{{cashFlowId}}
+Authorization: Bearer {{accessToken}}
+
+### Update Cash Flow
+PUT {{baseUrl}}/cash-flow/{{cashFlowId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "concept": "Concepto actualizado",
+  "notes": "Notas adicionales"
+}
+
+### Delete Cash Flow
+DELETE {{baseUrl}}/cash-flow/{{cashFlowId}}
+Authorization: Bearer {{accessToken}}
+
+###############################################################################
+# PAYMENTS (PAGOS Y ANTICIPOS) ENDPOINTS
+###############################################################################
+
+### Get Payment Types
+GET {{baseUrl}}/payments/types
+Authorization: Bearer {{accessToken}}
+
+### Get Payment Methods
+GET {{baseUrl}}/payments/methods
+Authorization: Bearer {{accessToken}}
+
+### Get Payment Statuses
+GET {{baseUrl}}/payments/statuses
+Authorization: Bearer {{accessToken}}
+
+### Get All Payments
+GET {{baseUrl}}/payments
+Authorization: Bearer {{accessToken}}
+
+### Get Payments with Pagination
+GET {{baseUrl}}/payments?page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+### Get Pending Payments
+GET {{baseUrl}}/payments/pending
+Authorization: Bearer {{accessToken}}
+
+### Get Payment Statistics
+GET {{baseUrl}}/payments/stats
+Authorization: Bearer {{accessToken}}
+
+### Get Payment Stats with Date Range
+GET {{baseUrl}}/payments/stats?startDate=2026-01-01&endDate=2026-03-31
+Authorization: Bearer {{accessToken}}
+
+### Get Payments by Type (Advance)
+GET {{baseUrl}}/payments?type=ADVANCE
+Authorization: Bearer {{accessToken}}
+
+### Get Payments by Status (Pending)
+GET {{baseUrl}}/payments?status=PENDING
+Authorization: Bearer {{accessToken}}
+
+### Get Payments by Driver
+GET {{baseUrl}}/payments/driver/driver-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Get Payments by Trip
+GET {{baseUrl}}/payments?tripId=trip-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Create Advance Payment to Driver
+POST {{baseUrl}}/payments
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "type": "ADVANCE",
+  "concept": "Anticipo para viaje La Paz - Santa Cruz",
+  "amount": 2000.00,
+  "currency": "BOB",
+  "paymentMethod": "BANK_TRANSFER",
+  "reference": "TRANS-001",
+  "driverId": "driver-uuid-here",
+  "tripId": "trip-uuid-here",
+  "scheduledDate": "2026-03-15",
+  "notes": "Anticipo solicitado por conductor"
+}
+
+### Create Advance Payment in USD
+POST {{baseUrl}}/payments
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "type": "ADVANCE",
+  "concept": "Anticipo en dólares",
+  "amount": 300.00,
+  "currency": "USD",
+  "exchangeRate": 6.96,
+  "paymentMethod": "CASH",
+  "driverId": "driver-uuid-here",
+  "notes": "Pago en efectivo USD"
+}
+
+### Create Settlement Payment
+POST {{baseUrl}}/payments
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "type": "SETTLEMENT",
+  "concept": "Pago de liquidación viaje MIC-2026-001",
+  "amount": 12500.00,
+  "paymentMethod": "BANK_TRANSFER",
+  "settlementId": "settlement-uuid-here",
+  "driverId": "driver-uuid-here"
+}
+
+### Create Invoice Payment (from Client)
+POST {{baseUrl}}/payments
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "type": "INVOICE",
+  "concept": "Pago de factura FACT-001",
+  "amount": 25000.00,
+  "paymentMethod": "BANK_TRANSFER",
+  "reference": "DEP-001",
+  "invoiceId": "invoice-uuid-here"
+}
+
+### Create Expense Reimbursement
+POST {{baseUrl}}/payments
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "type": "EXPENSE_REIMBURSEMENT",
+  "concept": "Reembolso de gastos - Viaje MIC-2026-001",
+  "amount": 1500.00,
+  "paymentMethod": "CASH",
+  "driverId": "driver-uuid-here",
+  "expenseId": "expense-uuid-here",
+  "notes": "Combustible y peajes"
+}
+
+### Get Payment by ID
+GET {{baseUrl}}/payments/{{paymentId}}
+Authorization: Bearer {{accessToken}}
+
+### Update Payment
+PUT {{baseUrl}}/payments/{{paymentId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "concept": "Concepto actualizado",
+  "notes": "Notas adicionales"
+}
+
+### Approve Payment
+POST {{baseUrl}}/payments/{{paymentId}}/approve
+Authorization: Bearer {{accessToken}}
+
+### Complete Payment (Mark as Paid)
+POST {{baseUrl}}/payments/{{paymentId}}/complete
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "paymentDate": "2026-03-14"
+}
+
+### Cancel Payment
+POST {{baseUrl}}/payments/{{paymentId}}/cancel
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "reason": "Solicitud cancelada por el conductor"
+}
+
+### Delete Payment
+DELETE {{baseUrl}}/payments/{{paymentId}}
+Authorization: Bearer {{accessToken}}
+
+###############################################################################
+# SIN EXPORT (FACTURACIÓN BOLIVIA) ENDPOINTS
+###############################################################################
+
+### Get SIN Export Statuses
+GET {{baseUrl}}/sin-export/statuses
+Authorization: Bearer {{accessToken}}
+
+### Get All SIN Exports
+GET {{baseUrl}}/sin-export
+Authorization: Bearer {{accessToken}}
+
+### Get SIN Exports with Pagination
+GET {{baseUrl}}/sin-export?page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+### Get Pending SIN Exports
+GET {{baseUrl}}/sin-export/pending
+Authorization: Bearer {{accessToken}}
+
+### Get Failed SIN Exports
+GET {{baseUrl}}/sin-export/failed
+Authorization: Bearer {{accessToken}}
+
+### Get SIN Export Statistics
+GET {{baseUrl}}/sin-export/stats
+Authorization: Bearer {{accessToken}}
+
+### Get SIN Export by ID
+GET {{baseUrl}}/sin-export/{{sinExportId}}
+Authorization: Bearer {{accessToken}}
+
+### Get SIN Export by Invoice ID
+GET {{baseUrl}}/sin-export/invoice/{{invoiceId}}
+Authorization: Bearer {{accessToken}}
+
+### Generate SIN JSON for Invoice
+GET {{baseUrl}}/sin-export/invoice/{{invoiceId}}/json
+Authorization: Bearer {{accessToken}}
+
+### Create SIN Export Request
+POST {{baseUrl}}/sin-export
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "invoiceId": "{{invoiceId}}"
+}
+
+### Process SIN Export (Send to SIN)
+POST {{baseUrl}}/sin-export/{{sinExportId}}/process
+Authorization: Bearer {{accessToken}}
+
+### Retry Failed SIN Export
+POST {{baseUrl}}/sin-export/{{sinExportId}}/retry
+Authorization: Bearer {{accessToken}}
+
+### Get SIN Exports by Status
+GET {{baseUrl}}/sin-export?status=PENDING
+Authorization: Bearer {{accessToken}}
+
+### Get SIN Exports by Status (Approved)
+GET {{baseUrl}}/sin-export?status=APPROVED
+Authorization: Bearer {{accessToken}}
+
+### Get SIN Exports by Status (Rejected)
+GET {{baseUrl}}/sin-export?status=REJECTED
+Authorization: Bearer {{accessToken}}
+
+###############################################################################
+# ENHANCED FINANCIAL REPORTS
+###############################################################################
+
+### Get Financial Dashboard Summary
+GET {{baseUrl}}/dashboard/financial?startDate=2026-01-01&endDate=2026-03-31
+Authorization: Bearer {{accessToken}}
+
+### Get Cash Flow Report
+GET {{baseUrl}}/reports/cash-flow?startDate=2026-01-01&endDate=2026-03-31
+Authorization: Bearer {{accessToken}}
+
+### Get Profitability Report by Vehicle
+GET {{baseUrl}}/reports/profitability/vehicle?startDate=2026-01-01&endDate=2026-03-31
+Authorization: Bearer {{accessToken}}
+
+### Get Profitability Report by Driver
+GET {{baseUrl}}/reports/profitability/driver?startDate=2026-01-01&endDate=2026-03-31
+Authorization: Bearer {{accessToken}}
+
+### Get Top Clients Report
+GET {{baseUrl}}/reports/top-clients?startDate=2026-01-01&endDate=2026-03-31
+Authorization: Bearer {{accessToken}}
+
+### Get Expenses by Category Report
+GET {{baseUrl}}/reports/expenses/category?startDate=2026-01-01&endDate=2026-03-31
+Authorization: Bearer {{accessToken}}
+
+### Get Monthly Profitability
+GET {{baseUrl}}/reports/profitability/monthly?year=2026
+Authorization: Bearer {{accessToken}}
+
+###############################################################################
+# WORKFLOW EXAMPLES
+###############################################################################
+
+### Complete Payment Workflow
+# Step 1: Create advance payment request
+POST {{baseUrl}}/payments
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "type": "ADVANCE",
+  "concept": "Anticipo para viaje",
+  "amount": 2000.00,
+  "driverId": "driver-uuid",
+  "tripId": "trip-uuid"
+}
+
+# Step 2: Approve payment
+POST {{baseUrl}}/payments/{{paymentId}}/approve
+Authorization: Bearer {{accessToken}}
+
+# Step 3: Mark as completed when paid
+POST {{baseUrl}}/payments/{{paymentId}}/complete
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "paymentDate": "2026-03-14"
+}
+
+### SIN Export Complete Workflow
+# Step 1: Create invoice (use existing endpoint)
+POST {{baseUrl}}/invoices
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "invoiceNumber": "FACT-2026-001",
+  "clientId": "client-uuid",
+  "totalAmount": 25000.00,
+  "tripIds": ["trip-uuid-1", "trip-uuid-2"]
+}
+
+# Step 2: Approve invoice
+POST {{baseUrl}}/invoices/{{invoiceId}}/approve
+Authorization: Bearer {{accessToken}}
+
+# Step 3: Create SIN export request
+POST {{baseUrl}}/sin-export
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "invoiceId": "{{invoiceId}}"
+}
+
+# Step 4: Process SIN export
+POST {{baseUrl}}/sin-export/{{sinExportId}}/process
+Authorization: Bearer {{accessToken}}
+
+# Step 5: Get SIN export result
+GET {{baseUrl}}/sin-export/{{sinExportId}}
+Authorization: Bearer {{accessToken}}
+
+### Daily Cash Flow Check
+# Morning: Check yesterday's cash flow
+GET {{baseUrl}}/cash-flow/daily?date=2026-03-13
+Authorization: Bearer {{accessToken}}
+
+# Register morning income
+POST {{baseUrl}}/cash-flow
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "type": "INCOME",
+  "category": "FREIGHT",
+  "concept": "Pago cliente ABC",
+  "amount": 15000.00,
+  "paymentMethod": "BANK_TRANSFER"
+}
+
+# Register morning expenses
+POST {{baseUrl}}/cash-flow
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "type": "EXPENSE",
+  "category": "FUEL",
+  "concept": "Combustible flota",
+  "amount": 5000.00,
+  "paymentMethod": "CASH"
+}
+
+# End of day: Check summary
+GET {{baseUrl}}/cash-flow/summary?startDate=2026-03-14&endDate=2026-03-14
+Authorization: Bearer {{accessToken}}
+
+###############################################################################
+# ERROR HANDLING TESTS
+###############################################################################
+
+### Create Cash Flow - Missing Required Fields (Should fail)
+POST {{baseUrl}}/cash-flow
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "type": "INCOME"
+}
+
+### Create Payment - Invalid Entity (Should fail)
+POST {{baseUrl}}/payments
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "type": "ADVANCE",
+  "concept": "Test",
+  "amount": 1000,
+  "driverId": "invalid-uuid"
+}
+
+### Create SIN Export - Invalid Invoice (Should fail)
+POST {{baseUrl}}/sin-export
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "invoiceId": "invalid-uuid"
+}
+
+### Process SIN Export - Already Processed (Should fail)
+POST {{baseUrl}}/sin-export/{{sinExportId}}/process
+Authorization: Bearer {{accessToken}}
+
+### Unauthorized Access (Should fail)
+GET {{baseUrl}}/cash-flow
+
+### Unauthorized Payment Creation (Should fail)
+POST {{baseUrl}}/payments
+Content-Type: {{contentType}}
+
+{
+  "type": "ADVANCE",
+  "concept": "Unauthorized",
+  "amount": 1000
+}
+
+###############################################################################
+# LOGOUT
+###############################################################################
+
+### Logout
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}

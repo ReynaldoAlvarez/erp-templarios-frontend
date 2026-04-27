@@ -1,0 +1,941 @@
+### ============================================================================
+### ERP TEMPLARIOS - SPRINT 5: ASSETS, LIABILITIES, MAINTENANCE, SANCTIONS, DRIVER HISTORY
+### Archivo de pruebas para VS Code REST Client
+### ============================================================================
+
+### Variables de entorno
+@baseUrl = http://localhost:3001/api/v1
+@contentType = application/json
+
+### ============================================================================
+### AUTENTICACIÓN (Login para obtener token)
+### ============================================================================
+
+### Login como admin
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@templarios.com",
+  "password": "Admin123!"
+}
+
+### Guardar token de acceso
+@accessToken = {{login.response.body.data.accessToken}}
+
+### ============================================================================
+### MÓDULO ASSETS (ACTIVOS DE LA EMPRESA)
+### ============================================================================
+
+### Obtener todos los activos
+GET {{baseUrl}}/assets
+Authorization: Bearer {{accessToken}}
+
+### Obtener activos con paginación
+GET {{baseUrl}}/assets?page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+### Obtener activos por categoría
+GET {{baseUrl}}/assets?category=VEHICLE
+Authorization: Bearer {{accessToken}}
+
+### Obtener solo activos activos
+GET {{baseUrl}}/assets?isActive=true
+Authorization: Bearer {{accessToken}}
+
+### Buscar activos
+GET {{baseUrl}}/assets?search=camión
+Authorization: Bearer {{accessToken}}
+
+### Obtener categorías de activos
+GET {{baseUrl}}/assets/categories
+Authorization: Bearer {{accessToken}}
+
+### Obtener estadísticas de activos
+GET {{baseUrl}}/assets/stats
+Authorization: Bearer {{accessToken}}
+
+### Obtener estadísticas por empresa
+GET {{baseUrl}}/assets/stats?companyId=COMPANY_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Obtener activo por ID
+GET {{baseUrl}}/assets/ASSET_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Crear nuevo activo
+# @name createAsset
+POST {{baseUrl}}/assets
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "companyId": "4e9d150c-684b-43ef-9de6-631fad2538d8",
+  "name": "Camión Volvo FH 540",
+  "description": "Camión tractocarro para transporte internacional",
+  "category": "VEHICLE",
+  "value": 250000.00,
+  "acquisitionDate": "2023-01-15",
+  "usefulLifeMonths": 120,
+  "depreciation": 50000.00
+}
+
+### Actualizar activo
+PUT {{baseUrl}}/assets/ASSET_ID_HERE
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "name": "Camión Volvo FH 540 Actualizado",
+  "description": "Descripción actualizada",
+  "value": 230000.00
+}
+
+### Actualizar depreciación
+PATCH {{baseUrl}}/assets/ASSET_ID_HERE/depreciation
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "depreciation": 62500.00
+}
+
+### Desactivar activo
+POST {{baseUrl}}/assets/ASSET_ID_HERE/deactivate
+Authorization: Bearer {{accessToken}}
+
+### Activar activo
+POST {{baseUrl}}/assets/ASSET_ID_HERE/activate
+Authorization: Bearer {{accessToken}}
+
+### ============================================================================
+### CASOS DE ERROR - ASSETS
+### ============================================================================
+
+### Error: Crear activo sin nombre (400)
+POST {{baseUrl}}/assets
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "companyId": "COMPANY_ID_HERE",
+  "category": "VEHICLE",
+  "value": 100000.00
+}
+
+### Error: Crear activo con categoría inválida (400)
+POST {{baseUrl}}/assets
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "companyId": "COMPANY_ID_HERE",
+  "name": "Activo Test",
+  "category": "INVALID_CATEGORY",
+  "value": 100000.00
+}
+
+### Error: Depreciación mayor al valor (400)
+PATCH {{baseUrl}}/assets/ASSET_ID_HERE/depreciation
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "depreciation": 500000.00
+}
+
+### Error: Desactivar activo ya inactivo (400)
+POST {{baseUrl}}/assets/INACTIVE_ASSET_ID/deactivate
+Authorization: Bearer {{accessToken}}
+
+### ============================================================================
+### MÓDULO LIABILITIES (PASIVOS)
+### ============================================================================
+
+### Obtener todos los pasivos
+GET {{baseUrl}}/liabilities
+Authorization: Bearer {{accessToken}}
+
+### Obtener pasivos con paginación
+GET {{baseUrl}}/liabilities?page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+### Obtener pasivos por tipo
+GET {{baseUrl}}/liabilities?type=LOAN
+Authorization: Bearer {{accessToken}}
+
+### Obtener pasivos por estado
+GET {{baseUrl}}/liabilities?status=PENDING
+Authorization: Bearer {{accessToken}}
+
+### Obtener pasivos por empresa
+GET {{baseUrl}}/liabilities?companyId=COMPANY_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Buscar pasivos
+GET {{baseUrl}}/liabilities?search=préstamo
+Authorization: Bearer {{accessToken}}
+
+### Obtener tipos de pasivo
+GET {{baseUrl}}/liabilities/types
+Authorization: Bearer {{accessToken}}
+
+### Obtener estadísticas de pasivos
+GET {{baseUrl}}/liabilities/stats
+Authorization: Bearer {{accessToken}}
+
+### Obtener pasivos vencidos
+GET {{baseUrl}}/liabilities/overdue
+Authorization: Bearer {{accessToken}}
+
+### Obtener pasivo por ID
+GET {{baseUrl}}/liabilities/LIABILITY_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Crear nuevo pasivo
+# @name createLiability
+POST {{baseUrl}}/liabilities
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "companyId": "COMPANY_ID_HERE",
+  "name": "Préstamo Bancario BNB",
+  "description": "Préstamo para adquisición de flota",
+  "type": "LOAN",
+  "amount": 500000.00,
+  "interestRate": 8.5,
+  "startDate": "2024-01-01",
+  "dueDate": "2029-01-01"
+}
+
+### Actualizar pasivo
+PUT {{baseUrl}}/liabilities/LIABILITY_ID_HERE
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "name": "Préstamo Bancario BNB Actualizado",
+  "amount": 480000.00
+}
+
+### Actualizar estado de pasivo
+PATCH {{baseUrl}}/liabilities/LIABILITY_ID_HERE/status
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "status": "PARTIAL"
+}
+
+### Registrar pago parcial
+POST {{baseUrl}}/liabilities/LIABILITY_ID_HERE/payment
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "amount": 50000.00
+}
+
+### ============================================================================
+### CASOS DE ERROR - LIABILITIES
+### ============================================================================
+
+### Error: Crear pasivo sin nombre (400)
+POST {{baseUrl}}/liabilities
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "companyId": "COMPANY_ID_HERE",
+  "type": "LOAN",
+  "amount": 100000.00
+}
+
+### Error: Crear pasivo con tipo inválido (400)
+POST {{baseUrl}}/liabilities
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "companyId": "COMPANY_ID_HERE",
+  "name": "Pasivo Test",
+  "type": "INVALID_TYPE",
+  "amount": 100000.00
+}
+
+### Error: Fecha de inicio posterior a fecha de vencimiento (400)
+POST {{baseUrl}}/liabilities
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "companyId": "COMPANY_ID_HERE",
+  "name": "Pasivo Test",
+  "type": "LOAN",
+  "amount": 100000.00,
+  "startDate": "2025-01-01",
+  "dueDate": "2024-01-01"
+}
+
+### Error: Modificar pasivo pagado (400)
+PUT {{baseUrl}}/liabilities/PAID_LIABILITY_ID
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "amount": 50000.00
+}
+
+### ============================================================================
+### MÓDULO MAINTENANCE (MANTENIMIENTOS)
+### ============================================================================
+
+### Obtener todos los mantenimientos
+GET {{baseUrl}}/maintenance
+Authorization: Bearer {{accessToken}}
+
+### Obtener mantenimientos con paginación
+GET {{baseUrl}}/maintenance?page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+### Obtener mantenimientos por camión
+GET {{baseUrl}}/maintenance?truckId=TRUCK_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Obtener mantenimientos por estado
+GET {{baseUrl}}/maintenance?status=PENDING
+Authorization: Bearer {{accessToken}}
+
+### Obtener mantenimientos por tipo
+GET {{baseUrl}}/maintenance?type=PREVENTIVE
+Authorization: Bearer {{accessToken}}
+
+### Obtener mantenimientos por rango de fechas
+GET {{baseUrl}}/maintenance?dateFrom=2024-01-01&dateTo=2024-12-31
+Authorization: Bearer {{accessToken}}
+
+### Obtener mantenimientos próximos/pendientes
+GET {{baseUrl}}/maintenance/upcoming
+Authorization: Bearer {{accessToken}}
+
+### Obtener tipos de mantenimiento
+GET {{baseUrl}}/maintenance/types
+Authorization: Bearer {{accessToken}}
+
+### Obtener estadísticas de mantenimiento
+GET {{baseUrl}}/maintenance/stats
+Authorization: Bearer {{accessToken}}
+
+### Obtener estadísticas por camión
+GET {{baseUrl}}/maintenance/stats?truckId=TRUCK_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Obtener historial de mantenimientos de un camión
+GET {{baseUrl}}/maintenance/truck/TRUCK_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Obtener mantenimiento por ID
+GET {{baseUrl}}/maintenance/MAINTENANCE_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Crear nuevo mantenimiento
+# @name createMaintenance
+POST {{baseUrl}}/maintenance
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "truckId": "e3ea94b5-4a36-4977-9460-f92ac6ff796f",
+  "type": "PREVENTIVE",
+  "description": "Cambio de aceite y filtros",
+  "mileage": 150000,
+  "startDate": "2024-06-15",
+  "cost": 2500.00,
+  "workshop": "Taller Central",
+  "notes": "Mantenimiento programado cada 10,000 km"
+}
+
+### Actualizar mantenimiento
+PUT {{baseUrl}}/maintenance/MAINTENANCE_ID_HERE
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "description": "Cambio de aceite, filtros y revisión de frenos",
+  "cost": 3200.00
+}
+
+### Iniciar mantenimiento
+POST {{baseUrl}}/maintenance/MAINTENANCE_ID_HERE/start
+Authorization: Bearer {{accessToken}}
+
+### Completar mantenimiento
+POST {{baseUrl}}/maintenance/MAINTENANCE_ID_HERE/complete
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "endDate": "2024-06-16",
+  "finalCost": 2800.00,
+  "notes": "Trabajo completado satisfactoriamente"
+}
+
+### Cancelar mantenimiento
+POST {{baseUrl}}/maintenance/MAINTENANCE_ID_HERE/cancel
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "reason": "Camión vendido antes del mantenimiento"
+}
+
+### ============================================================================
+### CASOS DE ERROR - MAINTENANCE
+### ============================================================================
+
+### Error: Crear mantenimiento sin descripción (400)
+POST {{baseUrl}}/maintenance
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "truckId": "TRUCK_ID_HERE",
+  "type": "PREVENTIVE"
+}
+
+### Error: Crear mantenimiento con tipo inválido (400)
+POST {{baseUrl}}/maintenance
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "truckId": "TRUCK_ID_HERE",
+  "type": "INVALID_TYPE",
+  "description": "Test"
+}
+
+### Error: Modificar mantenimiento completado (400)
+PUT {{baseUrl}}/maintenance/COMPLETED_MAINTENANCE_ID
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "description": "Intento de modificación"
+}
+
+### Error: Completar mantenimiento no iniciado (400)
+POST {{baseUrl}}/maintenance/PENDING_MAINTENANCE_ID/complete
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "endDate": "2024-06-16"
+}
+
+### Error: Cancelar mantenimiento sin razón (400)
+POST {{baseUrl}}/maintenance/MAINTENANCE_ID_HERE/cancel
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{}
+
+### ============================================================================
+### MÓDULO SANCTIONS (SANCIONES)
+### ============================================================================
+
+### Obtener todas las sanciones
+GET {{baseUrl}}/sanctions
+Authorization: Bearer {{accessToken}}
+
+### Obtener sanciones con paginación
+GET {{baseUrl}}/sanctions?page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+### Obtener sanciones por conductor
+GET {{baseUrl}}/sanctions?driverId=DRIVER_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Obtener sanciones por tipo
+GET {{baseUrl}}/sanctions?type=FINE
+Authorization: Bearer {{accessToken}}
+
+### Obtener sanciones por estado
+GET {{baseUrl}}/sanctions?status=PENDING
+Authorization: Bearer {{accessToken}}
+
+### Obtener sanciones por rango de fechas
+GET {{baseUrl}}/sanctions?dateFrom=2024-01-01&dateTo=2024-12-31
+Authorization: Bearer {{accessToken}}
+
+### Obtener sanciones activas
+GET {{baseUrl}}/sanctions/active
+Authorization: Bearer {{accessToken}}
+
+### Obtener tipos de sanción
+GET {{baseUrl}}/sanctions/types
+Authorization: Bearer {{accessToken}}
+
+### Obtener estadísticas de sanciones
+GET {{baseUrl}}/sanctions/stats
+Authorization: Bearer {{accessToken}}
+
+### Obtener estadísticas por conductor
+GET {{baseUrl}}/sanctions/stats?driverId=DRIVER_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Obtener sanciones de un conductor
+GET {{baseUrl}}/sanctions/driver/DRIVER_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Obtener sanción por ID
+GET {{baseUrl}}/sanctions/SANCTION_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Crear nueva sanción
+# @name createSanction
+POST {{baseUrl}}/sanctions
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "cad3cb22-ae3a-4418-b9d6-eafe97c57c1b",
+  "type": "FINE",
+  "reason": "Exceso de velocidad en zona urbana",
+  "amount": 500.00,
+  "startDate": "2024-06-15",
+  "notes": "Infracción detectada por radar"
+}
+
+### Crear sanción de suspensión
+POST {{baseUrl}}/sanctions
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "DRIVER_ID_HERE",
+  "type": "SUSPENSION",
+  "reason": "Acumulación de 3 infracciones graves",
+  "startDate": "2024-06-15",
+  "endDate": "2024-06-30",
+  "notes": "Suspensión de 15 días"
+}
+
+### Crear amonestación
+POST {{baseUrl}}/sanctions
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "DRIVER_ID_HERE",
+  "type": "WARNING",
+  "reason": "No cumplir con horario de descanso",
+  "startDate": "2024-06-15",
+  "notes": "Primera amonestación verbal"
+}
+
+### Actualizar sanción
+PUT {{baseUrl}}/sanctions/SANCTION_ID_HERE
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "reason": "Exceso de velocidad en zona escolar",
+  "amount": 750.00,
+  "notes": "Monto actualizado por gravedad"
+}
+
+### Completar sanción
+POST {{baseUrl}}/sanctions/SANCTION_ID_HERE/complete
+Authorization: Bearer {{accessToken}}
+
+### Cancelar sanción
+POST {{baseUrl}}/sanctions/SANCTION_ID_HERE/cancel
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "reason": "Error administrativo - sanción aplicada a conductor incorrecto"
+}
+
+### ============================================================================
+### CASOS DE ERROR - SANCTIONS
+### ============================================================================
+
+### Error: Crear sanción sin razón (400)
+POST {{baseUrl}}/sanctions
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "DRIVER_ID_HERE",
+  "type": "FINE",
+  "amount": 100.00
+}
+
+### Error: Suspensión sin fecha de fin (400)
+POST {{baseUrl}}/sanctions
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "DRIVER_ID_HERE",
+  "type": "SUSPENSION",
+  "reason": "Test suspensión"
+}
+
+### Error: Modificar sanción completada (400)
+PUT {{baseUrl}}/sanctions/COMPLETED_SANCTION_ID
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "amount": 1000.00
+}
+
+### Error: Cancelar sanción ya completada (400)
+POST {{baseUrl}}/sanctions/COMPLETED_SANCTION_ID/cancel
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "reason": "Intento de cancelación"
+}
+
+### ============================================================================
+### MÓDULO DRIVER HISTORY (HISTORIAL DE CONDUCTORES)
+### ============================================================================
+
+### Obtener todo el historial
+GET {{baseUrl}}/driver-history
+Authorization: Bearer {{accessToken}}
+
+### Obtener historial con paginación
+GET {{baseUrl}}/driver-history?page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+### Obtener historial por conductor
+GET {{baseUrl}}/driver-history?driverId=DRIVER_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Obtener historial por tipo de evento
+GET {{baseUrl}}/driver-history?eventType=INCIDENT
+Authorization: Bearer {{accessToken}}
+
+### Obtener historial por rango de fechas
+GET {{baseUrl}}/driver-history?dateFrom=2024-01-01&dateTo=2024-12-31
+Authorization: Bearer {{accessToken}}
+
+### Obtener tipos de evento
+GET {{baseUrl}}/driver-history/event-types
+Authorization: Bearer {{accessToken}}
+
+### Obtener estadísticas del historial
+GET {{baseUrl}}/driver-history/stats
+Authorization: Bearer {{accessToken}}
+
+### Obtener estadísticas por conductor
+GET {{baseUrl}}/driver-history/stats?driverId=DRIVER_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Obtener historial de un conductor específico
+GET {{baseUrl}}/driver-history/driver/DRIVER_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Obtener timeline de un conductor
+GET {{baseUrl}}/driver-history/driver/DRIVER_ID_HERE/timeline
+Authorization: Bearer {{accessToken}}
+
+### Obtener resumen completo del conductor
+GET {{baseUrl}}/driver-history/driver/DRIVER_ID_HERE/summary
+Authorization: Bearer {{accessToken}}
+
+### Obtener registro por ID
+GET {{baseUrl}}/driver-history/HISTORY_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### Crear registro de historial
+# @name createHistory
+POST {{baseUrl}}/driver-history
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "cad3cb22-ae3a-4418-b9d6-eafe97c57c1b",
+  "eventType": "INCIDENT",
+  "description": "Incidente menor en carretera",
+  "notes": "Sin daños materiales ni personales",
+  "occurredAt": "2024-06-15T10:30:00Z"
+}
+
+### Crear registro de accidente
+POST {{baseUrl}}/driver-history
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "DRIVER_ID_HERE",
+  "eventType": "ACCIDENT",
+  "description": "Colisión menor en estacionamiento",
+  "notes": "Daños menores en parachoques trasero",
+  "occurredAt": "2024-06-15"
+}
+
+### Crear registro de reconocimiento
+POST {{baseUrl}}/driver-history
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "DRIVER_ID_HERE",
+  "eventType": "AWARD",
+  "description": "Conductor del mes - Mejor rendimiento",
+  "notes": "Reconocimiento por 6 meses sin incidentes",
+  "occurredAt": "2024-06-01"
+}
+
+### Crear registro de cambio de estado
+POST {{baseUrl}}/driver-history
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "DRIVER_ID_HERE",
+  "eventType": "STATUS_CHANGE",
+  "description": "Cambio de estado a disponible",
+  "notes": "Regreso de licencia médica",
+  "occurredAt": "2024-06-15"
+}
+
+### Eliminar registro de historial
+DELETE {{baseUrl}}/driver-history/HISTORY_ID_HERE
+Authorization: Bearer {{accessToken}}
+
+### ============================================================================
+### CASOS DE ERROR - DRIVER HISTORY
+### ============================================================================
+
+### Error: Crear registro sin descripción (400)
+POST {{baseUrl}}/driver-history
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "DRIVER_ID_HERE",
+  "eventType": "INCIDENT"
+}
+
+### Error: Tipo de evento inválido (400)
+POST {{baseUrl}}/driver-history
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "DRIVER_ID_HERE",
+  "eventType": "INVALID_TYPE",
+  "description": "Test"
+}
+
+### ============================================================================
+### FLUJO COMPLETO DE TRABAJO (WORKFLOW)
+### ============================================================================
+
+### 1. Login
+# @name workflowLogin
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@templarios.com",
+  "password": "Admin123!"
+}
+
+@workflowToken = {{workflowLogin.response.body.data.accessToken}}
+
+### 2. Registrar nuevo activo (vehículo)
+# @name workflowAsset
+POST {{baseUrl}}/assets
+Authorization: Bearer {{workflowToken}}
+Content-Type: {{contentType}}
+
+{
+  "companyId": "COMPANY_ID_HERE",
+  "name": "Camión Nuevo Sprinter",
+  "description": "Camión para transporte urbano",
+  "category": "VEHICLE",
+  "value": 180000.00,
+  "acquisitionDate": "2024-06-01",
+  "usefulLifeMonths": 96
+}
+
+@assetId = {{workflowAsset.response.body.data.id}}
+
+### 3. Registrar pasivo (financiamiento)
+# @name workflowLiability
+POST {{baseUrl}}/liabilities
+Authorization: Bearer {{workflowToken}}
+Content-Type: {{contentType}}
+
+{
+  "companyId": "COMPANY_ID_HERE",
+  "name": "Financiamiento Camión Sprinter",
+  "type": "LOAN",
+  "amount": 180000.00,
+  "interestRate": 7.5,
+  "startDate": "2024-06-01",
+  "dueDate": "2027-06-01"
+}
+
+@liabilityId = {{workflowLiability.response.body.data.id}}
+
+### 4. Programar mantenimiento preventivo
+# @name workflowMaintenance
+POST {{baseUrl}}/maintenance
+Authorization: Bearer {{workflowToken}}
+Content-Type: {{contentType}}
+
+{
+  "truckId": "TRUCK_ID_HERE",
+  "type": "PREVENTIVE",
+  "description": "Primer mantenimiento preventivo",
+  "mileage": 5000,
+  "startDate": "2024-07-01",
+  "workshop": "Taller Autorizado"
+}
+
+@maintenanceId = {{workflowMaintenance.response.body.data.id}}
+
+### 5. Iniciar mantenimiento
+POST {{baseUrl}}/maintenance/{{maintenanceId}}/start
+Authorization: Bearer {{workflowToken}}
+
+### 6. Completar mantenimiento
+POST {{baseUrl}}/maintenance/{{maintenanceId}}/complete
+Authorization: Bearer {{workflowToken}}
+Content-Type: {{contentType}}
+
+{
+  "endDate": "2024-07-02",
+  "finalCost": 1500.00,
+  "notes": "Todo en orden"
+}
+
+### 7. Registrar incidente del conductor
+# @name workflowHistory
+POST {{baseUrl}}/driver-history
+Authorization: Bearer {{workflowToken}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "DRIVER_ID_HERE",
+  "eventType": "INCIDENT",
+  "description": "Llegada tarde por conditions climáticas"
+}
+
+@historyId = {{workflowHistory.response.body.data.id}}
+
+### 8. Aplicar sanción
+# @name workflowSanction
+POST {{baseUrl}}/sanctions
+Authorization: Bearer {{workflowToken}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "DRIVER_ID_HERE",
+  "type": "WARNING",
+  "reason": "Incumplimiento de horario",
+  "startDate": "2024-06-15"
+}
+
+@sanctionId = {{workflowSanction.response.body.data.id}}
+
+### 9. Completar sanción
+POST {{baseUrl}}/sanctions/{{sanctionId}}/complete
+Authorization: Bearer {{workflowToken}}
+
+### 10. Actualizar depreciación del activo
+PATCH {{baseUrl}}/assets/{{assetId}}/depreciation
+Authorization: Bearer {{workflowToken}}
+Content-Type: {{contentType}}
+
+{
+  "depreciation": 1875.00
+}
+
+### 11. Registrar pago del pasivo
+POST {{baseUrl}}/liabilities/{{liabilityId}}/payment
+Authorization: Bearer {{workflowToken}}
+Content-Type: {{contentType}}
+
+{
+  "amount": 5000.00
+}
+
+### 12. Ver resumen del conductor
+GET {{baseUrl}}/driver-history/driver/DRIVER_ID_HERE/summary
+Authorization: Bearer {{workflowToken}}
+
+### ============================================================================
+### RESUMEN DE ENDPOINTS - SPRINT 5
+### ============================================================================
+###
+### ASSETS (Activos):
+### - GET    /assets                    - Listar activos
+### - GET    /assets/categories         - Categorías
+### - GET    /assets/stats              - Estadísticas
+### - GET    /assets/:id                - Detalle de activo
+### - POST   /assets                    - Crear activo
+### - PUT    /assets/:id                - Actualizar activo
+### - PATCH  /assets/:id/depreciation   - Actualizar depreciación
+### - POST   /assets/:id/deactivate     - Desactivar activo
+### - POST   /assets/:id/activate       - Activar activo
+###
+### LIABILITIES (Pasivos):
+### - GET    /liabilities               - Listar pasivos
+### - GET    /liabilities/types         - Tipos de pasivo
+### - GET    /liabilities/stats         - Estadísticas
+### - GET    /liabilities/overdue       - Pasivos vencidos
+### - GET    /liabilities/:id           - Detalle de pasivo
+### - POST   /liabilities               - Crear pasivo
+### - PUT    /liabilities/:id           - Actualizar pasivo
+### - PATCH  /liabilities/:id/status    - Cambiar estado
+### - POST   /liabilities/:id/payment   - Registrar pago
+###
+### MAINTENANCE (Mantenimientos):
+### - GET    /maintenance               - Listar mantenimientos
+### - GET    /maintenance/upcoming      - Mantenimientos próximos
+### - GET    /maintenance/types         - Tipos de mantenimiento
+### - GET    /maintenance/stats         - Estadísticas
+### - GET    /maintenance/truck/:truckId - Por camión
+### - GET    /maintenance/:id           - Detalle
+### - POST   /maintenance               - Crear mantenimiento
+### - PUT    /maintenance/:id           - Actualizar
+### - POST   /maintenance/:id/start     - Iniciar
+### - POST   /maintenance/:id/complete  - Completar
+### - POST   /maintenance/:id/cancel    - Cancelar
+###
+### SANCTIONS (Sanciones):
+### - GET    /sanctions                 - Listar sanciones
+### - GET    /sanctions/active          - Sanciones activas
+### - GET    /sanctions/types           - Tipos de sanción
+### - GET    /sanctions/stats           - Estadísticas
+### - GET    /sanctions/driver/:driverId - Por conductor
+### - GET    /sanctions/:id             - Detalle
+### - POST   /sanctions                 - Crear sanción
+### - PUT    /sanctions/:id             - Actualizar
+### - POST   /sanctions/:id/complete    - Completar
+### - POST   /sanctions/:id/cancel      - Cancelar
+###
+### DRIVER HISTORY (Historial):
+### - GET    /driver-history            - Listar historial
+### - GET    /driver-history/event-types - Tipos de evento
+### - GET    /driver-history/stats      - Estadísticas
+### - GET    /driver-history/driver/:driverId - Por conductor
+### - GET    /driver-history/driver/:driverId/timeline - Timeline
+### - GET    /driver-history/driver/:driverId/summary - Resumen
+### - GET    /driver-history/:id        - Detalle
+### - POST   /driver-history            - Crear registro
+### - DELETE /driver-history/:id        - Eliminar
+###
+### ============================================================================

@@ -1,0 +1,431 @@
+### ============================================
+### SPRINT 5 - FASE 5: DOCUMENT AUTOMATION
+### Pruebas de API para automatización de documentos
+### ============================================
+### 
+### 📋 INSTRUCCIONES DE USO:
+### 1. Asegúrate de haber corrido el seed: npm run prisma:seed
+### 2. Primero ejecuta la petición "0.1 Login" para obtener el token
+### 3. El token tiene una duración de 15 minutos
+### 4. Si el token expira, ejecuta nuevamente el login o usa "0.2 Refresh Token"
+### 
+### ⚠️ Si obtienes error 403 Forbidden:
+###    - Corre: npm run prisma:seed
+###    - El usuario admin@templarios.com necesita los nuevos permisos
+### ============================================
+
+@baseUrl = http://localhost:3001/api/v1
+@token = {{login.response.body.$.data.accessToken}}
+@refreshToken = {{login.response.body.$.data.refreshToken}}
+
+### ============================================
+### 0. AUTENTICACIÓN
+### ============================================
+
+### 0.1 Login para obtener token
+### ⚠️ EJECUTA ESTO PRIMERO - El token dura 15 minutos
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@templarios.com",
+  "password": "Admin123!"
+}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Login successful",
+###   "data": {
+###     "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+###     "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+###     "user": {
+###       "id": "uuid-del-usuario",
+###       "email": "admin@templarios.com",
+###       "firstName": "Super",
+###       "lastName": "Admin",
+###       "phone": "+591 70000000",
+###       "roles": ["Super Admin"],
+###       "permissions": [...]
+###     }
+###   },
+###   "timestamp": "2026-03-30T15:00:00.000Z"
+### }
+
+### 0.2 Refresh Token - Usa esto si el access token expiró
+# @name refreshToken
+POST {{baseUrl}}/auth/refresh-token
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### ============================================
+### 1. ESTADÍSTICAS DE DOCUMENTOS
+### ============================================
+
+### 1.1 Obtener estadísticas de documentos
+# @name getStats
+GET {{baseUrl}}/document-automation/stats
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Estadísticas de documentos obtenidas",
+###   "data": {
+###     "totalTrips": 15,
+###     "tripsWithCompleteDocs": 10,
+###     "tripsWithIncompleteDocs": 5,
+###     "tripsWithBlockedPayments": 5,
+###     "documentsByType": [
+###       {
+###         "code": "MIC",
+###         "name": "Manifiesto Internacional de Carga",
+###         "total": 15,
+###         "verified": 10,
+###         "pending": 5
+###       },
+###       {
+###         "code": "CRT",
+###         "name": "Carta de Porte",
+###         "total": 15,
+###         "verified": 9,
+###         "pending": 6
+###       },
+###       {
+###         "code": "ASPB",
+###         "name": "Autorización de Servicio de Transporte de Carga",
+###         "total": 15,
+###         "verified": 8,
+###         "pending": 7
+###       },
+###       {
+###         "code": "NOTA_TARJA",
+###         "name": "Nota de Tarja",
+###         "total": 15,
+###         "verified": 8,
+###         "pending": 7
+###       },
+###       {
+###         "code": "BALANZA",
+###         "name": "Comprobante de Balanza",
+###         "total": 15,
+###         "verified": 7,
+###         "pending": 8
+###       },
+###       {
+###         "code": "FACTURA",
+###         "name": "Factura de Servicio de Transporte",
+###         "total": 2,
+###         "verified": 2,
+###         "pending": 0
+###       }
+###     ]
+###   },
+###   "timestamp": "2026-03-30T15:05:00.000Z"
+### }
+
+### ============================================
+### 2. CHECKLIST DE DOCUMENTOS POR VIAJE
+### ============================================
+
+### 2.1 Obtener checklist de documentos de un viaje
+### Reemplaza {{tripId}} con un ID de viaje válido
+# @name getChecklist
+GET {{baseUrl}}/document-automation/trips/{{tripId}}/checklist
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA (Camión propio - sin FACTURA):
+### {
+###   "success": true,
+###   "message": "Checklist de documentos obtenido",
+###   "data": {
+###     "tripId": "uuid-del-viaje",
+###     "isSupportTruck": false,
+###     "documents": [
+###       {
+###         "id": "uuid-doc-1",
+###         "code": "MIC",
+###         "name": "Manifiesto Internacional de Carga",
+###         "isRequired": true,
+###         "status": "VERIFIED",
+###         "documentNumber": "MIC-MIC-2024-001",
+###         "fileUrl": null,
+###         "receivedAt": "2024-01-15T10:00:00.000Z"
+###       },
+###       {
+###         "id": "uuid-doc-2",
+###         "code": "CRT",
+###         "name": "Carta de Porte",
+###         "isRequired": true,
+###         "status": "PENDING",
+###         "documentNumber": null,
+###         "fileUrl": null,
+###         "receivedAt": null
+###       },
+###       {
+###         "id": null,
+###         "code": "ASPB",
+###         "name": "Autorización de Servicio de Transporte de Carga",
+###         "isRequired": true,
+###         "status": null,
+###         "documentNumber": null,
+###         "fileUrl": null,
+###         "receivedAt": null
+###       },
+###       {
+###         "id": "uuid-doc-4",
+###         "code": "NOTA_TARJA",
+###         "name": "Nota de Tarja",
+###         "isRequired": true,
+###         "status": "VERIFIED",
+###         "documentNumber": "NOTA_TARJA-MIC-2024-001",
+###         "fileUrl": null,
+###         "receivedAt": "2024-01-15T10:00:00.000Z"
+###       },
+###       {
+###         "id": null,
+###         "code": "BALANZA",
+###         "name": "Comprobante de Balanza",
+###         "isRequired": true,
+###         "status": null,
+###         "documentNumber": null,
+###         "fileUrl": null,
+###         "receivedAt": null
+###       }
+###     ],
+###     "summary": {
+###       "total": 5,
+###       "verified": 2,
+###       "pending": 1,
+###       "received": 0,
+###       "missing": 2
+###     }
+###   },
+###   "timestamp": "2026-03-30T15:10:00.000Z"
+### }
+
+### 📤 RESPUESTA ESPERADA (Camión de apoyo - incluye FACTURA):
+### {
+###   "success": true,
+###   "message": "Checklist de documentos obtenido",
+###   "data": {
+###     "tripId": "uuid-del-viaje",
+###     "isSupportTruck": true,
+###     "documents": [
+###       { "code": "MIC", "name": "...", "status": "VERIFIED", ... },
+###       { "code": "CRT", "name": "...", "status": "VERIFIED", ... },
+###       { "code": "ASPB", "name": "...", "status": "VERIFIED", ... },
+###       { "code": "NOTA_TARJA", "name": "...", "status": "VERIFIED", ... },
+###       { "code": "BALANZA", "name": "...", "status": "VERIFIED", ... },
+###       { "code": "FACTURA", "name": "Factura de Servicio de Transporte", "status": "PENDING", ... }
+###     ],
+###     "summary": {
+###       "total": 6,
+###       "verified": 5,
+###       "pending": 1,
+###       "received": 0,
+###       "missing": 0
+###     }
+###   }
+### }
+
+### ============================================
+### 3. VERIFICACIÓN DE DOCUMENTOS
+### ============================================
+
+### 3.1 Verificar estado de documentos de un viaje
+### Actualiza automáticamente el Settlement
+# @name verifyTrip
+GET {{baseUrl}}/document-automation/trips/{{tripId}}/verify
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA (Documentos completos):
+### {
+###   "success": true,
+###   "message": "Estado de documentos verificado",
+###   "data": {
+###     "documentsComplete": true,
+###     "isPaymentBlocked": false,
+###     "missingDocuments": [],
+###     "verifiedCount": 5,
+###     "pendingCount": 0,
+###     "totalCount": 5
+###   },
+###   "timestamp": "2026-03-30T15:15:00.000Z"
+### }
+
+### 📤 RESPUESTA ESPERADA (Documentos incompletos):
+### {
+###   "success": true,
+###   "message": "Estado de documentos verificado",
+###   "data": {
+###     "documentsComplete": false,
+###     "isPaymentBlocked": true,
+###     "missingDocuments": ["CRT", "BALANZA"],
+###     "verifiedCount": 3,
+###     "pendingCount": 2,
+###     "totalCount": 5
+###   },
+###   "timestamp": "2026-03-30T15:15:00.000Z"
+### }
+
+### ============================================
+### 4. CREACIÓN DE DOCUMENTOS
+### ============================================
+
+### 4.1 Crear documentos para un viaje
+### Útil si el viaje se creó antes de implementar la automatización
+# @name createDocuments
+POST {{baseUrl}}/document-automation/trips/{{tripId}}/create-documents
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Documentos creados automáticamente",
+###   "data": {
+###     "created": 5,
+###     "documents": [
+###       {
+###         "id": "uuid-doc-1",
+###         "tripId": "uuid-trip",
+###         "documentTypeId": "uuid-doctype",
+###         "status": "PENDING",
+###         "documentType": {
+###           "code": "MIC",
+###           "name": "Manifiesto Internacional de Carga"
+###         }
+###       },
+###       ...
+###     ]
+###   },
+###   "timestamp": "2026-03-30T15:20:00.000Z"
+### }
+
+### 4.2 Crear documentos para múltiples viajes (batch)
+# @name batchCreate
+POST {{baseUrl}}/document-automation/batch-create
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "tripIds": [
+    "11111111-1111-1111-1111-111111111111",
+    "22222222-2222-2222-2222-222222222222",
+    "33333333-3333-3333-3333-333333333333"
+  ]
+}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Documentos creados en lote",
+###   "data": {
+###     "processed": 3,
+###     "totalCreated": 15,
+###     "results": [
+###       { "tripId": "11111111-1111-1111-1111-111111111111", "created": 5 },
+###       { "tripId": "22222222-2222-2222-2222-222222222222", "created": 5 },
+###       { "tripId": "33333333-3333-3333-3333-333333333333", "created": 5 }
+###     ]
+###   },
+###   "timestamp": "2026-03-30T15:25:00.000Z"
+### }
+
+### ============================================
+### 5. FLUJO COMPLETO DE PRUEBA
+### ============================================
+
+### 5.1 Obtener un viaje existente
+# @name getTrip
+GET {{baseUrl}}/trips?page=1&limit=1
+Authorization: Bearer {{token}}
+
+### 5.2 Ver el checklist del viaje
+### Usa el ID del viaje obtenido en 5.1
+GET {{baseUrl}}/document-automation/trips/{{tripId}}/checklist
+Authorization: Bearer {{token}}
+
+### 5.3 Obtener documentos del viaje
+GET {{baseUrl}}/documents?tripId={{tripId}}
+Authorization: Bearer {{token}}
+
+### 5.4 Actualizar estado de un documento a RECEIVED
+### Usa el ID de un documento del viaje
+PUT {{baseUrl}}/documents/{{documentId}}/receive
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "notes": "Documento recibido físicamente"
+}
+
+### 5.5 Verificar documento (cambia a VERIFIED y dispara automatización)
+POST {{baseUrl}}/documents/{{documentId}}/verify
+Authorization: Bearer {{token}}
+
+### 5.6 Verificar el nuevo estado del viaje
+GET {{baseUrl}}/document-automation/trips/{{tripId}}/verify
+Authorization: Bearer {{token}}
+
+### 5.7 Ver el Settlement actualizado
+GET {{baseUrl}}/settlements/trip/{{tripId}}
+Authorization: Bearer {{token}}
+
+### ============================================
+### 6. CASOS DE ERROR
+### ============================================
+
+### 6.1 Viaje no encontrado
+# @name tripNotFound
+GET {{baseUrl}}/document-automation/trips/00000000-0000-0000-0000-000000000000/checklist
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA (Error 404 Not Found):
+### {
+###   "success": false,
+###   "status": "fail",
+###   "message": "Viaje con ID 00000000-0000-0000-0000-000000000000 no encontrado",
+###   "code": "NOT_FOUND"
+### }
+
+### 6.2 Batch create sin tripIds
+POST {{baseUrl}}/document-automation/batch-create
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "tripIds": []
+}
+
+### 📤 RESPUESTA ESPERADA (Error 400 Bad Request):
+### {
+###   "success": false,
+###   "status": "fail",
+###   "message": "Se requiere un array de tripIds"
+### }
+
+### ============================================
+### 📋 RESUMEN DE ENDPOINTS PARA FRONTEND
+### ============================================
+###
+### | Endpoint | Método | Descripción | Permisos Requeridos |
+### |----------|--------|-------------|---------------------|
+### | /document-automation/stats | GET | Estadísticas | reportes:dashboard:ver |
+### | /document-automation/trips/:tripId/checklist | GET | Checklist por viaje | documentos:archivos:leer |
+### | /document-automation/trips/:tripId/verify | GET | Verificar estado docs | documentos:archivos:leer |
+### | /document-automation/trips/:tripId/create-documents | POST | Crear docs para viaje | documentos:archivos:subir |
+### | /document-automation/batch-create | POST | Crear docs en lote | documentos:archivos:subir |
+###
+### 📝 NOTAS PARA FRONTEND:
+### - Al crear un viaje, los documentos se crean automáticamente
+### - Al verificar un documento, el Settlement se actualiza automáticamente
+### - use `isSupportTruck` para mostrar FACTURA solo a camiones de apoyo
+### - `missingDocuments` es un array de códigos: ["MIC", "CRT", "BALANZA"]
+### - `documentsComplete` = true → `isPaymentBlocked` = false
+### - `documentsComplete` = false → `isPaymentBlocked` = true
+### ============================================

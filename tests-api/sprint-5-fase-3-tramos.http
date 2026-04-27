@@ -1,0 +1,944 @@
+### ============================================
+### SPRINT 5 - FASE 3: TRAMOS CRUD
+### Pruebas de API para el catálogo de rutas predefinidas
+### ============================================
+### 
+### 📋 INSTRUCCIONES DE USO:
+### 1. Asegúrate de haber corrido el seed: npm run prisma:seed
+### 2. Primero ejecuta la petición "0.1 Login" para obtener el token
+### 3. El token tiene una duración de 15 minutos
+### 4. Si el token expira, ejecuta nuevamente el login o usa "0.2 Refresh Token"
+### 
+### ⚠️ Si obtienes error 403 Forbidden:
+###    - Corre: npm run prisma:seed
+###    - El usuario admin@templarios.com necesita los nuevos permisos
+### ============================================
+
+@baseUrl = http://localhost:3001/api/v1
+@token = {{login.response.body.$.data.accessToken}}
+@refreshToken = {{login.response.body.$.data.refreshToken}}
+
+### ============================================
+### 0. AUTENTICACIÓN
+### ============================================
+
+### 0.1 Login para obtener token
+### ⚠️ EJECUTA ESTO PRIMERO - El token dura 15 minutos
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@templarios.com",
+  "password": "Admin123!"
+}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Login successful",
+###   "data": {
+###     "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+###     "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+###     "user": {
+###       "id": "uuid-del-usuario",
+###       "email": "admin@templarios.com",
+###       "firstName": "Super",
+###       "lastName": "Admin",
+###       "phone": "+591 70000000",
+###       "avatar": null,
+###       "company": {
+###         "id": "uuid-company",
+###         "name": "TEMPLARIOS S.R.L.",
+###         "nit": "1234567890",
+###         "address": "Cochabamba, Bolivia",
+###         "phone": "+591 4 1234567",
+###         "email": "info@templarios.com",
+###         "isActive": true
+###       },
+###       "roles": ["Super Admin"],
+###       "permissions": ["iam:usuarios:crear", "iam:usuarios:leer", ..., "rutas:tramos:listar", ...]
+###     }
+###   },
+###   "timestamp": "2026-03-30T12:00:00.000Z"
+### }
+
+### 0.2 Refresh Token - Usa esto si el access token expiró
+### Necesitas ejecutar el login primero para obtener el refresh token
+# @name refreshToken
+POST {{baseUrl}}/auth/refresh-token
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Token refreshed successfully",
+###   "data": {
+###     "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+###     "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+###   },
+###   "timestamp": "2026-03-30T12:00:00.000Z"
+### }
+
+### ============================================
+### 1. TRAMOS - ESTADÍSTICAS Y LISTAS
+### ============================================
+
+### 1.1 Obtener estadísticas de tramos
+# @name getStats
+GET {{baseUrl}}/tramos/stats
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Estadisticas de tramos obtenidas correctamente",
+###   "data": {
+###     "total": 6,
+###     "active": 6,
+###     "inactive": 0,
+###     "avgDistance": 754.25,
+###     "avgRateUsd": 1141.67,
+###     "totalOrigins": 3,
+###     "totalDestinations": 3
+###   },
+###   "timestamp": "2026-03-30T12:05:00.000Z"
+### }
+
+### 1.2 Obtener tramos activos (para dropdowns)
+# @name getActive
+GET {{baseUrl}}/tramos/active
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tramos activos obtenidos correctamente",
+###   "data": [
+###     {
+###       "id": "uuid-ari-lpz",
+###       "code": "ARI-LPZ",
+###       "name": "Arica - La Paz",
+###       "origin": "Arica",
+###       "destination": "La Paz",
+###       "distanceKm": "520.00",
+###       "estimatedHours": 12,
+###       "baseRateUsd": "850.00",
+###       "baseRateBob": null,
+###       "isActive": true,
+###       "notes": null,
+###       "createdAt": "2026-03-30T01:02:57.662Z",
+###       "updatedAt": "2026-03-30T01:02:57.662Z"
+###     },
+###     {
+###       "id": "uuid-des-cba",
+###       "code": "DES-CBA",
+###       "name": "Desaguadero - Cochabamba",
+###       "origin": "Desaguadero",
+###       "destination": "Cochabamba",
+###       "distanceKm": "380.00",
+###       "estimatedHours": 8,
+###       "baseRateUsd": "650.00",
+###       "baseRateBob": null,
+###       "isActive": true,
+###       "notes": null,
+###       "createdAt": "2026-03-30T01:02:57.662Z",
+###       "updatedAt": "2026-03-30T01:02:57.662Z"
+###     },
+###     {
+###       "id": "uuid-des-scz",
+###       "code": "DES-SCZ",
+###       "name": "Desaguadero - Santa Cruz",
+###       "origin": "Desaguadero",
+###       "destination": "Santa Cruz",
+###       "distanceKm": "850.00",
+###       "estimatedHours": 18,
+###       "baseRateUsd": "1400.00",
+###       "baseRateBob": null,
+###       "isActive": true,
+###       "notes": null,
+###       "createdAt": "2026-03-30T01:02:57.662Z",
+###       "updatedAt": "2026-03-30T01:02:57.662Z"
+###     },
+###     {
+###       "id": "uuid-mat-cba",
+###       "code": "MAT-CBA",
+###       "name": "Matarani - Cochabamba",
+###       "origin": "Matarani",
+###       "destination": "Cochabamba",
+###       "distanceKm": "845.50",
+###       "estimatedHours": 18,
+###       "baseRateUsd": "1200.00",
+###       "baseRateBob": null,
+###       "isActive": true,
+###       "notes": null,
+###       "createdAt": "2026-03-30T01:02:57.662Z",
+###       "updatedAt": "2026-03-30T01:02:57.662Z"
+###     },
+###     {
+###       "id": "uuid-mat-lpz",
+###       "code": "MAT-LPZ",
+###       "name": "Matarani - La Paz",
+###       "origin": "Matarani",
+###       "destination": "La Paz",
+###       "distanceKm": "680.00",
+###       "estimatedHours": 15,
+###       "baseRateUsd": "950.00",
+###       "baseRateBob": null,
+###       "isActive": true,
+###       "notes": null,
+###       "createdAt": "2026-03-30T01:02:57.662Z",
+###       "updatedAt": "2026-03-30T01:02:57.662Z"
+###     },
+###     {
+###       "id": "uuid-mat-scz",
+###       "code": "MAT-SCZ",
+###       "name": "Matarani - Santa Cruz",
+###       "origin": "Matarani",
+###       "destination": "Santa Cruz",
+###       "distanceKm": "1250.00",
+###       "estimatedHours": 26,
+###       "baseRateUsd": "1800.00",
+###       "baseRateBob": null,
+###       "isActive": true,
+###       "notes": null,
+###       "createdAt": "2026-03-30T01:02:57.662Z",
+###       "updatedAt": "2026-03-30T01:02:57.662Z"
+###     }
+###   ],
+###   "timestamp": "2026-03-30T12:06:00.000Z"
+### }
+
+### 1.3 Obtener lista de orígenes únicos
+# @name getOrigins
+GET {{baseUrl}}/tramos/origins
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Origenes obtenidos correctamente",
+###   "data": [
+###     "Arica",
+###     "Desaguadero",
+###     "Matarani"
+###   ],
+###   "timestamp": "2026-03-30T12:07:00.000Z"
+### }
+
+### 1.4 Obtener lista de destinos únicos
+# @name getDestinations
+GET {{baseUrl}}/tramos/destinations
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Destinos obtenidos correctamente",
+###   "data": [
+###     "Cochabamba",
+###     "La Paz",
+###     "Santa Cruz"
+###   ],
+###   "timestamp": "2026-03-30T12:08:00.000Z"
+### }
+
+### 1.5 Buscar tramos por origen
+# @name getByOrigin
+GET {{baseUrl}}/tramos/by-origin/Matarani
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tramos por origen obtenidos correctamente",
+###   "data": [
+###     {
+###       "id": "uuid-mat-cba",
+###       "code": "MAT-CBA",
+###       "name": "Matarani - Cochabamba",
+###       "origin": "Matarani",
+###       "destination": "Cochabamba",
+###       "distanceKm": "845.50",
+###       "estimatedHours": 18,
+###       "baseRateUsd": "1200.00",
+###       "baseRateBob": null,
+###       "isActive": true,
+###       "notes": null,
+###       "createdAt": "2026-03-30T01:02:57.662Z",
+###       "updatedAt": "2026-03-30T01:02:57.662Z"
+###     },
+###     {
+###       "id": "uuid-mat-lpz",
+###       "code": "MAT-LPZ",
+###       "name": "Matarani - La Paz",
+###       "origin": "Matarani",
+###       "destination": "La Paz",
+###       "distanceKm": "680.00",
+###       "estimatedHours": 15,
+###       "baseRateUsd": "950.00",
+###       "baseRateBob": null,
+###       "isActive": true,
+###       "notes": null,
+###       "createdAt": "2026-03-30T01:02:57.662Z",
+###       "updatedAt": "2026-03-30T01:02:57.662Z"
+###     },
+###     {
+###       "id": "uuid-mat-scz",
+###       "code": "MAT-SCZ",
+###       "name": "Matarani - Santa Cruz",
+###       "origin": "Matarani",
+###       "destination": "Santa Cruz",
+###       "distanceKm": "1250.00",
+###       "estimatedHours": 26,
+###       "baseRateUsd": "1800.00",
+###       "baseRateBob": null,
+###       "isActive": true,
+###       "notes": null,
+###       "createdAt": "2026-03-30T01:02:57.662Z",
+###       "updatedAt": "2026-03-30T01:02:57.662Z"
+###     }
+###   ],
+###   "timestamp": "2026-03-30T12:09:00.000Z"
+### }
+
+### 1.6 Buscar tramos por destino
+# @name getByDestination
+GET {{baseUrl}}/tramos/by-destination/Cochabamba
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tramos por destino obtenidos correctamente",
+###   "data": [
+###     {
+###       "id": "uuid-des-cba",
+###       "code": "DES-CBA",
+###       "name": "Desaguadero - Cochabamba",
+###       "origin": "Desaguadero",
+###       "destination": "Cochabamba",
+###       "distanceKm": "380.00",
+###       "estimatedHours": 8,
+###       "baseRateUsd": "650.00",
+###       "baseRateBob": null,
+###       "isActive": true,
+###       "notes": null,
+###       "createdAt": "2026-03-30T01:02:57.662Z",
+###       "updatedAt": "2026-03-30T01:02:57.662Z"
+###     },
+###     {
+###       "id": "uuid-mat-cba",
+###       "code": "MAT-CBA",
+###       "name": "Matarani - Cochabamba",
+###       "origin": "Matarani",
+###       "destination": "Cochabamba",
+###       "distanceKm": "845.50",
+###       "estimatedHours": 18,
+###       "baseRateUsd": "1200.00",
+###       "baseRateBob": null,
+###       "isActive": true,
+###       "notes": null,
+###       "createdAt": "2026-03-30T01:02:57.662Z",
+###       "updatedAt": "2026-03-30T01:02:57.662Z"
+###     }
+###   ],
+###   "timestamp": "2026-03-30T12:10:00.000Z"
+### }
+
+### ============================================
+### 2. TRAMOS - LECTURA
+### ============================================
+
+### 2.1 Obtener todos los tramos (paginado)
+# @name getAllTramos
+GET {{baseUrl}}/tramos?page=1&limit=10
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tramos obtenidos correctamente",
+###   "data": {
+###     "data": [
+###       {
+###         "id": "uuid-ari-lpz",
+###         "code": "ARI-LPZ",
+###         "name": "Arica - La Paz",
+###         "origin": "Arica",
+###         "destination": "La Paz",
+###         "distanceKm": "520.00",
+###         "estimatedHours": 12,
+###         "baseRateUsd": "850.00",
+###         "baseRateBob": null,
+###         "isActive": true,
+###         "notes": null,
+###         "createdAt": "2026-03-30T01:02:57.662Z",
+###         "updatedAt": "2026-03-30T01:02:57.662Z"
+###       },
+###       {
+###         "id": "uuid-des-cba",
+###         "code": "DES-CBA",
+###         "name": "Desaguadero - Cochabamba",
+###         "origin": "Desaguadero",
+###         "destination": "Cochabamba",
+###         "distanceKm": "380.00",
+###         "estimatedHours": 8,
+###         "baseRateUsd": "650.00",
+###         "baseRateBob": null,
+###         "isActive": true,
+###         "notes": null,
+###         "createdAt": "2026-03-30T01:02:57.662Z",
+###         "updatedAt": "2026-03-30T01:02:57.662Z"
+###       }
+###       // ... más tramos
+###     ],
+###     "meta": {
+###       "total": 6,
+###       "page": 1,
+###       "limit": 10,
+###       "totalPages": 1
+###     }
+###   },
+###   "timestamp": "2026-03-30T12:11:00.000Z"
+### }
+
+### 2.2 Obtener tramos con filtro de búsqueda
+# @name searchTramos
+GET {{baseUrl}}/tramos?search=Matarani
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tramos obtenidos correctamente",
+###   "data": {
+###     "data": [
+###       {
+###         "id": "uuid-mat-cba",
+###         "code": "MAT-CBA",
+###         "name": "Matarani - Cochabamba",
+###         "origin": "Matarani",
+###         "destination": "Cochabamba",
+###         "distanceKm": "845.50",
+###         "estimatedHours": 18,
+###         "baseRateUsd": "1200.00",
+###         "baseRateBob": null,
+###         "isActive": true,
+###         "notes": null,
+###         "createdAt": "2026-03-30T01:02:57.662Z",
+###         "updatedAt": "2026-03-30T01:02:57.662Z"
+###       },
+###       {
+###         "id": "uuid-mat-lpz",
+###         "code": "MAT-LPZ",
+###         "name": "Matarani - La Paz",
+###         "origin": "Matarani",
+###         "destination": "La Paz",
+###         "distanceKm": "680.00",
+###         "estimatedHours": 15,
+###         "baseRateUsd": "950.00",
+###         "baseRateBob": null,
+###         "isActive": true,
+###         "notes": null,
+###         "createdAt": "2026-03-30T01:02:57.662Z",
+###         "updatedAt": "2026-03-30T01:02:57.662Z"
+###       },
+###       {
+###         "id": "uuid-mat-scz",
+###         "code": "MAT-SCZ",
+###         "name": "Matarani - Santa Cruz",
+###         "origin": "Matarani",
+###         "destination": "Santa Cruz",
+###         "distanceKm": "1250.00",
+###         "estimatedHours": 26,
+###         "baseRateUsd": "1800.00",
+###         "baseRateBob": null,
+###         "isActive": true,
+###         "notes": null,
+###         "createdAt": "2026-03-30T01:02:57.662Z",
+###         "updatedAt": "2026-03-30T01:02:57.662Z"
+###       }
+###     ],
+###     "meta": {
+###       "total": 3,
+###       "page": 1,
+###       "limit": 10,
+###       "totalPages": 1
+###     }
+###   },
+###   "timestamp": "2026-03-30T12:12:00.000Z"
+### }
+
+### 2.3 Obtener tramos solo activos
+# @name getActiveOnly
+GET {{baseUrl}}/tramos?isActive=true
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA: Igual que 2.1 pero solo con isActive: true
+
+### 2.4 Obtener tramos inactivos
+# @name getInactiveOnly
+GET {{baseUrl}}/tramos?isActive=false
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tramos obtenidos correctamente",
+###   "data": {
+###     "data": [],
+###     "meta": {
+###       "total": 0,
+###       "page": 1,
+###       "limit": 10,
+###       "totalPages": 0
+###     }
+###   },
+###   "timestamp": "2026-03-30T12:13:00.000Z"
+### }
+
+### 2.5 Obtener tramo por código
+# @name getByCode
+GET {{baseUrl}}/tramos/code/MAT-CBA
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tramo obtenido correctamente",
+###   "data": {
+###     "id": "uuid-mat-cba",
+###     "code": "MAT-CBA",
+###     "name": "Matarani - Cochabamba",
+###     "origin": "Matarani",
+###     "destination": "Cochabamba",
+###     "distanceKm": "845.50",
+###     "estimatedHours": 18,
+###     "baseRateUsd": "1200.00",
+###     "baseRateBob": null,
+###     "isActive": true,
+###     "notes": null,
+###     "createdAt": "2026-03-30T01:02:57.662Z",
+###     "updatedAt": "2026-03-30T01:02:57.662Z"
+###   },
+###   "timestamp": "2026-03-30T12:14:00.000Z"
+### }
+
+### 2.6 Obtener tramo por ID
+# @name getById
+GET {{baseUrl}}/tramos/{{tramoId}}
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tramo obtenido correctamente",
+###   "data": {
+###     "id": "uuid-mat-cba",
+###     "code": "MAT-CBA",
+###     "name": "Matarani - Cochabamba",
+###     "origin": "Matarani",
+###     "destination": "Cochabamba",
+###     "distanceKm": "845.50",
+###     "estimatedHours": 18,
+###     "baseRateUsd": "1200.00",
+###     "baseRateBob": null,
+###     "isActive": true,
+###     "notes": null,
+###     "createdAt": "2026-03-30T01:02:57.662Z",
+###     "updatedAt": "2026-03-30T01:02:57.662Z",
+###     "routesCount": 5
+###   },
+###   "timestamp": "2026-03-30T12:15:00.000Z"
+### }
+
+### ============================================
+### 3. TRAMOS - CREACIÓN
+### ============================================
+
+### 3.1 Crear nuevo tramo (mínimo requerido)
+# @name createMinimal
+POST {{baseUrl}}/tramos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "ILO-CBA",
+  "name": "Ilo - Cochabamba",
+  "origin": "Ilo",
+  "destination": "Cochabamba"
+}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tramo creado correctamente",
+###   "data": {
+###     "id": "uuid-nuevo",
+###     "code": "ILO-CBA",
+###     "name": "Ilo - Cochabamba",
+###     "origin": "Ilo",
+###     "destination": "Cochabamba",
+###     "distanceKm": null,
+###     "estimatedHours": null,
+###     "baseRateUsd": null,
+###     "baseRateBob": null,
+###     "isActive": true,
+###     "notes": null,
+###     "createdAt": "2026-03-30T12:16:00.000Z",
+###     "updatedAt": "2026-03-30T12:16:00.000Z"
+###   },
+###   "timestamp": "2026-03-30T12:16:00.000Z"
+### }
+
+### 3.2 Crear tramo completo
+# @name createFull
+POST {{baseUrl}}/tramos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "ILO-SCZ",
+  "name": "Ilo - Santa Cruz",
+  "origin": "Ilo",
+  "destination": "Santa Cruz",
+  "distanceKm": 950.00,
+  "estimatedHours": 20,
+  "baseRateUsd": 1500.00,
+  "baseRateBob": 10500.00,
+  "isActive": true,
+  "notes": "Ruta alternativa por problems en Matarani"
+}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tramo creado correctamente",
+###   "data": {
+###     "id": "uuid-nuevo",
+###     "code": "ILO-SCZ",
+###     "name": "Ilo - Santa Cruz",
+###     "origin": "Ilo",
+###     "destination": "Santa Cruz",
+###     "distanceKm": "950.00",
+###     "estimatedHours": 20,
+###     "baseRateUsd": "1500.00",
+###     "baseRateBob": "10500.00",
+###     "isActive": true,
+###     "notes": "Ruta alternativa por problems en Matarani",
+###     "createdAt": "2026-03-30T12:17:00.000Z",
+###     "updatedAt": "2026-03-30T12:17:00.000Z"
+###   },
+###   "timestamp": "2026-03-30T12:17:00.000Z"
+### }
+
+### 3.3 Intentar crear con código duplicado (debe fallar)
+# @name createDuplicate
+POST {{baseUrl}}/tramos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "MAT-CBA",
+  "name": "Otro Matarani Cochabamba",
+  "origin": "Matarani",
+  "destination": "Cochabamba"
+}
+
+### 📤 RESPUESTA ESPERADA (Error 409 Conflict):
+### {
+###   "success": false,
+###   "status": "fail",
+###   "message": "El codigo de tramo \"MAT-CBA\" ya existe",
+###   "code": "CONFLICT"
+### }
+
+### 3.4 Intentar crear con código inválido (debe fallar)
+# @name createInvalidCode
+POST {{baseUrl}}/tramos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "codigo_invalido",
+  "name": "Tramo con código inválido",
+  "origin": "Test",
+  "destination": "Test"
+}
+
+### 📤 RESPUESTA ESPERADA (Error 400 Bad Request):
+### {
+###   "success": false,
+###   "status": "fail",
+###   "message": "Errores de validación",
+###   "code": "VALIDATION_ERROR",
+###   "errors": [
+###     {
+###       "field": "code",
+###       "message": "El codigo solo puede contener letras mayusculas, numeros y guiones"
+###     }
+###   ]
+### }
+
+### ============================================
+### 4. TRAMOS - ACTUALIZACIÓN
+### ============================================
+
+### 4.1 Actualizar nombre del tramo
+# @name updateName
+PUT {{baseUrl}}/tramos/{{tramoId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Matarani - Cochabamba (Actualizado)"
+}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tramo actualizado correctamente",
+###   "data": {
+###     "id": "uuid-mat-cba",
+###     "code": "MAT-CBA",
+###     "name": "Matarani - Cochabamba (Actualizado)",
+###     "origin": "Matarani",
+###     "destination": "Cochabamba",
+###     "distanceKm": "845.50",
+###     "estimatedHours": 18,
+###     "baseRateUsd": "1200.00",
+###     "baseRateBob": null,
+###     "isActive": true,
+###     "notes": null,
+###     "createdAt": "2026-03-30T01:02:57.662Z",
+###     "updatedAt": "2026-03-30T12:18:00.000Z"
+###   },
+###   "timestamp": "2026-03-30T12:18:00.000Z"
+### }
+
+### 4.2 Actualizar tarifa
+# @name updateRate
+PUT {{baseUrl}}/tramos/{{tramoId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "baseRateUsd": 1250.00,
+  "baseRateBob": 8750.00
+}
+
+### 📤 RESPUESTA ESPERADA: Similar a 4.1 con tarifas actualizadas
+
+### 4.3 Actualizar distancia y tiempo
+# @name updateDistance
+PUT {{baseUrl}}/tramos/{{tramoId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "distanceKm": 850.00,
+  "estimatedHours": 19
+}
+
+### 📤 RESPUESTA ESPERADA: Similar a 4.1 con distancia y tiempo actualizados
+
+### 4.4 Actualizar múltiples campos
+# @name updateMultiple
+PUT {{baseUrl}}/tramos/{{tramoId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Matarani - Cochabamba",
+  "distanceKm": 845.50,
+  "estimatedHours": 18,
+  "baseRateUsd": 1200.00,
+  "notes": "Ruta principal para importaciones desde Perú"
+}
+
+### 📤 RESPUESTA ESPERADA: Similar a 4.1 con todos los campos actualizados
+
+### ============================================
+### 5. TRAMOS - ELIMINACIÓN
+### ============================================
+
+### 5.1 Eliminar tramo (soft delete si tiene rutas)
+# @name deleteTramo
+DELETE {{baseUrl}}/tramos/{{tramoId}}
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA (si tiene rutas asociadas - soft delete):
+### {
+###   "success": true,
+###   "message": "Tramo eliminado correctamente",
+###   "data": {
+###     "id": "uuid-mat-cba",
+###     "code": "MAT-CBA",
+###     "name": "Matarani - Cochabamba",
+###     "isActive": false,
+###     ...
+###   },
+###   "timestamp": "2026-03-30T12:20:00.000Z"
+### }
+
+### 📤 RESPUESTA ESPERADA (si NO tiene rutas asociadas - hard delete):
+### {
+###   "success": true,
+###   "message": "Tramo eliminado correctamente",
+###   "data": {
+###     "id": "uuid-test",
+###     "code": "TEST-TRAMO",
+###     "name": "Test Tramo",
+###     ...
+###   },
+###   "timestamp": "2026-03-30T12:20:00.000Z"
+### }
+
+### 5.2 Restaurar tramo eliminado
+# @name restoreTramo
+POST {{baseUrl}}/tramos/{{tramoId}}/restore
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Tramo restaurado correctamente",
+###   "data": {
+###     "id": "uuid-mat-cba",
+###     "code": "MAT-CBA",
+###     "name": "Matarani - Cochabamba",
+###     "isActive": true,
+###     ...
+###   },
+###   "timestamp": "2026-03-30T12:21:00.000Z"
+### }
+
+### ============================================
+### 6. CASOS DE ERROR
+### ============================================
+
+### 6.1 Obtener tramo inexistente
+# @name getNonExistent
+GET {{baseUrl}}/tramos/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA (Error 404 Not Found):
+### {
+###   "success": false,
+###   "status": "fail",
+###   "message": "Tramo con ID 00000000-0000-0000-0000-000000000000 no encontrado",
+###   "code": "NOT_FOUND"
+### }
+
+### 6.2 Actualizar tramo inexistente
+# @name updateNonExistent
+PUT {{baseUrl}}/tramos/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "No existe"
+}
+
+### 📤 RESPUESTA ESPERADA (Error 404 Not Found):
+### {
+###   "success": false,
+###   "status": "fail",
+###   "message": "Tramo con ID 00000000-0000-0000-0000-000000000000 no encontrado",
+###   "code": "NOT_FOUND"
+### }
+
+### 6.3 Eliminar tramo inexistente
+# @name deleteNonExistent
+DELETE {{baseUrl}}/tramos/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA (Error 404 Not Found):
+### {
+###   "success": false,
+###   "status": "fail",
+###   "message": "Tramo con ID 00000000-0000-0000-0000-000000000000 no encontrado",
+###   "code": "NOT_FOUND"
+### }
+
+### 6.4 Obtener por código inexistente
+# @name getByCodeNonExistent
+GET {{baseUrl}}/tramos/code/CODIGO_INEXISTENTE
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA (Error 404 Not Found):
+### {
+###   "success": false,
+###   "status": "fail",
+###   "message": "Tramo con codigo CODIGO_INEXISTENTE no encontrado",
+###   "code": "NOT_FOUND"
+### }
+
+### ============================================
+### 7. VERIFICACIÓN FINAL
+### ============================================
+
+### 7.1 Verificar listado final
+# @name finalCheck
+GET {{baseUrl}}/tramos?page=1&limit=20
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA: Lista paginada de todos los tramos
+
+### 7.2 Verificar estadísticas finales
+# @name finalStats
+GET {{baseUrl}}/tramos/stats
+Authorization: Bearer {{token}}
+
+### 📤 RESPUESTA ESPERADA:
+### {
+###   "success": true,
+###   "message": "Estadisticas de tramos obtenidas correctamente",
+###   "data": {
+###     "total": 6,
+###     "active": 6,
+###     "inactive": 0,
+###     "avgDistance": 754.25,
+###     "avgRateUsd": 1141.67,
+###     "totalOrigins": 3,
+###     "totalDestinations": 3
+###   },
+###   "timestamp": "2026-03-30T12:25:00.000Z"
+### }
+
+### ============================================
+### 📋 RESUMEN DE ENDPOINTS PARA FRONTEND
+### ============================================
+###
+### | Endpoint | Método | Descripción | Permisos Requeridos |
+### |----------|--------|-------------|---------------------|
+### | /tramos | GET | Listar paginado | rutas:tramos:listar |
+### | /tramos/active | GET | Listar activos | rutas:tramos:listar |
+### | /tramos/origins | GET | Lista de orígenes | rutas:tramos:listar |
+### | /tramos/destinations | GET | Lista de destinos | rutas:tramos:listar |
+### | /tramos/stats | GET | Estadísticas | rutas:tramos:listar |
+### | /tramos/by-origin/:origin | GET | Buscar por origen | rutas:tramos:listar |
+### | /tramos/by-destination/:destination | GET | Buscar por destino | rutas:tramos:listar |
+### | /tramos/code/:code | GET | Obtener por código | rutas:tramos:leer |
+### | /tramos/:id | GET | Obtener por ID | rutas:tramos:leer |
+### | /tramos | POST | Crear | rutas:tramos:crear |
+### | /tramos/:id | PUT | Actualizar | rutas:tramos:actualizar |
+### | /tramos/:id | DELETE | Eliminar | rutas:tramos:eliminar |
+### | /tramos/:id/restore | POST | Restaurar | rutas:tramos:actualizar |
+###
+### 📝 NOTAS PARA FRONTEND:
+### - El campo "code" sigue el formato ORIGEN-DESTINO (ej: MAT-CBA)
+### - El campo "distanceKm" es la distancia en kilómetros (opcional)
+### - El campo "estimatedHours" es el tiempo estimado de viaje en horas (opcional)
+### - El campo "baseRateUsd" es la tarifa base en dólares (opcional)
+### - El campo "baseRateBob" es la tarifa base en bolivianos (opcional)
+### - Al eliminar un tramo con rutas asociadas, se hace soft delete (isActive: false)
+### - Al eliminar un tramo sin rutas asociadas, se hace hard delete
+### - El campo "routesCount" en getById indica cuántas rutas usan este tramo
+### - Los endpoints /origins y /destinations retornan listas únicas para dropdowns
+### ============================================

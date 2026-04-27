@@ -1,0 +1,1070 @@
+###
+### SPRINT 5 - FASE 8: PRUEBAS Y AJUSTES
+### REST Client Tests - Todos los endpoints del Sprint 5
+### Repositorio: erp-api-templarios
+### Autor: Sistema Automatizado
+### Fecha: 2025-04-04
+###
+
+@baseUrl = http://localhost:3001/api/v1
+@accessToken = {{login.response.body.$.data.accessToken}}
+
+### ==========================================
+### AUTENTICACIÓN
+### ==========================================
+
+### Login para obtener token
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@templarios.com",
+  "password": "Admin123!"
+}
+
+### ==========================================
+### FASE 2: DOCUMENT TYPES (Tipos de Documento)
+### ==========================================
+
+### Obtener todos los tipos de documento
+# @name getDocumentTypes
+GET {{baseUrl}}/document-types?page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada para el frontend:
+# {
+#   "success": true,
+#   "status": "success",
+#   "message": "Tipos de documento obtenidos correctamente",
+#   "data": {
+#     "data": [
+#       {
+#         "id": "uuid",
+#         "code": "MIC",
+#         "name": "Manifiesto Internacional de Carga",
+#         "description": "Documento aduanero principal...",
+#         "isRequired": true,
+#         "isForSupportOnly": false,
+#         "order": 1,
+#         "isActive": true,
+#         "createdAt": "2025-01-01T00:00:00.000Z",
+#         "updatedAt": "2025-01-01T00:00:00.000Z"
+#       },
+#       ...
+#     ],
+#     "pagination": {
+#       "page": 1,
+#       "limit": 10,
+#       "total": 6,
+#       "totalPages": 1
+#     }
+#   }
+# }
+
+### Obtener tipos de documento activos
+# @name getActiveDocumentTypes
+GET {{baseUrl}}/document-types/active
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada:
+# {
+#   "success": true,
+#   "data": [
+#     { "id": "uuid", "code": "MIC", "name": "...", ... },
+#     ...
+#   ]
+# }
+
+### Obtener tipos de documento requeridos
+# @name getRequiredDocumentTypes
+GET {{baseUrl}}/document-types/required
+Authorization: Bearer {{accessToken}}
+
+### Obtener un tipo de documento por ID
+# @name getDocumentTypeById
+GET {{baseUrl}}/document-types/{{documentTypeId}}
+Authorization: Bearer {{accessToken}}
+
+### Crear un nuevo tipo de documento
+# @name createDocumentType
+POST {{baseUrl}}/document-types
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "code": "CUSTOM_DOC",
+  "name": "Documento Personalizado",
+  "description": "Descripción del documento personalizado",
+  "isRequired": false,
+  "isForSupportOnly": false,
+  "order": 10
+}
+
+### Respuesta esperada:
+# {
+#   "success": true,
+#   "status": "success",
+#   "message": "Tipo de documento creado correctamente",
+#   "data": {
+#     "id": "uuid",
+#     "code": "CUSTOM_DOC",
+#     "name": "Documento Personalizado",
+#     ...
+#   }
+# }
+
+### Actualizar un tipo de documento
+# @name updateDocumentType
+PUT {{baseUrl}}/document-types/{{documentTypeId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Documento Personalizado Actualizado",
+  "order": 11
+}
+
+### Eliminar un tipo de documento (soft delete)
+# @name deleteDocumentType
+DELETE {{baseUrl}}/document-types/{{documentTypeId}}
+Authorization: Bearer {{accessToken}}
+
+### ==========================================
+### FASE 3: TRAMOS (Rutas Predefinidas)
+### ==========================================
+
+### Obtener todos los tramos
+# @name getTramos
+GET {{baseUrl}}/tramos?page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada para el frontend:
+# {
+#   "success": true,
+#   "status": "success",
+#   "message": "Tramos obtenidos correctamente",
+#   "data": {
+#     "data": [
+#       {
+#         "id": "uuid",
+#         "code": "MAT-CBA",
+#         "name": "Matarani - Cochabamba",
+#         "origin": "Matarani",
+#         "destination": "Cochabamba",
+#         "distanceKm": 845.50,
+#         "estimatedHours": 18,
+#         "baseRateUsd": 1200.00,
+#         "baseRateBob": null,
+#         "isActive": true,
+#         "notes": null,
+#         "createdAt": "...",
+#         "updatedAt": "..."
+#       },
+#       ...
+#     ],
+#     "pagination": {
+#       "page": 1,
+#       "limit": 10,
+#       "total": 4,
+#       "totalPages": 1
+#     }
+#   }
+# }
+
+### Obtener tramos activos
+# @name getActiveTramos
+GET {{baseUrl}}/tramos/active
+Authorization: Bearer {{accessToken}}
+
+### Obtener tramos por origen
+# @name getTramosByOrigin
+GET {{baseUrl}}/tramos/by-origin/Matarani
+Authorization: Bearer {{accessToken}}
+
+### Obtener tramos por destino
+# @name getTramosByDestination
+GET {{baseUrl}}/tramos/by-destination/Cochabamba
+Authorization: Bearer {{accessToken}}
+
+### Obtener orígenes disponibles
+# @name getOrigins
+GET {{baseUrl}}/tramos/origins
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada:
+# {
+#   "success": true,
+#   "data": ["Matarani", "Arica", "Ilo"]
+# }
+
+### Obtener destinos disponibles
+# @name getDestinations
+GET {{baseUrl}}/tramos/destinations
+Authorization: Bearer {{accessToken}}
+
+### Obtener un tramo por ID
+# @name getTramoById
+GET {{baseUrl}}/tramos/{{tramoId}}
+Authorization: Bearer {{accessToken}}
+
+### Obtener un tramo por código
+# @name getTramoByCode
+GET {{baseUrl}}/tramos/code/MAT-CBA
+Authorization: Bearer {{accessToken}}
+
+### Crear un nuevo tramo
+# @name createTramo
+POST {{baseUrl}}/tramos
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "code": "ILO-SCZ",
+  "name": "Ilo - Santa Cruz",
+  "origin": "Ilo",
+  "destination": "Santa Cruz",
+  "distanceKm": 1100.00,
+  "estimatedHours": 24,
+  "baseRateUsd": 1600.00
+}
+
+### Respuesta esperada:
+# {
+#   "success": true,
+#   "status": "success",
+#   "message": "Tramo creado correctamente",
+#   "data": {
+#     "id": "uuid",
+#     "code": "ILO-SCZ",
+#     "name": "Ilo - Santa Cruz",
+#     ...
+#   }
+# }
+
+### Actualizar un tramo
+# @name updateTramo
+PUT {{baseUrl}}/tramos/{{tramoId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "baseRateUsd": 1650.00,
+  "notes": "Ruta actualizada con nueva tarifa"
+}
+
+### Obtener estadísticas de tramos
+# @name getTramoStats
+GET {{baseUrl}}/tramos/stats
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada:
+# {
+#   "success": true,
+#   "data": {
+#     "total": 4,
+#     "active": 4,
+#     "inactive": 0,
+#     "avgDistance": 723.88,
+#     "avgEstimatedHours": 17.75,
+#     "avgBaseRateUsd": 1200.00
+#   }
+# }
+
+### ==========================================
+### FASE 4: TRIP REPORTS (Reportes de Viajes)
+### ==========================================
+
+### Obtener todos los reportes de viajes
+# @name getTripReports
+GET {{baseUrl}}/trip-reports?page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada para el frontend:
+# {
+#   "success": true,
+#   "status": "success",
+#   "message": "Reportes de viajes obtenidos correctamente",
+#   "data": {
+#     "data": [
+#       {
+#         "id": "uuid",
+#         "tripId": "uuid",
+#         "micDta": "MIC-2025-001",
+#         "blNumber": "BL-2025-001",
+#         "lineNumber": 1,
+#         "clientId": "uuid",
+#         "clientName": "Cliente Ejemplo S.A.",
+#         "clientNit": "123456789",
+#         "origin": "Matarani",
+#         "destination": "Cochabamba",
+#         "tramoCode": "MAT-CBA",
+#         "truckPlate": "ABC-123",
+#         "trailerPlate": "XYZ-456",
+#         "driverName": "Juan Pérez",
+#         "driverCi": "12345678",
+#         "isSupportTruck": false,
+#         "weightKg": 25000.00,
+#         "unitCount": 1,
+#         "freightAmount": 1200.00,
+#         "retentionPercent": 7.00,
+#         "retentionAmount": 84.00,
+#         "netAmount": 1116.00,
+#         "documentsComplete": false,
+#         "documentsPending": 2,
+#         "missingDocuments": "MIC,BALANZA",
+#         "isPaymentBlocked": true,
+#         "paymentStatus": "pending",
+#         "departureDate": "2025-01-15T08:00:00.000Z",
+#         "arrivalDate": null,
+#         "documentDate": null,
+#         "createdAt": "...",
+#         "updatedAt": "..."
+#       },
+#       ...
+#     ],
+#     "pagination": {
+#       "page": 1,
+#       "limit": 10,
+#       "total": 50,
+#       "totalPages": 5
+#     }
+#   }
+# }
+
+### Filtrar reportes por estado de pago
+# @name getTripReportsByPaymentStatus
+GET {{baseUrl}}/trip-reports?paymentStatus=pending&page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+### Filtrar reportes por documentos completos
+# @name getTripReportsByDocsComplete
+GET {{baseUrl}}/trip-reports?documentsComplete=false&page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+### Filtrar reportes por pago bloqueado
+# @name getTripReportsBlockedPayments
+GET {{baseUrl}}/trip-reports?isPaymentBlocked=true&page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+### Filtrar reportes por número de BL
+# @name getTripReportsByBlNumber
+GET {{baseUrl}}/trip-reports?blNumber=BL-2025-001
+Authorization: Bearer {{accessToken}}
+
+### Filtrar reportes por cliente
+# @name getTripReportsByClient
+GET {{baseUrl}}/trip-reports?clientId={{clientId}}&page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+### Obtener un reporte por ID
+# @name getTripReportById
+GET {{baseUrl}}/trip-reports/{{tripReportId}}
+Authorization: Bearer {{accessToken}}
+
+### Obtener un reporte por tripId
+# @name getTripReportByTripId
+GET {{baseUrl}}/trip-reports/trip/{{tripId}}
+Authorization: Bearer {{accessToken}}
+
+### Obtener un reporte por MIC/DTA
+# @name getTripReportByMicDta
+GET {{baseUrl}}/trip-reports/mic-dta/MIC-2025-001
+Authorization: Bearer {{accessToken}}
+
+### Obtener reportes con pagos bloqueados
+# @name getBlockedPaymentReports
+GET {{baseUrl}}/trip-reports/blocked-payments
+Authorization: Bearer {{accessToken}}
+
+### Obtener reportes con documentos incompletos
+# @name getIncompleteDocsReports
+GET {{baseUrl}}/trip-reports/incomplete-documents
+Authorization: Bearer {{accessToken}}
+
+### Obtener estadísticas de reportes
+# @name getTripReportStats
+GET {{baseUrl}}/trip-reports/stats
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada:
+# {
+#   "success": true,
+#   "data": {
+#     "total": 50,
+#     "withCompleteDocs": 35,
+#     "withBlockedPayments": 15,
+#     "byPaymentStatus": {
+#       "pending": 30,
+#       "partial": 5,
+#       "paid": 15
+#     },
+#     "totalFreightAmount": 60000.00,
+#     "totalRetentionAmount": 4200.00,
+#     "totalNetAmount": 55800.00
+#   }
+# }
+
+### Actualizar un reporte
+# @name updateTripReport
+PUT {{baseUrl}}/trip-reports/{{tripReportId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "documentsComplete": true,
+  "documentsPending": 0,
+  "missingDocuments": null,
+  "isPaymentBlocked": false
+}
+
+### ==========================================
+### FASE 5: DOCUMENT AUTOMATION (Automatización de Documentos)
+### ==========================================
+
+### Obtener checklist de documentos para un viaje
+# @name getTripDocumentChecklist
+GET {{baseUrl}}/document-automation/trips/{{tripId}}/checklist
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada para el frontend:
+# {
+#   "success": true,
+#   "status": "success",
+#   "message": "Checklist de documentos obtenido correctamente",
+#   "data": {
+#     "tripId": "uuid",
+#     "truckId": "uuid",
+#     "isSupportTruck": false,
+#     "checklist": [
+#       {
+#         "id": "uuid",
+#         "code": "MIC",
+#         "name": "Manifiesto Internacional de Carga",
+#         "isRequired": true,
+#         "isForSupportOnly": false,
+#         "order": 1,
+#         "documentId": "uuid",
+#         "status": "PENDING",
+#         "fileUrl": null,
+#         "verifiedAt": null,
+#         "verifiedByName": null
+#       },
+#       {
+#         "id": "uuid",
+#         "code": "CRT",
+#         "name": "Carta de Porte",
+#         "isRequired": true,
+#         "isForSupportOnly": false,
+#         "order": 2,
+#         "documentId": "uuid",
+#         "status": "VERIFIED",
+#         "fileUrl": "https://...",
+#         "verifiedAt": "2025-01-15T10:30:00.000Z",
+#         "verifiedByName": "Admin Usuario"
+#       },
+#       ...
+#     ],
+#     "summary": {
+#       "total": 5,
+#       "verified": 2,
+#       "pending": 3,
+#       "missing": 0,
+#       "documentsComplete": false
+#     }
+#   }
+# }
+
+### Verificar estado de documentos de un viaje
+# @name verifyTripDocuments
+GET {{baseUrl}}/document-automation/trips/{{tripId}}/verify
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada:
+# {
+#   "success": true,
+#   "data": {
+#     "tripId": "uuid",
+#     "documentsComplete": false,
+#     "pendingCount": 3,
+#     "verifiedCount": 2,
+#     "missingDocuments": ["MIC", "BALANZA", "NOTA_TARJA"]
+#   }
+# }
+
+### Obtener estadísticas de documentos
+# @name getDocumentStats
+GET {{baseUrl}}/document-automation/stats
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada:
+# {
+#   "success": true,
+#   "data": {
+#     "total": 250,
+#     "verified": 180,
+#     "pending": 70,
+#     "byType": [
+#       { "type": "MIC", "verified": 45, "pending": 5 },
+#       { "type": "CRT", "verified": 48, "pending": 2 },
+#       ...
+#     ]
+#   }
+# }
+
+### ==========================================
+### FASE 6: PAYMENT BLOCK (Bloqueo de Pagos)
+### ==========================================
+
+### Obtener lista de pagos bloqueados
+# @name getBlockedPayments
+GET {{baseUrl}}/payment-block/blocked
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada para el frontend:
+# {
+#   "success": true,
+#   "status": "success",
+#   "message": "Pagos bloqueados obtenidos correctamente",
+#   "data": [
+#     {
+#       "settlementId": "uuid",
+#       "tripId": "uuid",
+#       "micDta": "MIC-2025-001",
+#       "driverName": "Juan Pérez",
+#       "truckPlate": "ABC-123",
+#       "freightAmount": 1200.00,
+#       "retentionAmount": 84.00,
+#       "retentionPercent": 7.00,
+#       "missingDocuments": ["MIC", "BALANZA"],
+#       "blockedAt": "2025-01-15T08:00:00.000Z",
+#       "daysBlocked": 5
+#     },
+#     ...
+#   ]
+# }
+
+### Verificar y actualizar estado de bloqueo
+# @name checkBlockStatus
+POST {{baseUrl}}/payment-block/check/{{tripId}}
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada:
+# {
+#   "success": true,
+#   "data": {
+#     "tripId": "uuid",
+#     "isPaymentBlocked": true,
+#     "documentsComplete": false,
+#     "missingDocuments": ["MIC", "BALANZA"],
+#     "previousState": { "documentsComplete": true, "isPaymentBlocked": false },
+#     "notificationSent": true
+#   },
+#   "message": "Pago bloqueado. Faltan documentos: MIC, BALANZA"
+# }
+
+### Obtener checklist de pago
+# @name getPaymentChecklist
+GET {{baseUrl}}/payment-block/checklist/{{tripId}}
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada:
+# {
+#   "success": true,
+#   "data": {
+#     "settlementId": "uuid",
+#     "freightAmount": 1200.00,
+#     "retentionPercent": 7.00,
+#     "retentionAmount": 84.00,
+#     "netAmount": 1116.00,
+#     "isPaymentBlocked": true,
+#     "documentsComplete": false,
+#     "checklist": [
+#       {
+#         "code": "MIC",
+#         "name": "Manifiesto Internacional de Carga",
+#         "status": "PENDING",
+#         "isBlocking": true
+#       },
+#       ...
+#     ]
+#   }
+# }
+
+### Desbloquear pago manualmente
+# @name manualUnblock
+POST {{baseUrl}}/payment-block/unblock/{{settlementId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "reason": "Documentos verificados manualmente por el administrador"
+}
+
+### Respuesta esperada:
+# {
+#   "success": true,
+#   "message": "Pago desbloqueado correctamente",
+#   "data": {
+#     "settlementId": "uuid",
+#     "isPaymentBlocked": false,
+#     "documentsComplete": true,
+#     "unblockedAt": "2025-01-20T14:30:00.000Z",
+#     "unblockedBy": "Admin Usuario"
+#   }
+# }
+
+### Verificar si se puede procesar pago
+# @name canProcessPayment
+GET {{baseUrl}}/payment-block/can-process/{{settlementId}}
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada:
+# {
+#   "success": true,
+#   "data": {
+#     "canProcess": true,
+#     "isBlocked": false,
+#     "missingDocuments": [],
+#     "documentsComplete": true
+#   }
+# }
+
+### Obtener estadísticas de bloqueo
+# @name getPaymentBlockStats
+GET {{baseUrl}}/payment-block/stats
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada:
+# {
+#   "success": true,
+#   "data": {
+#     "totalBlocked": 15,
+#     "totalUnblocked": 35,
+#     "totalRetentionAmount": 1260.00,
+#     "byDocumentType": [
+#       { "documentType": "MIC", "missingCount": 8 },
+#       { "documentType": "BALANZA", "missingCount": 5 },
+#       { "documentType": "NOTA_TARJA", "missingCount": 4 }
+#     ]
+#   }
+# }
+
+### Obtener historial de bloqueo
+# @name getBlockHistory
+GET {{baseUrl}}/payment-block/history/{{settlementId}}
+Authorization: Bearer {{accessToken}}
+
+### ==========================================
+### FASE 7: SANCTIONS AUTOMATION (Automatización de Sanciones)
+### ==========================================
+
+### Obtener configuración de sanciones
+# @name getSanctionConfig
+GET {{baseUrl}}/sanctions/config
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada para el frontend:
+# {
+#   "success": true,
+#   "status": "success",
+#   "message": "Configuración de sanciones obtenida",
+#   "data": {
+#     "fineAmountPerDay": 50,
+#     "suspensionThreshold": 3,
+#     "suspensionDays": 7,
+#     "warningThreshold": 2,
+#     "maxSuspensionDays": 30
+#   }
+# }
+
+### Obtener razones de sanción
+# @name getSanctionReasons
+GET {{baseUrl}}/sanctions/reasons
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada:
+# {
+#   "success": true,
+#   "data": [
+#     { "value": "DOCUMENT_DELAY", "label": "Retraso en documentación", "description": "..." },
+#     { "value": "REPEATED_OFFENSE", "label": "Ofensa repetida", "description": "..." },
+#     { "value": "SAFETY_VIOLATION", "label": "Violación de seguridad", "description": "..." },
+#     { "value": "OTHER", "label": "Otra razón", "description": "..." }
+#   ]
+# }
+
+### Obtener tipos de sanción
+# @name getSanctionTypes
+GET {{baseUrl}}/sanctions/types
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada:
+# {
+#   "success": true,
+#   "data": [
+#     { "value": "FINE", "label": "Multa" },
+#     { "value": "SUSPENSION", "label": "Suspensión" },
+#     { "value": "WARNING", "label": "Amonestación" }
+#   ]
+# }
+
+### Obtener viajes con retraso de documentación
+# @name getDelayedTrips
+GET {{baseUrl}}/sanctions/delayed-trips?minDaysDelayed=1
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada:
+# {
+#   "success": true,
+#   "message": "Viajes con retraso obtenidos correctamente",
+#   "data": {
+#     "trips": [
+#       {
+#         "tripId": "uuid",
+#         "micDta": "MIC-2025-001",
+#         "driverId": "uuid",
+#         "driverName": "Juan Pérez",
+#         "daysDelayed": 5,
+#         "missingDocuments": ["MIC", "BALANZA"],
+#         "potentialFine": 250.00
+#       },
+#       ...
+#     ],
+#     "total": 3
+#   }
+# }
+
+### Generar sanciones automáticas
+# @name generateAutomaticSanctions
+POST {{baseUrl}}/sanctions/generate-automatic
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada:
+# {
+#   "success": true,
+#   "message": "Proceso completado: 2 sanciones generadas, 1 omitidas, 0 ya tenían sanción",
+#   "data": {
+#     "generated": 2,
+#     "skipped": 1,
+#     "alreadySanctioned": 0,
+#     "details": [
+#       {
+#         "tripId": "uuid",
+#         "driverId": "uuid",
+#         "driverName": "Juan Pérez",
+#         "sanctionType": "FINE",
+#         "amount": 250.00,
+#         "reason": "DOCUMENT_DELAY"
+#       },
+#       ...
+#     ]
+#   }
+# }
+
+### Verificar reincidencia de un conductor
+# @name checkRecurring
+GET {{baseUrl}}/sanctions/check-recurring/{{driverId}}
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada:
+# {
+#   "success": true,
+#   "message": "Verificación de reincidencia completada",
+#   "data": {
+#     "driverId": "uuid",
+#     "driverName": "Juan Pérez",
+#     "totalSanctions": 2,
+#     "activeSanctions": 1,
+#     "shouldSuspend": false,
+#     "suspensionDays": 0,
+#     "sanctions": [
+#       {
+#         "id": "uuid",
+#         "type": "FINE",
+#         "reason": "DOCUMENT_DELAY",
+#         "amount": 100.00,
+#         "status": "COMPLETED",
+#         "createdAt": "2025-01-10T00:00:00.000Z"
+#       }
+#     ]
+#   }
+# }
+
+### Procesar sanciones de un conductor específico
+# @name processDriverSanctions
+POST {{baseUrl}}/sanctions/process-driver/{{driverId}}
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada:
+# {
+#   "success": true,
+#   "message": "Procesado: 1 nuevas sanciones. Suspensión generada por 7 días.",
+#   "data": {
+#     "driverId": "uuid",
+#     "newSanctions": 1,
+#     "suspensionGenerated": true,
+#     "suspensionDays": 7,
+#     "sanction": {
+#       "id": "uuid",
+#       "type": "SUSPENSION",
+#       "reason": "REPEATED_OFFENSE",
+#       "startDate": "2025-01-20T00:00:00.000Z",
+#       "endDate": "2025-01-27T00:00:00.000Z"
+#     }
+#   }
+# }
+
+### Obtener estadísticas de automatización
+# @name getAutomationStats
+GET {{baseUrl}}/sanctions/automation-stats
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada:
+# {
+#   "success": true,
+#   "data": {
+#     "totalSanctions": 10,
+#     "automaticSanctions": 7,
+#     "manualSanctions": 3,
+#     "totalFines": 350.00,
+#     "activeSuspensions": 1,
+#     "byReason": {
+#       "DOCUMENT_DELAY": 6,
+#       "REPEATED_OFFENSE": 2,
+#       "SAFETY_VIOLATION": 1,
+#       "OTHER": 1
+#     },
+#     "byType": {
+#       "FINE": 7,
+#       "SUSPENSION": 2,
+#       "WARNING": 1
+#     }
+#   }
+# }
+
+### Obtener todas las sanciones (CRUD básico)
+# @name getAllSanctions
+GET {{baseUrl}}/sanctions?page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada:
+# {
+#   "success": true,
+#   "message": "Sanciones obtenidas correctamente",
+#   "data": {
+#     "data": [
+#       {
+#         "id": "uuid",
+#         "driverId": "uuid",
+#         "driverName": "Juan Pérez",
+#         "type": "FINE",
+#         "reason": "DOCUMENT_DELAY",
+#         "amount": 100.00,
+#         "status": "PENDING",
+#         "startDate": "2025-01-15T00:00:00.000Z",
+#         "endDate": null,
+#         "notes": "Sanción generada automáticamente",
+#         "createdAt": "...",
+#         "updatedAt": "..."
+#       },
+#       ...
+#     ],
+#     "pagination": {
+#       "page": 1,
+#       "limit": 10,
+#       "total": 10,
+#       "totalPages": 1
+#     }
+#   }
+# }
+
+### Obtener sanciones activas
+# @name getActiveSanctions
+GET {{baseUrl}}/sanctions/active
+Authorization: Bearer {{accessToken}}
+
+### Obtener sanciones por conductor
+# @name getSanctionsByDriver
+GET {{baseUrl}}/sanctions/driver/{{driverId}}
+Authorization: Bearer {{accessToken}}
+
+### Obtener estadísticas de sanciones
+# @name getSanctionStats
+GET {{baseUrl}}/sanctions/stats
+Authorization: Bearer {{accessToken}}
+
+### Crear sanción manual
+# @name createSanction
+POST {{baseUrl}}/sanctions
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "driverId": "{{driverId}}",
+  "type": "WARNING",
+  "reason": "SAFETY_VIOLATION",
+  "notes": "Violación de normas de seguridad en la carga"
+}
+
+### Actualizar sanción
+# @name updateSanction
+PUT {{baseUrl}}/sanctions/{{sanctionId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "notes": "Notas actualizadas",
+  "amount": 150.00
+}
+
+### Completar sanción
+# @name completeSanction
+POST {{baseUrl}}/sanctions/{{sanctionId}}/complete
+Authorization: Bearer {{accessToken}}
+
+### Cancelar sanción
+# @name cancelSanction
+POST {{baseUrl}}/sanctions/{{sanctionId}}/cancel
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "reason": "Sanción cancelada por error en el proceso"
+}
+
+### ==========================================
+### FASE 8: DASHBOARD SPRINT 5
+### ==========================================
+
+### Obtener estadísticas del Sprint 5
+# @name getSprint5Stats
+GET {{baseUrl}}/dashboard/sprint5
+Authorization: Bearer {{accessToken}}
+
+### Respuesta esperada para el frontend:
+# {
+#   "success": true,
+#   "data": {
+#     "documentTypes": {
+#       "total": 6,
+#       "active": 6,
+#       "inactive": 0
+#     },
+#     "documents": {
+#       "byStatus": {
+#         "PENDING": 70,
+#         "VERIFIED": 180,
+#         "REJECTED": 5
+#       },
+#       "byType": [
+#         { "type": "MIC", "name": "Manifiesto...", "count": 50 },
+#         { "type": "CRT", "name": "Carta de Porte", "count": 50 },
+#         ...
+#       ],
+#       "verified": 180,
+#       "pending": 70,
+#       "completionRate": 72.0
+#     },
+#     "tramos": {
+#       "total": 4,
+#       "active": 4,
+#       "topOrigins": [
+#         { "origin": "Matarani", "count": 2 },
+#         { "origin": "Arica", "count": 1 }
+#       ],
+#       "topDestinations": [
+#         { "destination": "Cochabamba", "count": 1 },
+#         { "destination": "La Paz", "count": 2 }
+#       ]
+#     },
+#     "tripReports": {
+#       "total": 50,
+#       "withCompleteDocs": 35,
+#       "withBlockedPayments": 15,
+#       "docsCompletionRate": 70.0,
+#       "paymentBlockRate": 30.0,
+#       "byPaymentStatus": {
+#         "pending": 30,
+#         "partial": 5,
+#         "paid": 15
+#       }
+#     },
+#     "paymentBlocks": {
+#       "blocked": 15,
+#       "unblocked": 35,
+#       "totalRetentionAmount": 1260.00
+#     },
+#     "sanctions": {
+#       "total": 10,
+#       "active": 3,
+#       "byType": {
+#         "FINE": 7,
+#         "SUSPENSION": 2,
+#         "WARNING": 1
+#       },
+#       "byReason": {
+#         "DOCUMENT_DELAY": 6,
+#         "REPEATED_OFFENSE": 2,
+#         "SAFETY_VIOLATION": 1,
+#         "OTHER": 1
+#       },
+#       "automatic": 7,
+#       "manual": 3,
+#       "automaticRate": 70.0
+#     },
+#     "automation": {
+#       "documentsAutoGenerated": 250,
+#       "documentsManuallyCreated": 50,
+#       "automationRate": 83.33
+#     }
+#   }
+# }
+
+### Obtener estadísticas con rango de fechas
+# @name getSprint5StatsWithDates
+GET {{baseUrl}}/dashboard/sprint5?startDate=2025-01-01&endDate=2025-01-31
+Authorization: Bearer {{accessToken}}
+
+### ==========================================
+### CRITERIOS DE ACEPTACIÓN - VERIFICACIÓN
+### ==========================================
+
+### CA-001: Verificar que crear viaje genera documentos automáticamente
+# Ejecutar primero: crear un viaje nuevo y verificar que se crearon los documentos
+# @name verifyCA001
+GET {{baseUrl}}/trip-reports?tripId={{newTripId}}
+Authorization: Bearer {{accessToken}}
+
+### CA-002: Verificar que camiones de apoyo tienen FACTURA en checklist
+# @name verifyCA002
+GET {{baseUrl}}/document-automation/trips/{{supportTruckTripId}}/checklist
+Authorization: Bearer {{accessToken}}
+
+### CA-003: Verificar que documentos incompletos bloquean pago
+# @name verifyCA003
+GET {{baseUrl}}/payment-block/can-process/{{settlementWithIncompleteDocs}}
+Authorization: Bearer {{accessToken}}
+
+### CA-004: Verificar rechazo de MIC/DTA duplicado
+# Intentar crear un viaje con MIC/DTA existente debe retornar error 409
+
+### CA-005: Verificar TripReport con todos los campos
+# @name verifyCA005
+GET {{baseUrl}}/trip-reports/{{tripReportId}}
+Authorization: Bearer {{accessToken}}
+
+### CA-006: Verificar generación automática de sanciones
+# @name verifyCA006
+POST {{baseUrl}}/sanctions/generate-automatic
+Authorization: Bearer {{accessToken}}
+
+### CA-007: Verificar retención configurable
+# @name verifyCA007
+GET {{baseUrl}}/settlements/{{settlementId}}
+Authorization: Bearer {{accessToken}}
+
+### CA-008: Verificar tramos disponibles
+# @name verifyCA008
+GET {{baseUrl}}/tramos/active
+Authorization: Bearer {{accessToken}}

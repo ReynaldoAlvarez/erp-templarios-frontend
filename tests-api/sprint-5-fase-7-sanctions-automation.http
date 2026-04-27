@@ -1,0 +1,689 @@
+###############################################################################
+# SPRINT 5 - FASE 7: AUTOMATIZACIÓN DE SANCIONES
+# Módulo de Generación Automática de Sanciones por Retraso en Documentación
+###############################################################################
+#
+# ⚠️ IMPORTANTE: Antes de probar estos endpoints:
+# 1. Ejecutar el seed: npx ts-node prisma/seed.ts
+# 2. Tener viajes con pagos bloqueados (más de 3 días de retraso)
+# 3. Los viajes deben ser de flota propia (no de apoyo)
+#
+# Permisos requeridos:
+# - sanciones:sanciones:leer - Ver sanciones
+# - sanciones:sanciones:crear - Crear sanciones manuales
+# - sanciones:sanciones:actualizar - Actualizar/completar sanciones
+# - sanciones:automatizacion:leer - Ver configuración y estadísticas
+# - sanciones:automatizacion:crear - Generar sanciones automáticas
+#
+# El usuario admin@templarios.com tiene el rol Super Admin con TODOS los permisos.
+###############################################################################
+
+@baseUrl = http://localhost:3001/api/v1
+@contentType = application/json
+
+###############################################################################
+# VARIABLES - REEMPLAZAR CON IDs DEL SEED
+###############################################################################
+
+# Conductor de flota propia (para pruebas)
+@driverId = REPLACE_WITH_DRIVER_ID_FROM_SEED
+
+# ID de una sanción existente
+@sanctionId = REPLACE_WITH_SANCTION_ID_FROM_SEED
+
+###############################################################################
+# AUTENTICACIÓN
+###############################################################################
+
+### Login como admin
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@templarios.com",
+  "password": "Admin123!"
+}
+
+### Guardar token de acceso
+@accessToken = {{login.response.body.data.accessToken}}
+
+###############################################################################
+# CONFIGURACIÓN Y CATÁLOGOS
+###############################################################################
+
+### Obtener configuración de sanciones automáticas
+# @name getConfig
+GET {{baseUrl}}/sanctions/config
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado:
+# {
+#   "success": true,
+#   "data": {
+#     "GRACE_PERIOD_DAYS": 3,
+#     "FINE_PER_DAY_USD": 10,
+#     "MAX_FINE_DAYS": 30,
+#     "MAX_FINE_AMOUNT": 300,
+#     "SUSPENSION_THRESHOLDS": {
+#       "OFFENSE_COUNT": 3,
+#       "OFFENSE_PERIOD_DAYS": 30,
+#       "SUSPENSION_DAYS": 7
+#     }
+#   },
+#   "message": "Configuración de sanciones obtenida"
+# }
+
+### Obtener razones de sanción disponibles
+# @name getReasons
+GET {{baseUrl}}/sanctions/reasons
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado:
+# {
+#   "success": true,
+#   "data": [
+#     { "value": "DOCUMENT_DELAY", "label": "Retraso en documentación", "description": "Sanción por entrega tardía de documentos" },
+#     { "value": "REPEATED_OFFENSE", "label": "Ofensa repetida", "description": "Sanción por reincidencia en faltas" },
+#     { "value": "SAFETY_VIOLATION", "label": "Violación de seguridad", "description": "Sanción por incumplimiento de normas de seguridad" },
+#     { "value": "OTHER", "label": "Otra razón", "description": "Otra razón no especificada" }
+#   ],
+#   "message": "Razones de sanción obtenidas"
+# }
+
+### Obtener tipos de sanción
+# @name getTypes
+GET {{baseUrl}}/sanctions/types
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado:
+# {
+#   "success": true,
+#   "data": [
+#     { "value": "FINE", "label": "Multa" },
+#     { "value": "SUSPENSION", "label": "Suspensión" },
+#     { "value": "WARNING", "label": "Amonestación" }
+#   ],
+#   "message": "Tipos de sanción obtenidos correctamente"
+# }
+
+###############################################################################
+# VIAJES CON RETRASO DE DOCUMENTACIÓN
+###############################################################################
+
+### Obtener todos los viajes con retraso
+# @name getDelayedTrips
+GET {{baseUrl}}/sanctions/delayed-trips
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado:
+# {
+#   "success": true,
+#   "data": {
+#     "trips": [
+#       {
+#         "tripId": "uuid-trip",
+#         "micDta": "MIC-2024-001",
+#         "driverId": "uuid-driver",
+#         "driverName": "Juan Pérez",
+#         "truckPlate": "ABC-123",
+#         "isSupportTruck": false,
+#         "settlementId": "uuid-settlement",
+#         "missingDocuments": ["MIC", "BALANZA"],
+#         "daysDelayed": 5,
+#         "shouldSanction": true
+#       }
+#     ],
+#     "total": 1
+#   },
+#   "message": "Viajes con retraso obtenidos correctamente"
+# }
+
+### Obtener viajes con mínimo de días de retraso
+GET {{baseUrl}}/sanctions/delayed-trips?minDaysDelayed=5
+Authorization: Bearer {{accessToken}}
+
+### Obtener viajes con retraso de un conductor específico
+GET {{baseUrl}}/sanctions/delayed-trips?driverId={{driverId}}
+Authorization: Bearer {{accessToken}}
+
+###############################################################################
+# GENERACIÓN AUTOMÁTICA DE SANCIONES
+###############################################################################
+
+### Generar sanciones automáticas para todos los viajes con retraso
+# @name generateAutomatic
+POST {{baseUrl}}/sanctions/generate-automatic
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado (sanciones generadas):
+# {
+#   "success": true,
+#   "data": {
+#     "generated": 3,
+#     "skipped": 2,
+#     "alreadySanctioned": 1,
+#     "sanctions": [
+#       {
+#         "id": "uuid-sanction",
+#         "driverId": "uuid-driver",
+#         "driverName": "Juan Pérez",
+#         "tripId": "uuid-trip",
+#         "micDta": "MIC-2024-001",
+#         "daysDelayed": 5,
+#         "amount": 50,
+#         "type": "FINE"
+#       }
+#     ],
+#     "errors": []
+#   },
+#   "message": "Proceso completado: 3 sanciones generadas, 2 omitidas, 1 ya tenían sanción"
+# }
+
+###############################################################################
+# VERIFICACIÓN DE REINCIDENCIA
+###############################################################################
+
+### Verificar reincidencia de un conductor
+# @name checkRecurring
+GET {{baseUrl}}/sanctions/check-recurring/{{driverId}}
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado (sin suspensión):
+# {
+#   "success": true,
+#   "data": {
+#     "shouldSuspend": false,
+#     "recentSanctions": 1,
+#     "suspensionDays": 0,
+#     "nextOffenseCount": 2
+#   },
+#   "message": "Verificación de reincidencia completada"
+# }
+
+###
+# Response esperado (con suspensión):
+# {
+#   "success": true,
+#   "data": {
+#     "shouldSuspend": true,
+#     "recentSanctions": 3,
+#     "suspensionDays": 7,
+#     "nextOffenseCount": 0
+#   },
+#   "message": "Verificación de reincidencia completada"
+# }
+
+###############################################################################
+# PROCESAR SANCIONES DE CONDUCTOR ESPECÍFICO
+###############################################################################
+
+### Procesar sanciones de un conductor específico
+# @name processDriver
+POST {{baseUrl}}/sanctions/process-driver/{{driverId}}
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado (sin suspensión):
+# {
+#   "success": true,
+#   "data": {
+#     "newSanctions": 1,
+#     "suspensionGenerated": false
+#   },
+#   "message": "Procesado: 1 nuevas sanciones."
+# }
+
+###
+# Response esperado (con suspensión):
+# {
+#   "success": true,
+#   "data": {
+#     "newSanctions": 1,
+#     "suspensionGenerated": true,
+#     "suspensionDays": 7,
+#     "result": {
+#       "sanction": { ... },
+#       "driver": { "id": "uuid", "name": "Juan Pérez" }
+#     }
+#   },
+#   "message": "Procesado: 1 nuevas sanciones. Suspensión generada por 7 días."
+# }
+
+###############################################################################
+# ESTADÍSTICAS
+###############################################################################
+
+### Obtener estadísticas de automatización
+# @name getAutomationStats
+GET {{baseUrl}}/sanctions/automation-stats
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado:
+# {
+#   "success": true,
+#   "data": {
+#     "total": 15,
+#     "automatic": 10,
+#     "manual": 5,
+#     "byReason": {
+#       "DOCUMENT_DELAY": 8,
+#       "REPEATED_OFFENSE": 4,
+#       "OTHER": 3
+#     },
+#     "totalFines": 1500.00,
+#     "pendingFines": 500.00,
+#     "averageDaysDelayed": 5,
+#     "driversWithMultipleSanctions": 3
+#   },
+#   "message": "Estadísticas de automatización obtenidas"
+# }
+
+### Obtener estadísticas de un conductor específico
+GET {{baseUrl}}/sanctions/automation-stats?driverId={{driverId}}
+Authorization: Bearer {{accessToken}}
+
+### Obtener estadísticas generales de sanciones
+# @name getStats
+GET {{baseUrl}}/sanctions/stats
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado:
+# {
+#   "success": true,
+#   "data": {
+#     "total": 15,
+#     "active": 8,
+#     "totalFines": 1500.00,
+#     "byType": {
+#       "FINE": 10,
+#       "SUSPENSION": 3,
+#       "WARNING": 2
+#     },
+#     "byStatus": {
+#       "PENDING": 8,
+#       "COMPLETED": 5,
+#       "CANCELLED": 2
+#     }
+#   },
+#   "message": "Estadísticas de sanciones obtenidas correctamente"
+# }
+
+###############################################################################
+# CRUD DE SANCIONES
+###############################################################################
+
+### Listar todas las sanciones
+# @name getAll
+GET {{baseUrl}}/sanctions?page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado:
+# {
+#   "success": true,
+#   "data": {
+#     "sanctions": [
+#       {
+#         "id": "uuid-sanction",
+#         "driverId": "uuid-driver",
+#         "type": "FINE",
+#         "reason": "Retraso de 5 días en documentación. Documentos faltantes: MIC, BALANZA",
+#         "sanctionReason": "DOCUMENT_DELAY",
+#         "tripId": "uuid-trip",
+#         "daysDelayed": 5,
+#         "automatic": true,
+#         "amount": 50.00,
+#         "startDate": "2024-04-01T00:00:00Z",
+#         "endDate": null,
+#         "status": "PENDING",
+#         "notes": null,
+#         "driver": {
+#           "id": "uuid-driver",
+#           "employee": {
+#             "firstName": "Juan",
+#             "lastName": "Pérez",
+#             "phone": "+591 70111111"
+#           }
+#         },
+#         "duration": null,
+#         "isActive": true
+#       }
+#     ],
+#     "total": 15,
+#     "page": 1,
+#     "limit": 10,
+#     "totalPages": 2
+#   },
+#   "message": "Sanciones obtenidas correctamente"
+# }
+
+### Filtrar sanciones por tipo
+GET {{baseUrl}}/sanctions?type=FINE
+Authorization: Bearer {{accessToken}}
+
+### Filtrar sanciones por estado
+GET {{baseUrl}}/sanctions?status=PENDING
+Authorization: Bearer {{accessToken}}
+
+### Obtener sanciones activas
+# @name getActive
+GET {{baseUrl}}/sanctions/active
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado:
+# {
+#   "success": true,
+#   "data": [
+#     {
+#       "id": "uuid-sanction",
+#       "driverId": "uuid-driver",
+#       "type": "FINE",
+#       "reason": "...",
+#       "amount": 50.00,
+#       "status": "PENDING",
+#       "isActive": true,
+#       "driver": {
+#         "employee": {
+#           "firstName": "Juan",
+#           "lastName": "Pérez",
+#           "phone": "+591 70111111"
+#         }
+#       }
+#     }
+#   ],
+#   "message": "Sanciones activas obtenidas correctamente"
+# }
+
+### Obtener sanciones de un conductor
+GET {{baseUrl}}/sanctions/driver/{{driverId}}
+Authorization: Bearer {{accessToken}}
+
+### Obtener sanción por ID
+GET {{baseUrl}}/sanctions/{{sanctionId}}
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado:
+# {
+#   "success": true,
+#   "data": {
+#     "id": "uuid-sanction",
+#     "driverId": "uuid-driver",
+#     "type": "FINE",
+#     "reason": "Retraso de 5 días en documentación",
+#     "sanctionReason": "DOCUMENT_DELAY",
+#     "tripId": "uuid-trip",
+#     "daysDelayed": 5,
+#     "automatic": true,
+#     "amount": 50.00,
+#     "startDate": "2024-04-01T00:00:00Z",
+#     "status": "PENDING",
+#     "driver": {
+#       "id": "uuid-driver",
+#       "employee": {
+#         "firstName": "Juan",
+#         "lastName": "Pérez",
+#         "identityCard": "12345678",
+#         "phone": "+591 70111111"
+#       }
+#     },
+#     "duration": null,
+#     "isActive": true
+#   },
+#   "message": "Sanción obtenida correctamente"
+# }
+
+###############################################################################
+# CREAR SANCIÓN MANUAL
+###############################################################################
+
+### Crear una multa manual
+# @name createFine
+POST {{baseUrl}}/sanctions
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "{{driverId}}",
+  "type": "FINE",
+  "reason": "Incumplimiento de horario de entrega",
+  "amount": 100,
+  "notes": "El conductor no cumplió con el horario establecido para la entrega de documentación"
+}
+
+###
+# Response esperado:
+# {
+#   "success": true,
+#   "data": {
+#     "id": "uuid-new-sanction",
+#     "driverId": "uuid-driver",
+#     "type": "FINE",
+#     "reason": "Incumplimiento de horario de entrega",
+#     "sanctionReason": "OTHER",
+#     "amount": 100.00,
+#     "startDate": "2024-04-01T00:00:00Z",
+#     "status": "PENDING",
+#     "automatic": false,
+#     "driver": {
+#       "employee": {
+#         "firstName": "Juan",
+#         "lastName": "Pérez"
+#       }
+#     }
+#   },
+#   "message": "Sanción creada correctamente"
+# }
+
+### Crear una suspensión manual
+POST {{baseUrl}}/sanctions
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "{{driverId}}",
+  "type": "SUSPENSION",
+  "reason": "Violación repetida de normas de seguridad",
+  "startDate": "2024-04-01",
+  "endDate": "2024-04-08",
+  "notes": "Suspensión de 7 días por reincidencia en violaciones de seguridad"
+}
+
+###
+# Response esperado:
+# {
+#   "success": true,
+#   "data": {
+#     "id": "uuid-new-sanction",
+#     "driverId": "uuid-driver",
+#     "type": "SUSPENSION",
+#     "reason": "Violación repetida de normas de seguridad",
+#     "startDate": "2024-04-01T00:00:00Z",
+#     "endDate": "2024-04-08T00:00:00Z",
+#     "status": "PENDING",
+#     "automatic": false
+#   },
+#   "message": "Sanción creada correctamente"
+# }
+
+### Crear una amonestación
+POST {{baseUrl}}/sanctions
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "{{driverId}}",
+  "type": "WARNING",
+  "reason": "Primera falta en presentación de documentación",
+  "notes": "Amonestación verbal - se advierte sobre consecuencias de reincidencia"
+}
+
+###############################################################################
+# ACTUALIZAR SANCIÓN
+###############################################################################
+
+### Actualizar una sanción existente
+PUT {{baseUrl}}/sanctions/{{sanctionId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "reason": "Razón actualizada con más detalles",
+  "amount": 75,
+  "notes": "Monto reducido tras apelación del conductor"
+}
+
+###
+# Response esperado:
+# {
+#   "success": true,
+#   "data": {
+#     "id": "uuid-sanction",
+#     "reason": "Razón actualizada con más detalles",
+#     "amount": 75.00,
+#     "notes": "Monto reducido tras apelación del conductor"
+#   },
+#   "message": "Sanción actualizada correctamente"
+# }
+
+###############################################################################
+# COMPLETAR Y CANCELAR SANCIÓN
+###############################################################################
+
+### Completar una sanción
+POST {{baseUrl}}/sanctions/{{sanctionId}}/complete
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado:
+# {
+#   "success": true,
+#   "data": {
+#     "id": "uuid-sanction",
+#     "status": "COMPLETED",
+#     "endDate": "2024-04-01T00:00:00Z"
+#   },
+#   "message": "Sanción completada correctamente"
+# }
+
+### Cancelar una sanción
+POST {{baseUrl}}/sanctions/{{sanctionId}}/cancel
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "reason": "La documentación fue entregada fuera de plazo pero con justificación válida"
+}
+
+###
+# Response esperado:
+# {
+#   "success": true,
+#   "data": {
+#     "id": "uuid-sanction",
+#     "status": "CANCELLED",
+#     "notes": "Notas anteriores\nCancelada: La documentación fue entregada fuera de plazo pero con justificación válida"
+#   },
+#   "message": "Sanción cancelada correctamente"
+# }
+
+###############################################################################
+# ERRORES COMUNES
+###############################################################################
+
+### Error: Token no proporcionado
+GET {{baseUrl}}/sanctions
+
+###
+# Response esperado:
+# {
+#   "success": false,
+#   "status": "fail",
+#   "message": "Token de acceso requerido",
+#   "code": "UNAUTHORIZED"
+# }
+
+### Error: ID de sanción no encontrado
+GET {{baseUrl}}/sanctions/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado:
+# {
+#   "success": false,
+#   "status": "fail",
+#   "message": "Sanción no encontrada",
+#   "code": "NOT_FOUND"
+# }
+
+### Error: Conductor no encontrado al crear sanción
+POST {{baseUrl}}/sanctions
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "00000000-0000-0000-0000-000000000000",
+  "type": "FINE",
+  "reason": "Test"
+}
+
+###
+# Response esperado:
+# {
+#   "success": false,
+#   "status": "fail",
+#   "message": "Conductor no encontrado",
+#   "code": "NOT_FOUND"
+# }
+
+### Error: Suspensión sin fecha de fin
+POST {{baseUrl}}/sanctions
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "driverId": "{{driverId}}",
+  "type": "SUSPENSION",
+  "reason": "Suspensión sin fecha de fin"
+}
+
+###
+# Response esperado:
+# {
+#   "success": false,
+#   "status": "fail",
+#   "message": "Las suspensiones deben tener fecha de fin",
+#   "code": "VALIDATION_ERROR"
+# }
+
+###############################################################################
+# FLUJO COMPLETO DE AUTOMATIZACIÓN
+###############################################################################
+
+### 1. Verificar configuración
+# GET {{baseUrl}}/sanctions/config
+
+### 2. Ver viajes con retraso
+# GET {{baseUrl}}/sanctions/delayed-trips?minDaysDelayed=3
+
+### 3. Generar sanciones automáticas
+# POST {{baseUrl}}/sanctions/generate-automatic
+
+### 4. Verificar reincidencia de conductores afectados
+# GET {{baseUrl}}/sanctions/check-recurring/{{driverId}}
+
+### 5. Consultar estadísticas
+# GET {{baseUrl}}/sanctions/automation-stats
+
+### 6. Completar sanciones según corresponda
+# POST {{baseUrl}}/sanctions/{{sanctionId}}/complete

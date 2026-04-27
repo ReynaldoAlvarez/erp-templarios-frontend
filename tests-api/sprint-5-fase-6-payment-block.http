@@ -1,0 +1,528 @@
+###############################################################################
+# SPRINT 5 - FASE 6: PAYMENT BLOCK MODULE
+# Módulo de Bloqueo de Pagos por Documentación Incompleta
+###############################################################################
+#
+# ⚠️ IMPORTANTE: Antes de probar estos endpoints:
+# 1. Ejecutar el seed: npx ts-node prisma/seed.ts
+# 2. El seed mostrará los IDs de settlements bloqueados y desbloqueados
+# 3. Copiar los IDs mostrados en la salida del seed a las variables abaixo
+#
+# Permisos requeridos:
+# - pagos:bloqueo:listar - Ver lista de pagos bloqueados
+# - pagos:bloqueo:leer - Ver detalles y estadísticas
+# - pagos:bloqueo:actualizar - Actualizar estado de bloqueo
+# - pagos:bloqueo:desbloquear - Desbloqueo manual
+#
+# El usuario admin@templarios.com tiene el rol Super Admin con TODOS los permisos.
+###############################################################################
+
+@baseUrl = http://localhost:3001/api/v1
+@contentType = application/json
+
+###############################################################################
+# VARIABLES - REEMPLAZAR CON IDs DEL SEED
+# Después de ejecutar el seed, copiar los IDs aquí:
+###############################################################################
+
+# Trip bloqueado (con documentos pendientes)
+#@blockedTripId = REPLACE_WITH_TRIP_ID_FROM_SEED
+@blockedTripId = 2f481335-0814-4055-8afd-56bc826bca0b
+# Settlement bloqueado (para pruebas de desbloqueo)
+#@blockedSettlementId = REPLACE_WITH_SETTLEMENT_ID_FROM_SEED
+@blockedSettlementId =84354d96-2933-4de2-84ea-f0bb7128674f
+# Settlement desbloqueado (para pruebas de can-process)
+#@unblockedSettlementId = REPLACE_WITH_SETTLEMENT_ID_FROM_SEED
+@unblockedSettlementId = ca29eecb-6a3d-407f-8aae-266398b953b7
+
+###############################################################################
+# AUTENTICACIÓN
+###############################################################################
+
+### Login como admin
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@templarios.com",
+  "password": "Admin123!"
+}
+
+### Guardar token de acceso
+@accessToken = {{login.response.body.data.accessToken}}
+
+###############################################################################
+# ESTADÍSTICAS DE PAGOS BLOQUEADOS
+###############################################################################
+
+### Obtener estadísticas de bloqueo de pagos
+# @name getStats
+GET {{baseUrl}}/payment-block/stats
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado:
+# {
+#   "success": true,
+#   "data": {
+#     "total": 50,
+#     "blocked": 10,
+#     "unblocked": 40,
+#     "blockedPercentage": 20,
+#     "totalBlockedAmount": 50000.00,
+#     "byDriver": [
+#       {
+#         "driverId": "uuid",
+#         "driverName": "Juan Pérez",
+#         "blockedCount": 3,
+#         "totalAmount": 15000.00
+#       }
+#     ],
+#     "byMissingDocument": [
+#       {
+#         "code": "MIC",
+#         "name": "Manifiesto Internacional de Carga",
+#         "count": 5
+#       },
+#       {
+#         "code": "BALANZA",
+#         "name": "Comprobante de Balanza",
+#         "count": 3
+#       }
+#     ],
+#     "avgBlockedDays": 3
+#   }
+# }
+
+###############################################################################
+# LISTA DE PAGOS BLOQUEADOS
+###############################################################################
+
+### Obtener lista de pagos bloqueados (sin filtros)
+# @name getBlockedPayments
+GET {{baseUrl}}/payment-block/blocked
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado:
+# {
+#   "success": true,
+#   "data": {
+#     "settlements": [
+#       {
+#         "id": "uuid-settlement",
+#         "netPayment": 5000.00,
+#         "status": "PENDING",
+#         "isPaymentBlocked": true,
+#         "documentsComplete": false,
+#         "blockedDays": 5,
+#         "missingDocuments": [
+#           {
+#             "code": "MIC",
+#             "name": "Manifiesto Internacional de Carga",
+#             "status": "PENDING"
+#           }
+#         ],
+#         "trip": {
+#           "id": "uuid-trip",
+#           "micDta": "MIC-123",
+#           "driver": {
+#             "id": "uuid-driver",
+#             "employee": {
+#               "firstName": "Juan",
+#               "lastName": "Pérez",
+#               "phone": "+591 71234567"
+#             }
+#           },
+#           "truck": {
+#             "plateNumber": "ABC-123",
+#             "isSupportTruck": false
+#           },
+#           "billOfLading": {
+#             "blNumber": "BL-2024-001"
+#           }
+#         },
+#         "createdAt": "2024-03-28T10:00:00Z"
+#       }
+#     ],
+#     "total": 10,
+#     "page": 1,
+#     "limit": 10,
+#     "totalPages": 1
+#   }
+# }
+
+### Obtener pagos bloqueados con paginación
+GET {{baseUrl}}/payment-block/blocked?page=1&limit=5
+Authorization: Bearer {{accessToken}}
+
+### Obtener pagos bloqueados filtrados por conductor
+GET {{baseUrl}}/payment-block/blocked?driverId=uuid-driver-123
+Authorization: Bearer {{accessToken}}
+
+### Obtener pagos bloqueados filtrados por rango de fechas
+GET {{baseUrl}}/payment-block/blocked?dateFrom=2024-01-01&dateTo=2024-12-31
+Authorization: Bearer {{accessToken}}
+
+###############################################################################
+# CHECKLIST DE DOCUMENTOS CON ESTADO DE PAGO
+###############################################################################
+
+### Obtener checklist de documentos de un viaje bloqueado
+# Usa el tripId bloqueado definido arriba
+GET {{baseUrl}}/payment-block/checklist/{{blockedTripId}}
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado:
+# {
+#   "success": true,
+#   "data": {
+#     "tripId": "uuid-trip",
+#     "micDta": "MIC-123",
+#     "blNumber": "BL-2024-001",
+#     "driverName": "Juan Pérez",
+#     "truckPlate": "ABC-123",
+#     "isSupportTruck": false,
+#     "documents": [
+#       {
+#         "id": "uuid-doc",
+#         "code": "MIC",
+#         "name": "Manifiesto Internacional de Carga",
+#         "isRequired": true,
+#         "status": "VERIFIED",
+#         "isBlocking": false
+#       },
+#       {
+#         "id": "uuid-doc-2",
+#         "code": "CRT",
+#         "name": "Carta de Porte",
+#         "isRequired": true,
+#         "status": "PENDING",
+#         "isBlocking": true
+#       }
+#     ],
+#     "paymentStatus": {
+#       "hasSettlement": true,
+#       "isBlocked": true,
+#       "blockReason": "Faltan 1 documento(s) requerido(s)",
+#       "documentsComplete": false,
+#       "canApprove": false,
+#       "canPay": false
+#     },
+#     "summary": {
+#       "total": 5,
+#       "verified": 4,
+#       "pending": 1,
+#       "missing": 0,
+#       "blockingCount": 1
+#     }
+#   }
+# }
+
+###############################################################################
+# VERIFICACIÓN Y ACTUALIZACIÓN DE ESTADO DE BLOQUEO
+###############################################################################
+
+### Verificar y actualizar estado de bloqueo de un viaje
+# Usa el tripId bloqueado definido arriba
+POST {{baseUrl}}/payment-block/check/{{blockedTripId}}
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado (documentos completos):
+# {
+#   "success": true,
+#   "data": {
+#     "tripId": "uuid-trip",
+#     "documentsComplete": true,
+#     "isPaymentBlocked": false,
+#     "blockReason": null,
+#     "missingDocuments": [],
+#     "previousState": {
+#       "documentsComplete": false,
+#       "isPaymentBlocked": true
+#     },
+#     "notificationSent": true
+#   },
+#   "message": "Pago desbloqueado. Documentos completos."
+# }
+
+###
+# Response esperado (documentos incompletos):
+# {
+#   "success": true,
+#   "data": {
+#     "tripId": "uuid-trip",
+#     "documentsComplete": false,
+#     "isPaymentBlocked": true,
+#     "blockReason": "Documentos faltantes: MIC, BALANZA",
+#     "missingDocuments": ["MIC", "BALANZA"],
+#     "previousState": {
+#       "documentsComplete": true,
+#       "isPaymentBlocked": false
+#     },
+#     "notificationSent": true
+#   },
+#   "message": "Pago bloqueado. Faltan documentos: MIC, BALANZA"
+# }
+
+###############################################################################
+# VERIFICAR SI SE PUEDE PROCESAR PAGO
+###############################################################################
+
+### Verificar si un pago bloqueado puede ser procesado (debe retornar false)
+GET {{baseUrl}}/payment-block/can-process/{{blockedSettlementId}}
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado (puede procesarse):
+# {
+#   "success": true,
+#   "data": {
+#     "canProcess": true,
+#     "reason": null,
+#     "missingDocuments": []
+#   }
+# }
+
+###
+# Response esperado (no puede procesarse):
+# {
+#   "success": true,
+#   "data": {
+#     "canProcess": false,
+#     "reason": "Documentos faltantes: MIC, BALANZA",
+#     "missingDocuments": ["MIC", "BALANZA"]
+#   }
+# }
+
+###############################################################################
+# DESBLOQUEO MANUAL DE PAGO
+###############################################################################
+
+### Desbloquear manualmente un pago bloqueado
+# Usa el settlementId bloqueado definido arriba
+POST {{baseUrl}}/payment-block/unblock/{{blockedSettlementId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "reason": "Documento original extraviado. Se cuenta con copia legalizada y autorización del cliente para proceder con el pago."
+}
+
+###
+# Response esperado:
+# {
+#   "success": true,
+#   "data": {
+#     "settlement": {
+#       "id": "uuid-settlement",
+#       "tripId": "uuid-trip",
+#       "isPaymentBlocked": false,
+#       "documentsComplete": false,
+#       "notes": "\n[DESBLOQUEO MANUAL] Usuario: uuid-user, Motivo: Documento original extraviado..., Fecha: 2024-03-28T10:00:00.000Z"
+#     },
+#     "previousState": {
+#       "isPaymentBlocked": true
+#     },
+#     "auditLog": {
+#       "id": "uuid-audit",
+#       "userId": "uuid-user",
+#       "action": "MANUAL_UNBLOCK",
+#       "entity": "Settlement",
+#       "entityId": "uuid-settlement",
+#       "createdAt": "2024-03-28T10:00:00Z"
+#     }
+#   },
+#   "message": "Pago desbloqueado manualmente. Se ha registrado en el log de auditoría."
+# }
+
+###
+# Error esperado (settlement no bloqueado):
+# {
+#   "success": false,
+#   "error": {
+#     "message": "La liquidación no está bloqueada",
+#     "statusCode": 400
+#   }
+# }
+
+###
+# Error esperado (motivo muy corto):
+# {
+#   "success": false,
+#   "error": {
+#     "message": "El motivo del desbloqueo debe tener al menos 10 caracteres",
+#     "statusCode": 400
+#   }
+# }
+
+###############################################################################
+# PROCESAR TODOS LOS PENDIENTES
+###############################################################################
+
+### Procesar verificación de todos los viajes pendientes
+POST {{baseUrl}}/payment-block/process-all
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado:
+# {
+#   "success": true,
+#   "data": {
+#     "processed": 50,
+#     "blocked": 10,
+#     "unblocked": 40,
+#     "errors": []
+#   },
+#   "message": "Procesados 50 settlements: 10 bloqueados, 40 desbloqueados"
+# }
+
+###############################################################################
+# HISTORIAL DE BLOQUEOS
+###############################################################################
+
+### Obtener historial de bloqueos de un settlement
+GET {{baseUrl}}/payment-block/history/{{blockedSettlementId}}
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado:
+# {
+#   "success": true,
+#   "data": {
+#     "settlementId": "uuid-settlement",
+#     "currentStatus": {
+#       "isPaymentBlocked": false,
+#       "documentsComplete": true
+#     },
+#     "history": [
+#       {
+#         "action": "MANUAL_UNBLOCK",
+#         "userId": "uuid-user",
+#         "userName": "Admin User",
+#         "timestamp": "2024-03-28T10:00:00Z",
+#         "details": {
+#           "isPaymentBlocked": false,
+#           "reason": "Documento extraviado, se procede con el pago"
+#         }
+#       }
+#     ]
+#   }
+# }
+
+###############################################################################
+# INTEGRACIÓN CON SETTLEMENTS - VALIDACIÓN DE BLOQUEO
+###############################################################################
+
+### Intentar aprobar una liquidación bloqueada (debe fallar)
+POST {{baseUrl}}/settlements/{{blockedSettlementId}}/approve
+Authorization: Bearer {{accessToken}}
+
+###
+# Error esperado:
+# {
+#   "success": false,
+#   "error": {
+#     "message": "No se puede aprobar la liquidación. Documentos faltantes: MIC, BALANZA. Complete la documentación o solicite un desbloqueo manual.",
+#     "statusCode": 400
+#   }
+# }
+
+### Intentar pagar una liquidación bloqueada (debe fallar)
+POST {{baseUrl}}/settlements/{{blockedSettlementId}}/pay
+Authorization: Bearer {{accessToken}}
+
+###
+# Error esperado:
+# {
+#   "success": false,
+#   "error": {
+#     "message": "No se puede procesar el pago. Documentos faltantes: MIC, BALANZA. Complete la documentación o solicite un desbloqueo manual.",
+#     "statusCode": 400
+#   }
+# }
+
+###############################################################################
+# FLUJO COMPLETO DE VERIFICACIÓN
+###############################################################################
+
+### 1. Verificar estado actual de documentos
+# GET {{baseUrl}}/payment-block/checklist/{{blockedTripId}}
+
+### 2. Verificar si el pago puede procesarse
+# GET {{baseUrl}}/payment-block/can-process/{{blockedSettlementId}}
+
+### 3. Si está bloqueado, verificar documentos y actualizar estado
+# POST {{baseUrl}}/payment-block/check/{{blockedTripId}}
+
+### 4. Si aún bloqueado y es necesario, desbloquear manualmente
+# POST {{baseUrl}}/payment-block/unblock/{{blockedSettlementId}}
+# Body: { "reason": "..." }
+
+### 5. Intentar aprobar/pagar nuevamente
+# POST {{baseUrl}}/settlements/{{blockedSettlementId}}/approve
+# POST {{baseUrl}}/settlements/{{blockedSettlementId}}/pay
+
+###############################################################################
+# CASOS DE ERROR COMUNES
+###############################################################################
+
+### Error: Token no proporcionado
+GET {{baseUrl}}/payment-block/stats
+
+###
+# Response esperado:
+# {
+#   "success": false,
+#   "error": {
+#     "message": "Token de acceso requerido",
+#     "statusCode": 401
+#   }
+# }
+
+### Error: Permisos insuficientes
+# Usar un token de usuario sin permisos de pagos:bloqueo:leer
+GET {{baseUrl}}/payment-block/stats
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado:
+# {
+#   "success": false,
+#   "error": {
+#     "message": "No tiene permisos para realizar esta acción",
+#     "statusCode": 403
+#   }
+# }
+
+### Error: ID de viaje inválido
+GET {{baseUrl}}/payment-block/checklist/invalid-id
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado:
+# {
+#   "success": false,
+#   "error": {
+#     "message": "Errores de validación",
+#     "details": ["El ID del viaje debe ser un UUID válido"],
+#     "statusCode": 400
+#   }
+# }
+
+### Error: Viaje no encontrado
+GET {{baseUrl}}/payment-block/checklist/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{accessToken}}
+
+###
+# Response esperado:
+# {
+#   "success": false,
+#   "error": {
+#     "message": "Viaje con ID 00000000-0000-0000-0000-000000000000 no encontrado",
+#     "statusCode": 404
+#   }
+# }

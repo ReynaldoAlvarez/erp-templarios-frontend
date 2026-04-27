@@ -1,0 +1,521 @@
+### ============================================================================
+### ERP TEMPLARIOS - SPRINT 4: AUTOMATION TESTS
+### Pruebas de automatización de estados y cálculos automáticos
+### Archivo para VS Code REST Client
+### ============================================================================
+
+### Variables de entorno
+@baseUrl = http://localhost:3001/api/v1
+@contentType = application/json
+
+### ============================================================================
+### AUTENTICACIÓN (Login para obtener token)
+### ============================================================================
+
+### Login como admin
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@templarios.com",
+  "password": "Admin123!"
+}
+
+### Guardar token de acceso
+@accessToken = {{login.response.body.data.accessToken}}
+
+### ============================================================================
+### SETUP: OBTENER DATOS EXISTENTES
+### ============================================================================
+
+### Obtener BLs disponibles
+# @name getBLs
+GET {{baseUrl}}/bl?page=1&limit=5
+Authorization: Bearer {{accessToken}}
+
+@blId = {{getBLs.response.body.data.bls[0].id}}
+
+### Obtener camiones disponibles
+# @name getTrucks
+GET {{baseUrl}}/fleet/trucks?page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+@truckId = {{getTrucks.response.body.data.trucks[0].id}}
+
+### Obtener conductores disponibles
+# @name getDrivers
+GET {{baseUrl}}/drivers?page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+@driverId = {{getDrivers.response.body.data.drivers[0].id}}
+
+### Obtener remolques disponibles
+# @name getTrailers
+GET {{baseUrl}}/fleet/trailers?page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+@trailerId = {{getTrailers.response.body.data.trailers[0].id}}
+
+### Obtener clientes
+# @name getClients
+GET {{baseUrl}}/clients?page=1&limit=5
+Authorization: Bearer {{accessToken}}
+
+@clientId = {{getClients.response.body.data.clients[0].id}}
+
+### ============================================================================
+### PRUEBA 1: VERIFICACIÓN DE RECURSOS DISPONIBLES
+### ============================================================================
+
+### Obtener recursos disponibles (camiones, conductores, remolques)
+# @name getAvailableResources
+GET {{baseUrl}}/trips/available
+Authorization: Bearer {{accessToken}}
+
+### ============================================================================
+### PRUEBA 2: CREAR VIAJE - VALIDACIÓN DE RECURSOS
+### ============================================================================
+
+### Crear nuevo viaje
+# @name createTrip
+POST {{baseUrl}}/trips
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "micDta": "MIC-AUTO-TEST-001",
+  "departureDate": "2024-06-20T06:00:00Z",
+  "billOfLadingId": "{{blId}}",
+  "truckId": "{{truckId}}",
+  "driverId": "{{driverId}}",
+  "trailerId": "{{trailerId}}",
+  "weight": 30.5,
+  "ratePerTon": 150.00,
+  "notes": "Viaje de prueba para automatización"
+}
+
+@tripId = {{createTrip.response.body.data.id}}
+
+### ============================================================================
+### PRUEBA 3: VERIFICAR ESTADO INICIAL DEL CAMIÓN Y CONDUCTOR
+### ============================================================================
+
+### Verificar estado del camión (debe seguir SCHEDULED porque el viaje está SCHEDULED)
+GET {{baseUrl}}/fleet/trucks/{{truckId}}
+Authorization: Bearer {{accessToken}}
+
+### Verificar disponibilidad del conductor (debe seguir disponible)
+GET {{baseUrl}}/drivers/{{driverId}}
+Authorization: Bearer {{accessToken}}
+
+### ============================================================================
+### PRUEBA 4: TRANSICIÓN SCHEDULED → IN_TRANSIT (Verificar automatización)
+### ============================================================================
+
+### Cambiar estado del viaje a IN_TRANSIT
+# @name startTrip
+PATCH {{baseUrl}}/trips/{{tripId}}/status
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "status": "IN_TRANSIT"
+}
+
+### Verificar que el camión ahora está IN_TRANSIT
+# @name checkTruckInTransit
+GET {{baseUrl}}/fleet/trucks/{{truckId}}
+Authorization: Bearer {{accessToken}}
+
+### Verificar que el conductor ahora NO está disponible
+# @name checkDriverUnavailable
+GET {{baseUrl}}/drivers/{{driverId}}
+Authorization: Bearer {{accessToken}}
+
+### ============================================================================
+### PRUEBA 5: TRANSICIÓN IN_TRANSIT → AT_BORDER (Auto-creación de Border Crossing)
+### ============================================================================
+
+### Cambiar estado del viaje a AT_BORDER
+# @name tripToBorder
+PATCH {{baseUrl}}/trips/{{tripId}}/status
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "status": "AT_BORDER"
+}
+
+### Verificar que el camión ahora está AT_BORDER
+GET {{baseUrl}}/fleet/trucks/{{truckId}}
+Authorization: Bearer {{accessToken}}
+
+### ============================================================================
+### PRUEBA 6: VERIFICAR AUTO-CREACIÓN DE BORDER CROSSING
+### ============================================================================
+
+### Obtener cruces de frontera del viaje (debe existir uno creado automáticamente)
+# @name getBorderCrossingsByTrip
+GET {{baseUrl}}/border-crossings/trip/{{tripId}}
+Authorization: Bearer {{accessToken}}
+
+@borderCrossingId = {{getBorderCrossingsByTrip.response.body.data[0].id}}
+
+### Obtener fronteras activas
+GET {{baseUrl}}/border-crossings/active
+Authorization: Bearer {{accessToken}}
+
+### Obtener todos los cruces de frontera con paginación
+GET {{baseUrl}}/border-crossings?page=1&limit=10&status=active
+Authorization: Bearer {{accessToken}}
+
+### Obtener nombres de fronteras disponibles
+GET {{baseUrl}}/border-crossings/names
+Authorization: Bearer {{accessToken}}
+
+### ============================================================================
+### PRUEBA 7: GESTIÓN DE CANALES EN FRONTERA
+### ============================================================================
+
+### Cambiar canal a YELLOW
+POST {{baseUrl}}/border-crossings/{{borderCrossingId}}/channel
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "channel": "YELLOW",
+  "reason": "Revisión documental requerida",
+  "notes": "Documentos en revisión",
+  "responsible": "Oficial Aduanero Pérez"
+}
+
+### Obtener historial de canales
+GET {{baseUrl}}/border-crossings/{{borderCrossingId}}/history
+Authorization: Bearer {{accessToken}}
+
+### Cambiar canal a GREEN
+POST {{baseUrl}}/border-crossings/{{borderCrossingId}}/channel
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "channel": "GREEN",
+  "reason": "Documentación en orden"
+}
+
+### ============================================================================
+### PRUEBA 8: REGISTRAR SALIDA DE FRONTERA (Auto-cambio a IN_TRANSIT)
+### ============================================================================
+
+### Registrar salida de frontera
+# @name registerExit
+POST {{baseUrl}}/border-crossings/{{borderCrossingId}}/exit
+Authorization: Bearer {{accessToken}}
+
+### Verificar que el camión volvió a IN_TRANSIT
+GET {{baseUrl}}/fleet/trucks/{{truckId}}
+Authorization: Bearer {{accessToken}}
+
+### Verificar que el viaje volvió a IN_TRANSIT
+GET {{baseUrl}}/trips/{{tripId}}
+Authorization: Bearer {{accessToken}}
+
+### ============================================================================
+### PRUEBA 9: CREAR BORDER CROSSING MANUAL
+### ============================================================================
+
+### Primero poner el viaje en AT_BORDER de nuevo
+PATCH {{baseUrl}}/trips/{{tripId}}/status
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "status": "AT_BORDER"
+}
+
+### Crear un nuevo cruce de frontera manualmente
+# @name createBorderCrossing
+POST {{baseUrl}}/border-crossings
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "tripId": "{{tripId}}",
+  "borderName": "Aduana Tambo Quemado",
+  "arrivedAt": "2024-06-20T15:30:00Z"
+}
+
+@manualBorderCrossingId = {{createBorderCrossing.response.body.data.id}}
+
+### ============================================================================
+### PRUEBA 10: TRANSICIÓN A DELIVERED (Liberación de recursos)
+### ============================================================================
+
+### Registrar salida del cruce manual
+POST {{baseUrl}}/border-crossings/{{manualBorderCrossingId}}/exit
+Authorization: Bearer {{accessToken}}
+
+### Cambiar estado del viaje a DELIVERED
+# @name deliverTrip
+PATCH {{baseUrl}}/trips/{{tripId}}/status
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "status": "DELIVERED"
+}
+
+### Verificar que el camión volvió a estar disponible (SCHEDULED)
+GET {{baseUrl}}/fleet/trucks/{{truckId}}
+Authorization: Bearer {{accessToken}}
+
+### Verificar que el conductor volvió a estar disponible
+GET {{baseUrl}}/drivers/{{driverId}}
+Authorization: Bearer {{accessToken}}
+
+### ============================================================================
+### PRUEBA 11: CÁLCULO AUTOMÁTICO DE LIQUIDACIÓN
+### ============================================================================
+
+### Obtener cálculo automático de liquidación desde el viaje
+# @name calculateSettlement
+GET {{baseUrl}}/settlements/calculate/{{tripId}}?exchangeRate=6.93
+Authorization: Bearer {{accessToken}}
+
+### Crear liquidación con valores calculados
+# @name createSettlement
+POST {{baseUrl}}/settlements
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "tripId": "{{tripId}}",
+  "freightUsd": 4575.00,
+  "freightBob": 31704.75,
+  "exchangeRate": 6.93,
+  "pricePerTon": 150.00,
+  "taxIt3Percent": 951.14,
+  "retention7Percent": 2219.33,
+  "externalCommission": 200.00,
+  "advance": 5000.00,
+  "notes": "Liquidación con cálculos automáticos"
+}
+
+@settlementId = {{createSettlement.response.body.data.id}}
+
+### Obtener estadísticas de liquidaciones
+GET {{baseUrl}}/settlements/stats
+Authorization: Bearer {{accessToken}}
+
+### ============================================================================
+### PRUEBA 12: CÁLCULO AUTOMÁTICO DE FACTURA
+### ============================================================================
+
+### Calcular factura desde múltiples viajes
+# @name calculateInvoice
+POST {{baseUrl}}/invoices/calculate
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "tripIds": ["{{tripId}}"],
+  "exchangeRate": 6.93
+}
+
+### Crear factura
+# @name createInvoice
+POST {{baseUrl}}/invoices
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "invoiceNumber": "INV-AUTO-TEST-001",
+  "clientId": "{{clientId}}",
+  "invoiceDate": "2024-06-20",
+  "totalAmount": 31704.75,
+  "amountUsd": 4575.00,
+  "exchangeRate": 6.93,
+  "tripIds": ["{{tripId}}"],
+  "notes": "Factura generada con cálculos automáticos"
+}
+
+@invoiceId = {{createInvoice.response.body.data.id}}
+
+### ============================================================================
+### PRUEBA 13: FLUJO DE APROBACIÓN
+### ============================================================================
+
+### Aprobar liquidación
+POST {{baseUrl}}/settlements/{{settlementId}}/approve
+Authorization: Bearer {{accessToken}}
+
+### Marcar liquidación como pagada
+POST {{baseUrl}}/settlements/{{settlementId}}/pay
+Authorization: Bearer {{accessToken}}
+
+### Emitir factura
+POST {{baseUrl}}/invoices/{{invoiceId}}/approve
+Authorization: Bearer {{accessToken}}
+
+### Marcar factura como pagada
+POST {{baseUrl}}/invoices/{{invoiceId}}/pay
+Authorization: Bearer {{accessToken}}
+
+### ============================================================================
+### PRUEBA 14: VERIFICACIÓN DE VALIDACIONES
+### ============================================================================
+
+### Intentar crear liquidación para un viaje no entregado (debe fallar)
+# @name createTrip2
+POST {{baseUrl}}/trips
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "micDta": "MIC-AUTO-TEST-002",
+  "departureDate": "2024-06-21T06:00:00Z",
+  "billOfLadingId": "{{blId}}",
+  "truckId": "{{truckId}}",
+  "driverId": "{{driverId}}",
+  "weight": 25.0,
+  "ratePerTon": 150.00
+}
+
+@tripId2 = {{createTrip2.response.body.data.id}}
+
+### Intentar crear liquidación (debe fallar - viaje no entregado)
+POST {{baseUrl}}/settlements
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "tripId": "{{tripId2}}",
+  "freightUsd": 3750.00,
+  "freightBob": 25987.50,
+  "exchangeRate": 6.93,
+  "pricePerTon": 150.00,
+  "taxIt3Percent": 779.63,
+  "retention7Percent": 1819.13
+}
+
+### ============================================================================
+### PRUEBA 15: CANCELACIÓN DE VIAJE (Liberación de recursos)
+### ============================================================================
+
+### Cancelar el segundo viaje
+PATCH {{baseUrl}}/trips/{{tripId2}}/status
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "status": "CANCELLED"
+}
+
+### Verificar que el camión sigue disponible
+GET {{baseUrl}}/fleet/trucks/{{truckId}}
+Authorization: Bearer {{accessToken}}
+
+### Verificar que el conductor sigue disponible
+GET {{baseUrl}}/drivers/{{driverId}}
+Authorization: Bearer {{accessToken}}
+
+### ============================================================================
+### PRUEBA 16: ESTADÍSTICAS FINALES
+### ============================================================================
+
+### Estadísticas de viajes
+GET {{baseUrl}}/trips/stats
+Authorization: Bearer {{accessToken}}
+
+### Estadísticas de fronteras
+GET {{baseUrl}}/border-crossings/stats
+Authorization: Bearer {{accessToken}}
+
+### Estadísticas de liquidaciones
+GET {{baseUrl}}/settlements/stats
+Authorization: Bearer {{accessToken}}
+
+### Estadísticas de facturas
+GET {{baseUrl}}/invoices/stats
+Authorization: Bearer {{accessToken}}
+
+### ============================================================================
+### PRUEBA 17: INTENTO DE USAR RECURSOS OCUPADOS
+### ============================================================================
+
+### Crear un tercer viaje
+# @name createTrip3
+POST {{baseUrl}}/trips
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "micDta": "MIC-AUTO-TEST-003",
+  "departureDate": "2024-06-22T06:00:00Z",
+  "billOfLadingId": "{{blId}}",
+  "truckId": "{{truckId}}",
+  "driverId": "{{driverId}}",
+  "weight": 28.0,
+  "ratePerTon": 150.00
+}
+
+@tripId3 = {{createTrip3.response.body.data.id}}
+
+### Poner en tránsito
+PATCH {{baseUrl}}/trips/{{tripId3}}/status
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "status": "IN_TRANSIT"
+}
+
+### Intentar crear otro viaje con el mismo camión (debe fallar)
+POST {{baseUrl}}/trips
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "micDta": "MIC-AUTO-TEST-004",
+  "departureDate": "2024-06-22T08:00:00Z",
+  "billOfLadingId": "{{blId}}",
+  "truckId": "{{truckId}}",
+  "driverId": "{{driverId}}",
+  "weight": 20.0,
+  "ratePerTon": 150.00
+}
+
+### ============================================================================
+### PRUEBA 18: LIMPIEZA - COMPLETAR VIAJE DE PRUEBA
+### ============================================================================
+
+### Entregar el tercer viaje
+PATCH {{baseUrl}}/trips/{{tripId3}}/status
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "status": "DELIVERED"
+}
+
+### ============================================================================
+### RESUMEN DE ENDPOINTS PROBADOS
+### ============================================================================
+###
+### AUTOMATIZACIONES PROBADAS:
+### 1. ✅ SCHEDULED → IN_TRANSIT: Marca truck IN_TRANSIT, driver unavailable
+### 2. ✅ IN_TRANSIT → AT_BORDER: Marca truck AT_BORDER, auto-crea BorderCrossing
+### 3. ✅ AT_BORDER → IN_TRANSIT: Marca truck IN_TRANSIT (al salir de frontera)
+### 4. ✅ * → DELIVERED: Libera todos los recursos
+### 5. ✅ * → CANCELLED: Libera todos los recursos
+### 6. ✅ Validación: No permite usar recursos ocupados
+### 7. ✅ Validación: No permite liquidar viajes no entregados
+###
+### NUEVOS ENDPOINTS:
+### - GET /border-crossings (con paginación y filtros)
+### - GET /border-crossings/names
+### - GET /settlements/calculate/:tripId
+### - POST /invoices/calculate
+###
+### ============================================================================
