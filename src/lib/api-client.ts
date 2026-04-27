@@ -2529,3 +2529,141 @@ export const paymentBlockApi = {
 };
 
 export default apiClient;
+
+// ==========================================
+// Trip Reports API (Sprint 5 Phase 5)
+// ==========================================
+interface BackendTripReportsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    data: import('@/types/api').TripReportsSnapshot[];
+    meta: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  };
+  timestamp: string;
+}
+
+export const tripReportsApi = {
+  getAll: async (params?: import('@/types/api').TripReportsListParams): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').TripReportsSnapshot>> => {
+    const response = await api.get<BackendTripReportsResponse>('/trip-reports', params);
+    const { data: reports, meta } = response.data.data;
+    return {
+      data: reports,
+      pagination: {
+        page: meta.page,
+        limit: meta.limit,
+        total: meta.total,
+        totalPages: meta.totalPages,
+        hasNext: meta.page < meta.totalPages,
+        hasPrev: meta.page > 1,
+      },
+    };
+  },
+
+  getStats: async (): Promise<import('@/types/api').TripReportsStats> => {
+    const response = await api.get<{ data: import('@/types/api').TripReportsStats }>('/trip-reports/stats');
+    return response.data.data;
+  },
+
+  getBlockedPayments: async (params?: { page?: number; limit?: number }): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').TripReportsSnapshot>> => {
+    const response = await api.get<BackendTripReportsResponse>('/trip-reports/blocked-payments', params);
+    const { data: reports, meta } = response.data.data;
+    return {
+      data: reports,
+      pagination: {
+        page: meta.page,
+        limit: meta.limit,
+        total: meta.total,
+        totalPages: meta.totalPages,
+        hasNext: meta.page < meta.totalPages,
+        hasPrev: meta.page > 1,
+      },
+    };
+  },
+
+  getIncompleteDocuments: async (params?: { page?: number; limit?: number }): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').TripReportsSnapshot>> => {
+    const response = await api.get<BackendTripReportsResponse>('/trip-reports/incomplete-documents', params);
+    const { data: reports, meta } = response.data.data;
+    return {
+      data: reports,
+      pagination: {
+        page: meta.page,
+        limit: meta.limit,
+        total: meta.total,
+        totalPages: meta.totalPages,
+        hasNext: meta.page < meta.totalPages,
+        hasPrev: meta.page > 1,
+      },
+    };
+  },
+
+  getByBL: async (blNumber: string): Promise<import('@/types/api').TripReportsSnapshot[]> => {
+    const response = await api.get<{ data: import('@/types/api').TripReportsSnapshot[] }>(`/trip-reports/bl/${encodeURIComponent(blNumber)}`);
+    return response.data.data;
+  },
+
+  getBLSummary: async (blNumber: string): Promise<import('@/types/api').BLTripsSummary> => {
+    const response = await api.get<{ data: import('@/types/api').BLTripsSummary }>(`/trip-reports/bl/${encodeURIComponent(blNumber)}/summary`);
+    return response.data.data;
+  },
+
+  getByClient: async (clientId: string, params?: { page?: number; limit?: number }): Promise<import('@/types/api').PaginatedResponse<import('@/types/api').TripReportsSnapshot>> => {
+    const response = await api.get<BackendTripReportsResponse>(`/trip-reports/client/${clientId}`, params);
+    const { data: reports, meta } = response.data.data;
+    return {
+      data: reports,
+      pagination: {
+        page: meta.page,
+        limit: meta.limit,
+        total: meta.total,
+        totalPages: meta.totalPages,
+        hasNext: meta.page < meta.totalPages,
+        hasPrev: meta.page > 1,
+      },
+    };
+  },
+
+  getByTripId: async (tripId: string): Promise<import('@/types/api').TripReportsSnapshot> => {
+    const response = await api.get<{ data: import('@/types/api').TripReportsSnapshot }>(`/trip-reports/trip/${tripId}`);
+    return response.data.data;
+  },
+
+  getByMicDta: async (micDta: string): Promise<import('@/types/api').TripReportsSnapshot> => {
+    const response = await api.get<{ data: import('@/types/api').TripReportsSnapshot }>(`/trip-reports/mic-dta/${encodeURIComponent(micDta)}`);
+    return response.data.data;
+  },
+
+  getById: async (id: string): Promise<import('@/types/api').TripReportsSnapshot> => {
+    const response = await api.get<{ data: import('@/types/api').TripReportsSnapshot }>(`/trip-reports/${id}`);
+    return response.data.data;
+  },
+
+  generateFromTrip: async (tripId: string): Promise<import('@/types/api').TripReportsSnapshot> => {
+    const response = await api.post<{ data: import('@/types/api').TripReportsSnapshot }>(`/trip-reports/generate/${tripId}`);
+    return response.data.data;
+  },
+
+  generateMissing: async (): Promise<import('@/types/api').TripReportsGenerateMissingResult> => {
+    const response = await api.post<{ data: import('@/types/api').TripReportsGenerateMissingResult }>('/trip-reports/generate-missing');
+    return response.data.data;
+  },
+
+  update: async (id: string, data: import('@/types/api').UpdateTripReportInput): Promise<import('@/types/api').TripReportsSnapshot> => {
+    const response = await api.put<{ data: import('@/types/api').TripReportsSnapshot }>(`/trip-reports/${id}`, data);
+    return response.data.data;
+  },
+
+  regenerate: async (id: string): Promise<import('@/types/api').TripReportsSnapshot> => {
+    const response = await api.post<{ data: import('@/types/api').TripReportsSnapshot }>(`/trip-reports/${id}/regenerate`);
+    return response.data.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/trip-reports/${id}`);
+  },
+};

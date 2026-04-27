@@ -2447,3 +2447,86 @@ export interface BatchCreateTripResult {
   tripId: string;
   created: number;
 }
+
+// ============ Sprint 5 Phase 5: Trip Reports (Snapshot) Types ============
+// NOTA: Estos tipos son para el endpoint /trip-reports (snapshots de viajes)
+// Son diferentes de TripReport/TripReportItem/TripReportSummary de Sprint 6
+
+export type TripReportPaymentStatus = 'pending' | 'partial' | 'paid';
+
+export interface TripReportsSnapshot {
+  id: string;
+  tripId: string;
+  micDta: string;
+  blNumber: string;
+  lineNumber: number;
+  clientId: string;
+  clientName: string;
+  clientNit?: string;
+  origin: string;
+  destination: string;
+  tramoCode?: string;
+  truckPlate: string;
+  trailerPlate?: string;
+  driverName: string;
+  driverCi: string;
+  isSupportTruck: boolean;
+  weightKg: string;
+  unitCount: number;
+  freightAmount: string;
+  retentionPercent: string;
+  retentionAmount: string;
+  netAmount: string;
+  documentsComplete: boolean;
+  documentsPending: number;
+  missingDocuments?: string | null;
+  isPaymentBlocked: boolean;
+  paymentStatus: TripReportPaymentStatus;
+  departureDate?: string | null;
+  arrivalDate?: string | null;
+  documentDate?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TripReportsStats {
+  total: number;
+  complete: number;
+  incomplete: number;
+  blockedPayments: number;
+  pendingPayments: number;
+  partialPayments: number;
+  paidPayments: number;
+  totalFreight: number;
+  totalRetention: number;
+  totalNet: number;
+}
+
+export interface TripReportsListParams extends PaginationParams {
+  paymentStatus?: TripReportPaymentStatus;
+  documentsComplete?: boolean;
+  blNumber?: string;
+  clientId?: string;
+}
+
+export interface UpdateTripReportInput {
+  lineNumber?: number;
+  paymentStatus?: TripReportPaymentStatus;
+}
+
+export interface TripReportsGenerateMissingResult {
+  generated: number;
+  errors: string[];
+}
+
+export interface BLTripsSummary {
+  blNumber: string;
+  totalTrips: number;
+  totalWeight: number;
+  totalFreight: number;
+  totalRetention: number;
+  totalNet: number;
+  completeDocs: number;
+  incompleteDocs: number;
+  trips: TripReportsSnapshot[];
+}
