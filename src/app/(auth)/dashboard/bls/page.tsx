@@ -19,6 +19,11 @@ import {
   BarChart3,
   Calendar,
   Download,
+  Upload,
+  FileDown,
+  FileJson,
+  AlertCircle,
+  CheckCircle2,
 } from 'lucide-react';
 
 import {
@@ -61,6 +66,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { blsApi, clientesApi } from '@/lib/api-client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -152,6 +164,16 @@ export default function BLsPage() {
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [isProgressOpen, setIsProgressOpen] = useState(false);
   const [selectedBL, setSelectedBL] = useState<BillOfLading | null>(null);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [importJson, setImportJson] = useState('');
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importResults, setImportResults] = useState<{
+    total: number;
+    created: number;
+    skipped: number;
+    errors: string[];
+  } | null>(null);
+  const [parsedItems, setParsedItems] = useState<unknown[]>([]);
 
   // Queries
   const { data: blsData, isLoading } = useQuery({
@@ -244,6 +266,27 @@ export default function BLsPage() {
       toast({
         variant: 'destructive',
         title: 'Error al cancelar',
+        description: message,
+      });
+    },
+  });
+
+  const importMutation = useMutation({
+    mutationFn: (items: Array<{ blNumber: string; clientNit: string; clientName: string; totalWeight: number; unitCount: number; cargoType?: string; originPort: string; customsPoint: string; finalDestination: string }>) =>
+      blsApi.importFromJSON(items),
+    onSuccess: (result) => {
+      setImportResults(result);
+      queryClient.invalidateQueries({ queryKey: ['bls'] });
+      toast({
+        title: 'Importación completada',
+        description: `${result.created} BLs creados, ${result.skipped} omitidos, ${result.errors.length} errores`,
+      });
+    },
+    onError: (error: unknown) => {
+      const message = getErrorMessage(error, 'Error al importar BLs.');
+      toast({
+        variant: 'destructive',
+        title: 'Error en importación',
         description: message,
       });
     },
@@ -383,6 +426,96 @@ export default function BLsPage() {
     setIsProgressOpen(true);
   };
 
+  // Import helpers
+  const handleDownloadTemplate = async () => {
+    try {
+      const template = await blsApi.getImportTemplate();
+      const jsonContent = JSON.stringify(template, null, 2);
+      const blob = new Blob([jsonContent], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'plantilla-importacion-bls.json';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast({
+        title: 'Plantilla descargada',
+        description: 'Archivo plantilla-importacion-bls.json descargado exitosamente.',
+      });
+    } catch (error) {
+      const message = getErrorMessage(error, 'Error al descargar la plantilla.');
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: message,
+      });
+    }
+  };
+
+  const parseImportData = (jsonString: string): { success: boolean; items: unknown[]; error?: string } => {
+    try {
+      const parsed = JSON.parse(jsonString);
+      if (!Array.isArray(parsed)) {
+        return { success: false, items: [], error: 'El JSON debe ser un array de BLs' };
+      }
+      return { success: true, items: parsed };
+    } catch {
+      return { success: false, items: [], error: 'JSON inválido. Verifica el formato.' };
+    }
+  };
+
+  const handleFileUpload = (file: File) => {
+    setImportFile(file);
+    setImportResults(null);
+    setImportJson('');
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const result = parseImportData(text);
+      if (result.success) {
+        setParsedItems(result.items);
+      } else {
+        setParsedItems([]);
+        toast({
+          variant: 'destructive',
+          title: 'Error al leer archivo',
+          description: result.error,
+        });
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleJsonPaste = (jsonString: string) => {
+    setImportJson(jsonString);
+    setImportFile(null);
+    setImportResults(null);
+    if (jsonString.trim()) {
+      const result = parseImportData(jsonString);
+      if (result.success) {
+        setParsedItems(result.items);
+      } else {
+        setParsedItems([]);
+      }
+    } else {
+      setParsedItems([]);
+    }
+  };
+
+  const handleImport = () => {
+    if (parsedItems.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Sin datos',
+        description: 'No hay BLs para importar. Carga un archivo o pega JSON válido.',
+      });
+      return;
+    }
+    importMutation.mutate(parsedItems as Parameters<typeof importMutation.mutate>[0]);
+  };
+
   // Pagination
   const totalPages = blsData?.pagination?.totalPages || 1;
   const totalBLs = blsData?.pagination?.total || 0;
@@ -402,16 +535,39 @@ export default function BLsPage() {
             Gestiona los Bills of Lading de importación
           </p>
         </div>
-        <Button
-          className="bg-[#1B3F66] hover:bg-[#1B3F66]/90"
-          onClick={() => {
-            createForm.reset();
-            setIsCreateOpen(true);
-          }}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo BL
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleDownloadTemplate}
+          >
+            <FileDown className="h-4 w-4 mr-2" />
+            Descargar Plantilla
+          </Button>
+          <Button
+            variant="outline"
+            className="border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+            onClick={() => {
+              setImportJson('');
+              setImportFile(null);
+              setImportResults(null);
+              setParsedItems([]);
+              setIsImportOpen(true);
+            }}
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Importar BLs
+          </Button>
+          <Button
+            className="bg-[#1B3F66] hover:bg-[#1B3F66]/90"
+            onClick={() => {
+              createForm.reset();
+              setIsCreateOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo BL
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -1043,6 +1199,241 @@ export default function BLsPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import BL Dialog */}
+      <Dialog open={isImportOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsImportOpen(false);
+          setImportJson('');
+          setImportFile(null);
+          setImportResults(null);
+          setParsedItems([]);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[750px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              Importar BLs desde JSON
+            </DialogTitle>
+            <DialogDescription>
+              Carga un archivo JSON o pega el contenido directamente para importar BLs masivamente.
+              <button
+                type="button"
+                onClick={handleDownloadTemplate}
+                className="flex items-center gap-1 text-emerald-600 hover:text-emerald-700 hover:underline mt-1 text-sm"
+              >
+                <FileDown className="h-3.5 w-3.5" />
+                Descargar plantilla de importación
+              </button>
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Results display */}
+          {importResults && (
+            <div className="space-y-4">
+              <div className="border rounded-lg p-4 space-y-3">
+                <h4 className="font-semibold text-sm">Resultado de la importación</h4>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-gray-50 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-[#1B3F66]">{importResults.total}</div>
+                    <div className="text-xs text-gray-500 mt-1">Total Procesados</div>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-green-600">{importResults.created}</div>
+                    <div className="text-xs text-gray-500 mt-1">Creados Exitosamente</div>
+                  </div>
+                  <div className="bg-amber-50 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-amber-600">{importResults.skipped}</div>
+                    <div className="text-xs text-gray-500 mt-1">Duplicados Omitidos</div>
+                  </div>
+                </div>
+                {importResults.errors.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-red-600 font-medium text-sm">
+                      <AlertCircle className="h-4 w-4" />
+                      Errores ({importResults.errors.length})
+                    </div>
+                    <div className="max-h-40 overflow-y-auto space-y-1">
+                      {importResults.errors.map((err, idx) => (
+                        <div key={idx} className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">
+                          {err}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsImportOpen(false)}>
+                  Cerrar
+                </Button>
+                <Button
+                  onClick={() => {
+                    setImportResults(null);
+                    setImportJson('');
+                    setImportFile(null);
+                    setParsedItems([]);
+                  }}
+                  className="bg-[#1B3F66] hover:bg-[#1B3F66]/90"
+                >
+                  Importar más BLs
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+
+          {/* Input section (shown when no results yet) */}
+          {!importResults && (
+            <div className="space-y-4">
+              <Tabs defaultValue="file">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="file" className="flex items-center gap-2">
+                    <FileJson className="h-4 w-4" />
+                    Cargar Archivo JSON
+                  </TabsTrigger>
+                  <TabsTrigger value="paste" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Pegar JSON
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="file" className="space-y-3">
+                  <div
+                    className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-[#1B3F66]/50 hover:bg-gray-50 transition-colors"
+                    onClick={() => document.getElementById('import-file-input')?.click()}
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const file = e.dataTransfer.files[0];
+                      if (file && file.type === 'application/json') {
+                        handleFileUpload(file);
+                      } else {
+                        toast({
+                          variant: 'destructive',
+                          title: 'Archivo inválido',
+                          description: 'Solo se permiten archivos .json',
+                        });
+                      }
+                    }}
+                  >
+                    <input
+                      id="import-file-input"
+                      type="file"
+                      accept=".json"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(file);
+                        e.target.value = '';
+                      }}
+                    />
+                    <FileJson className="h-10 w-10 mx-auto text-gray-400 mb-3" />
+                    <p className="text-sm text-gray-600">
+                      {importFile ? (
+                        <span className="text-emerald-600 font-medium">{importFile.name}</span>
+                      ) : (
+                        'Haz clic o arrastra un archivo .json aquí'
+                      )}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Solo archivos JSON
+                    </p>
+                  </div>
+                </TabsContent>
+                <TabsContent value="paste" className="space-y-3">
+                  <Textarea
+                    placeholder='Pega el JSON aquí... Ej: [{"blNumber": "BL-001", ...}]'
+                    value={importJson}
+                    onChange={(e) => handleJsonPaste(e.target.value)}
+                    className="min-h-[200px] font-mono text-sm"
+                  />
+                </TabsContent>
+              </Tabs>
+
+              {/* Preview table */}
+              {parsedItems.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-sm">
+                      Vista previa ({parsedItems.length} BL{parsedItems.length > 1 ? 's' : ''})
+                    </h4>
+                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      Listo para importar
+                    </Badge>
+                  </div>
+                  <div className="border rounded-lg max-h-64 overflow-y-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs">#</TableHead>
+                          <TableHead className="text-xs">Número BL</TableHead>
+                          <TableHead className="text-xs">NIT</TableHead>
+                          <TableHead className="text-xs">Cliente</TableHead>
+                          <TableHead className="text-xs">Peso (kg)</TableHead>
+                          <TableHead className="text-xs">Unidades</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {parsedItems.slice(0, 50).map((item, idx) => {
+                          const bl = item as Record<string, unknown>;
+                          return (
+                            <TableRow key={idx}>
+                              <TableCell className="text-xs text-gray-500">{idx + 1}</TableCell>
+                              <TableCell className="text-xs font-medium">{String(bl.blNumber || '-')}</TableCell>
+                              <TableCell className="text-xs">{String(bl.clientNit || '-')}</TableCell>
+                              <TableCell className="text-xs">{String(bl.clientName || '-')}</TableCell>
+                              <TableCell className="text-xs">{String(bl.totalWeight || '-')}</TableCell>
+                              <TableCell className="text-xs">{String(bl.unitCount || '-')}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        {parsedItems.length > 50 && (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center text-xs text-gray-500 py-2">
+                              ... y {parsedItems.length - 50} BLs más
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+
+              {/* Validation error display */}
+              {(importFile && parsedItems.length === 0 && importJson === '') && (
+                <div className="flex items-center gap-2 text-amber-600 bg-amber-50 rounded-lg p-3 text-sm">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  No se pudieron leer BLs del archivo. Verifica el formato.
+                </div>
+              )}
+              {(importJson.trim() && parsedItems.length === 0 && !importFile) && (
+                <div className="flex items-center gap-2 text-red-600 bg-red-50 rounded-lg p-3 text-sm">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  El JSON ingresado no es válido o no es un array.
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsImportOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                  onClick={handleImport}
+                  disabled={parsedItems.length === 0 || importMutation.isPending}
+                >
+                  {importMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  <Upload className="h-4 w-4 mr-2" />
+                  Importar {parsedItems.length > 0 ? `${parsedItems.length} BL${parsedItems.length > 1 ? 's' : ''}` : ''}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
