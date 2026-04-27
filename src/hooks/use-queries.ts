@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
+  authApi,
   usersApi,
   rolesApi,
   permissionsApi,
@@ -14,6 +15,7 @@ import {
   borderCrossingsApi,
   routesApi,
   dashboardApi,
+  dashboardConsolidatedApi,
   reportsApi,
   assetsApi,
   liabilitiesApi,
@@ -1572,6 +1574,397 @@ export function useTrucksList(params?: import('@/types/api').TruckListParams) {
   return useQuery({
     queryKey: ['trucks', params],
     queryFn: () => trucksApi.getAll(params),
+  });
+}
+
+// ==========================================
+// Sprint 8B: Complete Truck Hooks (CRUD)
+// ==========================================
+export function useTruck(id: string | undefined) {
+  return useQuery({
+    queryKey: ['trucks', id],
+    queryFn: () => trucksApi.getById(id!),
+    enabled: !!id,
+  });
+}
+
+export function useAvailableTrucks(date?: string) {
+  return useQuery({
+    queryKey: ['trucks', 'available', date],
+    queryFn: () => trucksApi.getAvailable(date),
+  });
+}
+
+export function useTruckSearch(query: string | undefined) {
+  return useQuery({
+    queryKey: ['trucks', 'search', query],
+    queryFn: () => trucksApi.search(query!),
+    enabled: !!query && query.length >= 2,
+  });
+}
+
+export function useCreateTruck() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: import('@/types/api').CreateTruckInput) => trucksApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trucks'] });
+    },
+  });
+}
+
+export function useUpdateTruck() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: import('@/types/api').UpdateTruckInput }) =>
+      trucksApi.update(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['trucks'] });
+      queryClient.invalidateQueries({ queryKey: ['trucks', id] });
+    },
+  });
+}
+
+export function useUpdateTruckMileage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, mileage }: { id: string; mileage: number }) =>
+      trucksApi.updateMileage(id, mileage),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['trucks'] });
+      queryClient.invalidateQueries({ queryKey: ['trucks', id] });
+    },
+  });
+}
+
+export function useDeleteTruck() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => trucksApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trucks'] });
+    },
+  });
+}
+
+export function useRestoreTruck() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => trucksApi.restore(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trucks'] });
+    },
+  });
+}
+
+// ==========================================
+// Sprint 8B: Complete Driver Hooks (CRUD)
+// ==========================================
+export function useDriver(id: string | undefined) {
+  return useQuery({
+    queryKey: ['drivers', id],
+    queryFn: () => driversApi.getById(id!),
+    enabled: !!id,
+  });
+}
+
+export function useAvailableDrivers() {
+  return useQuery({
+    queryKey: ['drivers', 'available'],
+    queryFn: () => driversApi.getAvailable(),
+  });
+}
+
+export function useDriverSearch(query: string | undefined) {
+  return useQuery({
+    queryKey: ['drivers', 'search', query],
+    queryFn: () => driversApi.search(query!),
+    enabled: !!query && query.length >= 2,
+  });
+}
+
+export function useDriverStats(driverId: string | undefined) {
+  return useQuery({
+    queryKey: ['drivers', 'stats', driverId],
+    queryFn: () => driversApi.getStats(driverId!),
+    enabled: !!driverId,
+  });
+}
+
+export function useCreateDriver() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: import('@/types/api').CreateDriverInput) => driversApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['drivers'] });
+    },
+  });
+}
+
+export function useUpdateDriver() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: import('@/types/api').UpdateDriverInput }) =>
+      driversApi.update(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['drivers'] });
+      queryClient.invalidateQueries({ queryKey: ['drivers', id] });
+    },
+  });
+}
+
+export function useSetDriverAvailability() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) =>
+      driversApi.setAvailability(id, isAvailable),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['drivers'] });
+      queryClient.invalidateQueries({ queryKey: ['drivers', id] });
+    },
+  });
+}
+
+export function useDeleteDriver() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => driversApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['drivers'] });
+    },
+  });
+}
+
+export function useRestoreDriver() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => driversApi.restore(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['drivers'] });
+    },
+  });
+}
+
+// ==========================================
+// Sprint 8B: Clientes - Missing Hooks
+// ==========================================
+export function useRestoreCliente() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => clientesApi.restore(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clientes'] });
+    },
+  });
+}
+
+export function useClienteSearch(query: string | undefined) {
+  return useQuery({
+    queryKey: ['clientes', 'search', query],
+    queryFn: () => clientesApi.search(query!),
+    enabled: !!query && query.length >= 2,
+  });
+}
+
+export function useClienteCredit(clientId: string | undefined) {
+  return useQuery({
+    queryKey: ['clientes', 'credit', clientId],
+    queryFn: () => clientesApi.getCredit(clientId!),
+    enabled: !!clientId,
+  });
+}
+
+// ==========================================
+// Sprint 8B: Trips - Missing Hooks
+// ==========================================
+export function useTripByMicDta(micDta: string | undefined) {
+  return useQuery({
+    queryKey: ['trips', 'mic-dta', micDta],
+    queryFn: () => tripsApi.getByMicDta(micDta!),
+    enabled: !!micDta,
+  });
+}
+
+export function useTripSearch(query: string | undefined) {
+  return useQuery({
+    queryKey: ['trips', 'search', query],
+    queryFn: () => tripsApi.search(query!),
+    enabled: !!query && query.length >= 2,
+  });
+}
+
+// ==========================================
+// Sprint 8B: Settlements - Missing Hook (calculate)
+// ==========================================
+export function useCalculateSettlementFromTrip(tripId: string | undefined) {
+  return useQuery({
+    queryKey: ['settlements', 'calculate', tripId],
+    queryFn: () => settlementsApi.calculateFromTrip(tripId!),
+    enabled: !!tripId,
+  });
+}
+
+// ==========================================
+// Sprint 8B: Invoices - Missing Hooks
+// ==========================================
+export function useInvoiceByNumber(invoiceNumber: string | undefined) {
+  return useQuery({
+    queryKey: ['invoices', 'number', invoiceNumber],
+    queryFn: () => invoicesApi.getByNumber(invoiceNumber!),
+    enabled: !!invoiceNumber,
+  });
+}
+
+export function useInvoiceSearch(query: string | undefined) {
+  return useQuery({
+    queryKey: ['invoices', 'search', query],
+    queryFn: () => invoicesApi.search(query!),
+    enabled: !!query && query.length >= 2,
+  });
+}
+
+export function useCalculateInvoiceFromTrips() {
+  return useMutation({
+    mutationFn: (tripIds: string[]) => invoicesApi.calculateFromTrips(tripIds),
+  });
+}
+
+// ==========================================
+// Sprint 8B: Auth - Missing Hooks
+// ==========================================
+export function useCurrentUser() {
+  return useQuery({
+    queryKey: ['auth', 'me'],
+    queryFn: () => authApi.me(),
+    staleTime: 60000, // 1 minute - user data changes infrequently
+    retry: false,
+  });
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) =>
+      authApi.changePassword(currentPassword, newPassword),
+  });
+}
+
+// ==========================================
+// Sprint 8B: Users - Missing Hook (unlock)
+// ==========================================
+export function useUnlockUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => usersApi.unlock(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['users', id] });
+    },
+  });
+}
+
+// ==========================================
+// Sprint 8B: Border Crossings - Missing Hooks
+// ==========================================
+export function useBorderNames() {
+  return useQuery({
+    queryKey: ['borderCrossings', 'names'],
+    queryFn: () => borderCrossingsApi.getBorderNames(),
+    staleTime: 300000, // 5 minutes
+  });
+}
+
+export function useAddBorderChannelHistory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, channel, reason }: { id: string; channel: import('@/types/api').BorderChannel; reason?: string }) =>
+      borderCrossingsApi.addChannelHistory(id, { channel, reason }),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['borderCrossings'] });
+      queryClient.invalidateQueries({ queryKey: ['borderCrossings', id] });
+    },
+  });
+}
+
+// ==========================================
+// Sprint 8B: Routes - Missing Hooks
+// ==========================================
+export function useCommonRoutes() {
+  return useQuery({
+    queryKey: ['routes', 'common'],
+    queryFn: () => routesApi.getCommon(),
+    staleTime: 300000, // 5 minutes
+  });
+}
+
+export function useRoute(id: string | undefined) {
+  return useQuery({
+    queryKey: ['routes', id],
+    queryFn: () => routesApi.getById(id!),
+    enabled: !!id,
+  });
+}
+
+// ==========================================
+// Sprint 8B: Reports - Missing Hook (export)
+// ==========================================
+export function useExportReport() {
+  return useMutation({
+    mutationFn: ({ type, params }: { type: string; params?: import('@/types/api').ReportParams }) =>
+      reportsApi.exportReport(type, params),
+  });
+}
+
+// ==========================================
+// Sprint 8B: Dashboard Consolidated - Missing Hooks
+// ==========================================
+export function useDashboardConsolidatedStats(params?: { startDate?: string; endDate?: string }) {
+  return useQuery({
+    queryKey: ['dashboard', 'consolidated', 'stats', params],
+    queryFn: () => dashboardConsolidatedApi.getStats(params),
+    staleTime: 30000,
+  });
+}
+
+export function useDashboardConsolidatedTrends(params?: { startDate?: string; endDate?: string }) {
+  return useQuery({
+    queryKey: ['dashboard', 'consolidated', 'trends', params],
+    queryFn: () => dashboardConsolidatedApi.getTrends(params),
+    staleTime: 30000,
+  });
+}
+
+// ==========================================
+// Sprint 8B: Trip Reports - Missing Hooks
+// ==========================================
+export function useTripReportsByClient(clientId: string | undefined, params?: { page?: number; limit?: number }) {
+  return useQuery({
+    queryKey: ['tripReports', 'client', clientId, params],
+    queryFn: () => tripReportsApi.getByClient(clientId!, params),
+    enabled: !!clientId,
+  });
+}
+
+export function useTripReportByTripId(tripId: string | undefined) {
+  return useQuery({
+    queryKey: ['tripReports', 'trip', tripId],
+    queryFn: () => tripReportsApi.getByTripId(tripId!),
+    enabled: !!tripId,
+  });
+}
+
+export function useTripReportByMicDta(micDta: string | undefined) {
+  return useQuery({
+    queryKey: ['tripReports', 'mic-dta', micDta],
+    queryFn: () => tripReportsApi.getByMicDta(micDta!),
+    enabled: !!micDta,
+  });
+}
+
+export function useTripReportById(id: string | undefined) {
+  return useQuery({
+    queryKey: ['tripReports', id],
+    queryFn: () => tripReportsApi.getById(id!),
+    enabled: !!id,
   });
 }
 
