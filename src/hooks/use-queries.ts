@@ -22,6 +22,8 @@ import {
   driverHistoryApi,
   trucksApi,
   driversApi,
+  trailersApi,
+  expensesApi,
   cashFlowApi,
   paymentsApi,
   sinExportApi,
@@ -294,10 +296,41 @@ export function useUpdateBL() {
   });
 }
 
-export function useDeleteBL() {
+// NOTA: useDeleteBL fue eliminado en Sprint 8A - el backend NO tiene DELETE para BLs, usar useCancelBL()
+
+// BL Search (Sprint 8A)
+export function useBLSearch(query: string | undefined) {
+  return useQuery({
+    queryKey: ['bls', 'search', query],
+    queryFn: () => blsApi.search(query!),
+    enabled: !!query && query.length >= 2,
+  });
+}
+
+// BL by Number (Sprint 8A)
+export function useBLByNumber(blNumber: string | undefined) {
+  return useQuery({
+    queryKey: ['bls', 'number', blNumber],
+    queryFn: () => blsApi.getByNumber(blNumber!),
+    enabled: !!blNumber,
+  });
+}
+
+// BL Progress (Sprint 8A)
+export function useBLProgress(blId: string | undefined) {
+  return useQuery({
+    queryKey: ['bls', 'progress', blId],
+    queryFn: () => blsApi.getProgress(blId!),
+    enabled: !!blId,
+  });
+}
+
+// BL Import from JSON (Sprint 8A)
+export function useBLImportFromJSON() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => blsApi.delete(id),
+    mutationFn: (items: Array<{ blNumber: string; clientNit: string; clientName: string; totalWeight: number; unitCount: number; cargoType?: string; originPort: string; customsPoint: string; finalDestination: string }>) =>
+      blsApi.importFromJSON(items),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bls'] });
     },
@@ -2359,6 +2392,180 @@ export function useDeleteTripReport() {
     mutationFn: (id: string) => tripReportsApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trip-reports'] });
+    },
+  });
+}
+
+// ==========================================
+// Trailers Queries (Sprint 8A)
+// ==========================================
+export function useTrailers(params?: import('@/types/api').TrailerListParams) {
+  return useQuery({
+    queryKey: ['trailers', params],
+    queryFn: () => trailersApi.getAll(params),
+  });
+}
+
+export function useTrailer(id: string | undefined) {
+  return useQuery({
+    queryKey: ['trailers', id],
+    queryFn: () => trailersApi.getById(id!),
+    enabled: !!id,
+  });
+}
+
+export function useAvailableTrailers() {
+  return useQuery({
+    queryKey: ['trailers', 'available'],
+    queryFn: () => trailersApi.getAvailable(),
+  });
+}
+
+export function useTrailerSearch(query: string | undefined) {
+  return useQuery({
+    queryKey: ['trailers', 'search', query],
+    queryFn: () => trailersApi.search(query!),
+    enabled: !!query && query.length >= 2,
+  });
+}
+
+// ==========================================
+// Trailers Mutations (Sprint 8A)
+// ==========================================
+export function useCreateTrailer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: import('@/types/api').CreateTrailerInput) => trailersApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trailers'] });
+    },
+  });
+}
+
+export function useUpdateTrailer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: import('@/types/api').UpdateTrailerInput }) =>
+      trailersApi.update(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['trailers'] });
+      queryClient.invalidateQueries({ queryKey: ['trailers', id] });
+    },
+  });
+}
+
+export function useAssignTrailer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, truckId }: { id: string; truckId: string | null }) =>
+      trailersApi.assign(id, truckId),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['trailers'] });
+      queryClient.invalidateQueries({ queryKey: ['trailers', id] });
+      queryClient.invalidateQueries({ queryKey: ['trucks'] }); // truck assignment affects trucks too
+    },
+  });
+}
+
+export function useDeleteTrailer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => trailersApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trailers'] });
+    },
+  });
+}
+
+export function useRestoreTrailer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => trailersApi.restore(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trailers'] });
+    },
+  });
+}
+
+// ==========================================
+// Expenses Queries (Sprint 8A)
+// ==========================================
+export function useExpenses(params?: import('@/types/api').ExpenseListParams) {
+  return useQuery({
+    queryKey: ['expenses', params],
+    queryFn: () => expensesApi.getAll(params),
+  });
+}
+
+export function useExpense(id: string | undefined) {
+  return useQuery({
+    queryKey: ['expenses', id],
+    queryFn: () => expensesApi.getById(id!),
+    enabled: !!id,
+  });
+}
+
+export function useExpenseCategories() {
+  return useQuery({
+    queryKey: ['expenses', 'categories'],
+    queryFn: () => expensesApi.getCategories(),
+  });
+}
+
+export function useExpenseStats(params?: { driverId?: string; dateFrom?: string; dateTo?: string }) {
+  return useQuery({
+    queryKey: ['expenses', 'stats', params],
+    queryFn: () => expensesApi.getStats(params),
+  });
+}
+
+export function useExpensesByDriver(driverId: string | undefined, limit?: number) {
+  return useQuery({
+    queryKey: ['expenses', 'driver', driverId, limit],
+    queryFn: () => expensesApi.getByDriver(driverId!, limit),
+    enabled: !!driverId,
+  });
+}
+
+export function useExpensesByTrip(tripId: string | undefined) {
+  return useQuery({
+    queryKey: ['expenses', 'trip', tripId],
+    queryFn: () => expensesApi.getByTrip(tripId!),
+    enabled: !!tripId,
+  });
+}
+
+// ==========================================
+// Expenses Mutations (Sprint 8A)
+// ==========================================
+export function useCreateExpense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: import('@/types/api').CreateExpenseInput) => expensesApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+    },
+  });
+}
+
+export function useUpdateExpense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: import('@/types/api').UpdateExpenseInput }) =>
+      expensesApi.update(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['expenses', id] });
+    },
+  });
+}
+
+export function useDeleteExpense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => expensesApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
     },
   });
 }
