@@ -61,11 +61,22 @@
 - 36 rutas estaticas generadas
 - Sin errores de TypeScript
 
+### Hotfix: delayedTrips.reduce error + refactor sprint5 folder
+- Fix runtime TypeError: delayedTrips.reduce is not a function
+  - Added Array.isArray() guard to normalize delayedTrips data in sanciones/page.tsx
+  - Handles cases where API returns non-array data (null, object, undefined)
+- Removed anti-pattern sprint5 component folder
+  - Moved SanctionGenerationModal -> components/modules/sanctions/
+  - Moved BlockedPaymentCard -> components/modules/payments/
+  - Moved DocumentChecklist -> components/modules/documents/
+  - Updated all imports across 6 files (3 pages + 3 tests)
+
 ### Branch
 - `feature/sprint-5-phase4-sanctions-automation`
 
-### Commit
+### Commits
 - `d49f373` - feat(sprint-5-phase4): Implement sanctions automation
+- `c8f119a` - fix: delayedTrips.reduce error + refactor sprint5 folder to modules
 
 ---
 
