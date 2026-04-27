@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -17,11 +17,10 @@ import {
   Anchor,
   CheckCircle,
   BarChart3,
-  Calendar,
   Download,
   Upload,
   FileDown,
-  FileJson,
+  FileSpreadsheet,
   AlertCircle,
   CheckCircle2,
 } from 'lucide-react';
@@ -66,17 +65,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
+
 import { useToast } from '@/hooks/use-toast';
 import { blsApi, clientesApi } from '@/lib/api-client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { BillOfLading, CreateBLInput, UpdateBLInput, BLStatus, DeliveryType } from '@/types/api';
+import * as XLSX from 'xlsx';
 
 // Form schemas
 const blSchema = z.object({
@@ -165,7 +159,6 @@ export default function BLsPage() {
   const [isProgressOpen, setIsProgressOpen] = useState(false);
   const [selectedBL, setSelectedBL] = useState<BillOfLading | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
-  const [importJson, setImportJson] = useState('');
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importResults, setImportResults] = useState<{
     total: number;
@@ -426,90 +419,128 @@ export default function BLsPage() {
     setIsProgressOpen(true);
   };
 
-  // Import helpers
-  const handleDownloadTemplate = async () => {
+  // Excel column mapping: friendly Spanish names → backend API field names
+  const excelColumnMap: Record<string, string> = {
+    'Número BL': 'blNumber',
+    'NIT Cliente': 'clientNit',
+    'Nombre Cliente': 'clientName',
+    'Peso Total (kg)': 'totalWeight',
+    'Unidades': 'unitCount',
+    'Tipo de Carga': 'cargoType',
+    'Puerto Origen': 'originPort',
+    'Aduana': 'customsPoint',
+    'Destino Final': 'finalDestination',
+  };
+
+  const excelColumns = Object.keys(excelColumnMap);
+
+  // Generate Excel template for download
+  const handleDownloadTemplate = useCallback(() => {
     try {
-      const template = await blsApi.getImportTemplate();
-      const jsonContent = JSON.stringify(template, null, 2);
-      const blob = new Blob([jsonContent], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'plantilla-importacion-bls.json';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const templateData = [
+        excelColumns,
+        ['BL-2024-001', '1023456789', 'EMPRESA S.R.L.', 25000, 6, 'Tubos de acero', 'Desaguadero', 'Desaguadero', 'La Paz'],
+        ['BL-2024-002', '2034567890', 'IMPORTADORA ANDINA S.A.', 35000, 9, 'Planchas de acero', 'Arica', 'Arica', 'Santa Cruz'],
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(templateData);
+
+      // Set column widths
+      ws['!cols'] = [
+        { wch: 18 }, // Número BL
+        { wch: 16 }, // NIT Cliente
+        { wch: 30 }, // Nombre Cliente
+        { wch: 16 }, // Peso Total (kg)
+        { wch: 10 }, // Unidades
+        { wch: 22 }, // Tipo de Carga
+        { wch: 18 }, // Puerto Origen
+        { wch: 18 }, // Aduana
+        { wch: 18 }, // Destino Final
+      ];
+
+      // Style header row (bold) - XLSX community edition supports basic styling
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'BLs');
+      XLSX.writeFile(wb, 'plantilla-importacion-bls.xlsx');
+
       toast({
         title: 'Plantilla descargada',
-        description: 'Archivo plantilla-importacion-bls.json descargado exitosamente.',
+        description: 'Archivo plantilla-importacion-bls.xlsx descargado exitosamente. Llena los datos y súbelo para importar.',
       });
     } catch (error) {
-      const message = getErrorMessage(error, 'Error al descargar la plantilla.');
+      const message = error instanceof Error ? error.message : 'Error al generar la plantilla.';
       toast({
         variant: 'destructive',
         title: 'Error',
         description: message,
       });
     }
-  };
+  }, [toast]);
 
-  const parseImportData = (jsonString: string): { success: boolean; items: unknown[]; error?: string } => {
-    try {
-      const parsed = JSON.parse(jsonString);
-      if (!Array.isArray(parsed)) {
-        return { success: false, items: [], error: 'El JSON debe ser un array de BLs' };
-      }
-      return { success: true, items: parsed };
-    } catch {
-      return { success: false, items: [], error: 'JSON inválido. Verifica el formato.' };
-    }
-  };
-
-  const handleFileUpload = (file: File) => {
+  // Parse Excel file to JSON array matching the backend API format
+  const handleFileUpload = useCallback((file: File) => {
     setImportFile(file);
     setImportResults(null);
-    setImportJson('');
+    setParsedItems([]);
+
     const reader = new FileReader();
     reader.onload = (e) => {
-      const text = e.target?.result as string;
-      const result = parseImportData(text);
-      if (result.success) {
-        setParsedItems(result.items);
-      } else {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: '' });
+
+        if (jsonData.length === 0) {
+          toast({
+            variant: 'destructive',
+            title: 'Archivo vacío',
+            description: 'El archivo Excel no contiene datos. Agrega al menos un BL.',
+          });
+          return;
+        }
+
+        // Map Spanish column headers to backend field names
+        const mappedItems = jsonData.map((row) => {
+          const mapped: Record<string, unknown> = {};
+          for (const [excelCol, apiField] of Object.entries(excelColumnMap)) {
+            const value = row[excelCol];
+            if (value !== undefined && value !== '') {
+              // Convert numeric fields
+              if (apiField === 'totalWeight' || apiField === 'unitCount') {
+                mapped[apiField] = Number(value) || 0;
+              } else {
+                mapped[apiField] = String(value).trim();
+              }
+            }
+          }
+          return mapped;
+        });
+
+        setParsedItems(mappedItems);
+        toast({
+          title: 'Archivo leído',
+          description: `Se encontraron ${mappedItems.length} BL(s) en el archivo.`,
+        });
+      } catch {
         setParsedItems([]);
         toast({
           variant: 'destructive',
           title: 'Error al leer archivo',
-          description: result.error,
+          description: 'No se pudo leer el archivo Excel. Verifica que sea un archivo .xlsx o .xls válido.',
         });
       }
     };
-    reader.readAsText(file);
-  };
-
-  const handleJsonPaste = (jsonString: string) => {
-    setImportJson(jsonString);
-    setImportFile(null);
-    setImportResults(null);
-    if (jsonString.trim()) {
-      const result = parseImportData(jsonString);
-      if (result.success) {
-        setParsedItems(result.items);
-      } else {
-        setParsedItems([]);
-      }
-    } else {
-      setParsedItems([]);
-    }
-  };
+    reader.readAsArrayBuffer(file);
+  }, [toast]);
 
   const handleImport = () => {
     if (parsedItems.length === 0) {
       toast({
         variant: 'destructive',
         title: 'Sin datos',
-        description: 'No hay BLs para importar. Carga un archivo o pega JSON válido.',
+        description: 'No hay BLs para importar. Carga un archivo Excel con datos.',
       });
       return;
     }
@@ -547,7 +578,6 @@ export default function BLsPage() {
             variant="outline"
             className="border-emerald-600 text-emerald-700 hover:bg-emerald-50"
             onClick={() => {
-              setImportJson('');
               setImportFile(null);
               setImportResults(null);
               setParsedItems([]);
@@ -1206,7 +1236,6 @@ export default function BLsPage() {
       <Dialog open={isImportOpen} onOpenChange={(open) => {
         if (!open) {
           setIsImportOpen(false);
-          setImportJson('');
           setImportFile(null);
           setImportResults(null);
           setParsedItems([]);
@@ -1215,18 +1244,18 @@ export default function BLsPage() {
         <DialogContent className="sm:max-w-[750px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Upload className="h-5 w-5" />
-              Importar BLs desde JSON
+              <FileSpreadsheet className="h-5 w-5" />
+              Importar BLs desde Excel
             </DialogTitle>
             <DialogDescription>
-              Carga un archivo JSON o pega el contenido directamente para importar BLs masivamente.
+              Carga un archivo Excel (.xlsx / .xls) con los datos de los BLs para importarlos masivamente.
               <button
                 type="button"
                 onClick={handleDownloadTemplate}
                 className="flex items-center gap-1 text-emerald-600 hover:text-emerald-700 hover:underline mt-1 text-sm"
               >
                 <FileDown className="h-3.5 w-3.5" />
-                Descargar plantilla de importación
+                Descargar plantilla de Excel
               </button>
             </DialogDescription>
           </DialogHeader>
@@ -1273,7 +1302,6 @@ export default function BLsPage() {
                 <Button
                   onClick={() => {
                     setImportResults(null);
-                    setImportJson('');
                     setImportFile(null);
                     setParsedItems([]);
                   }}
@@ -1288,70 +1316,69 @@ export default function BLsPage() {
           {/* Input section (shown when no results yet) */}
           {!importResults && (
             <div className="space-y-4">
-              <Tabs defaultValue="file">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="file" className="flex items-center gap-2">
-                    <FileJson className="h-4 w-4" />
-                    Cargar Archivo JSON
-                  </TabsTrigger>
-                  <TabsTrigger value="paste" className="flex items-center gap-2">
-                    <Upload className="h-4 w-4" />
-                    Pegar JSON
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent value="file" className="space-y-3">
-                  <div
-                    className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-[#1B3F66]/50 hover:bg-gray-50 transition-colors"
-                    onClick={() => document.getElementById('import-file-input')?.click()}
-                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const file = e.dataTransfer.files[0];
-                      if (file && file.type === 'application/json') {
-                        handleFileUpload(file);
-                      } else {
-                        toast({
-                          variant: 'destructive',
-                          title: 'Archivo inválido',
-                          description: 'Solo se permiten archivos .json',
-                        });
-                      }
-                    }}
-                  >
-                    <input
-                      id="import-file-input"
-                      type="file"
-                      accept=".json"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleFileUpload(file);
-                        e.target.value = '';
-                      }}
-                    />
-                    <FileJson className="h-10 w-10 mx-auto text-gray-400 mb-3" />
-                    <p className="text-sm text-gray-600">
-                      {importFile ? (
-                        <span className="text-emerald-600 font-medium">{importFile.name}</span>
-                      ) : (
-                        'Haz clic o arrastra un archivo .json aquí'
-                      )}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Solo archivos JSON
-                    </p>
+              {/* Column info card */}
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                  <div className="text-sm text-blue-800">
+                    <p className="font-medium mb-1">Columnas requeridas en el archivo Excel:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {excelColumns.map((col) => (
+                        <Badge key={col} variant="outline" className="text-xs bg-white border-blue-200 text-blue-700">
+                          {col}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                </TabsContent>
-                <TabsContent value="paste" className="space-y-3">
-                  <Textarea
-                    placeholder='Pega el JSON aquí... Ej: [{"blNumber": "BL-001", ...}]'
-                    value={importJson}
-                    onChange={(e) => handleJsonPaste(e.target.value)}
-                    className="min-h-[200px] font-mono text-sm"
-                  />
-                </TabsContent>
-              </Tabs>
+                </div>
+              </div>
+
+              {/* Excel file upload zone */}
+              <div
+                className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-[#1B3F66]/50 hover:bg-gray-50 transition-colors"
+                onClick={() => document.getElementById('import-file-input')?.click()}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const file = e.dataTransfer.files[0];
+                  if (file) {
+                    const ext = file.name.split('.').pop()?.toLowerCase();
+                    if (ext === 'xlsx' || ext === 'xls') {
+                      handleFileUpload(file);
+                    } else {
+                      toast({
+                        variant: 'destructive',
+                        title: 'Archivo inválido',
+                        description: 'Solo se permiten archivos Excel (.xlsx o .xls)',
+                      });
+                    }
+                  }
+                }}
+              >
+                <input
+                  id="import-file-input"
+                  type="file"
+                  accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload(file);
+                    e.target.value = '';
+                  }}
+                />
+                <FileSpreadsheet className="h-10 w-10 mx-auto text-emerald-500 mb-3" />
+                <p className="text-sm text-gray-600">
+                  {importFile ? (
+                    <span className="text-emerald-600 font-medium">{importFile.name}</span>
+                  ) : (
+                    'Haz clic o arrastra un archivo Excel aquí'
+                  )}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Formatos aceptados: .xlsx, .xls
+                </p>
+              </div>
 
               {/* Preview table */}
               {parsedItems.length > 0 && (
@@ -1405,16 +1432,10 @@ export default function BLsPage() {
               )}
 
               {/* Validation error display */}
-              {(importFile && parsedItems.length === 0 && importJson === '') && (
+              {(importFile && parsedItems.length === 0) && (
                 <div className="flex items-center gap-2 text-amber-600 bg-amber-50 rounded-lg p-3 text-sm">
                   <AlertCircle className="h-4 w-4 shrink-0" />
-                  No se pudieron leer BLs del archivo. Verifica el formato.
-                </div>
-              )}
-              {(importJson.trim() && parsedItems.length === 0 && !importFile) && (
-                <div className="flex items-center gap-2 text-red-600 bg-red-50 rounded-lg p-3 text-sm">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  El JSON ingresado no es válido o no es un array.
+                  No se pudieron leer BLs del archivo. Verifica que las columnas coincidan con la plantilla.
                 </div>
               )}
 
