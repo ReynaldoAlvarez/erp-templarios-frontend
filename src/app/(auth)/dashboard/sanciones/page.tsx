@@ -21,6 +21,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
@@ -49,6 +50,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import SanctionGenerationModal from '@/components/modules/sanctions/SanctionGenerationModal';
+import { useToast } from '@/hooks/use-toast';
 import {
   Plus,
   Search,
@@ -145,9 +147,13 @@ export default function SancionesPage() {
   const [originFilter, setOriginFilter] = useState<string>('all');
   const [driverFilter, setDriverFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
+  const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isGenerationModalOpen, setIsGenerationModalOpen] = useState(false);
   const [editingSanction, setEditingSanction] = useState<Sanction | null>(null);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [selectedCancelSanction, setSelectedCancelSanction] = useState<Sanction | null>(null);
   const [previewResult, setPreviewResult] = useState<
     import('@/types/api').GenerateAutomaticSanctionsResult | null
   >(null);
@@ -260,6 +266,43 @@ export default function SancionesPage() {
       // Refetch data after closing
     }
     setIsGenerationModalOpen(open);
+  };
+
+  const handleOpenCancelDialog = (sanction: Sanction) => {
+    setSelectedCancelSanction(sanction);
+    setCancelReason('');
+    setIsCancelDialogOpen(true);
+  };
+
+  const handleConfirmCancel = () => {
+    if (!cancelReason.trim()) {
+      toast({
+        title: 'Razon requerida',
+        description: 'Debes ingresar una razon para cancelar la sancion.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (selectedCancelSanction) {
+      cancelMutation.mutate(
+        { id: selectedCancelSanction.id, reason: cancelReason.trim() },
+        {
+          onSuccess: () => {
+            setIsCancelDialogOpen(false);
+            setSelectedCancelSanction(null);
+            setCancelReason('');
+          },
+        },
+      );
+    }
+  };
+
+  const handleCloseCancelDialog = (open: boolean) => {
+    if (!open) {
+      setSelectedCancelSanction(null);
+      setCancelReason('');
+    }
+    setIsCancelDialogOpen(open);
   };
 
   const formatCurrency = (value: number | string) => {
@@ -604,7 +647,7 @@ export default function SancionesPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => cancelMutation.mutate({ id: sanction.id })}
+                                onClick={() => handleOpenCancelDialog(sanction)}
                                 title="Cancelar"
                               >
                                 <XCircle className="h-4 w-4 text-red-600" />
@@ -1160,6 +1203,64 @@ export default function SancionesPage() {
         preview={previewResult}
         isPreviewing={generateMutation.isPending && !previewResult}
       />
+
+      {/* Cancel Sanction Dialog */}
+      <Dialog open={isCancelDialogOpen} onOpenChange={handleCloseCancelDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <XCircle className="h-5 w-5" />
+              Cancelar Sancion
+            </DialogTitle>
+            <DialogDescription>
+              Esta accion cancelara la sancion de{' '}
+              <span className="font-semibold text-gray-900">
+                {selectedCancelSanction
+                  ? getDriverName(selectedCancelSanction.driver)
+                  : ''}
+              </span>
+              . Esta accion no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="cancel-reason">
+                Razon de cancelacion <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                id="cancel-reason"
+                placeholder="Ingrese el motivo por el cual se cancela esta sancion..."
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                rows={3}
+                className="resize-none"
+              />
+              <p className="text-xs text-gray-500">
+                La razon es obligatoria y quedara registrada en la sancion.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => handleCloseCancelDialog(false)}
+              disabled={cancelMutation.isPending}
+            >
+              Volver
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmCancel}
+              disabled={cancelMutation.isPending || !cancelReason.trim()}
+            >
+              {cancelMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Confirmar Cancelacion
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
