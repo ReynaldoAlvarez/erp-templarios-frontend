@@ -27,10 +27,8 @@ import {
   AlertTriangle,
   Zap,
   Shield,
-  Info,
   CheckCircle2,
   XCircle,
-  Ban,
 } from 'lucide-react';
 import type {
   DelayedTrip,
@@ -55,12 +53,6 @@ const sanctionReasonConfig: Record<SanctionReason, { label: string; className: s
   REPEATED_OFFENSE: { label: 'Reincidencia', className: 'bg-red-100 text-red-800' },
   SAFETY_VIOLATION: { label: 'Violacion de Seguridad', className: 'bg-purple-100 text-purple-800' },
   OTHER: { label: 'Otro', className: 'bg-gray-100 text-gray-800' },
-};
-
-const suggestedActionConfig: Record<string, { label: string; icon: React.ElementType; className: string }> = {
-  FINE: { label: 'Multa', icon: AlertTriangle, className: 'text-orange-600' },
-  SUSPENSION: { label: 'Suspension', icon: Ban, className: 'text-red-600' },
-  WARNING: { label: 'Amonestacion', icon: Info, className: 'text-yellow-600' },
 };
 
 export default function SanctionGenerationModal({
@@ -218,21 +210,18 @@ export default function SanctionGenerationModal({
                               {trip.daysDelayed}
                             </span>
                           </TableCell>
-                          <TableCell>{formatCurrency(trip.suggestedFine)}</TableCell>
                           <TableCell>
-                            <Badge
-                              className={
-                                suggestedActionConfig[trip.suggestedAction]?.className || ''
-                              }
-                            >
-                              {suggestedActionConfig[trip.suggestedAction]?.label || trip.suggestedAction}
-                            </Badge>
-                            {trip.existingOffenses > 0 && (
-                              <Badge variant="outline" className="ml-1 text-xs">
-                                {trip.existingOffenses} ofensas previas
-                              </Badge>
-                            )}
-                          </TableCell>
+                        {trip.shouldSanction
+                          ? <Badge className="bg-orange-100 text-orange-800">Pendiente</Badge>
+                          : <span className="text-gray-400">-</span>}
+                      </TableCell>
+                          <TableCell>
+                        {trip.shouldSanction ? (
+                          <Badge className="bg-red-100 text-red-800">Si</Badge>
+                        ) : (
+                          <Badge className="bg-green-100 text-green-800">No</Badge>
+                        )}
+                      </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

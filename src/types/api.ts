@@ -1729,16 +1729,14 @@ export interface SanctionReasonOption {
 }
 
 export interface SanctionConfig {
-  gracePeriodDays: number;
-  finePerDayUsd: number;
-  maxFineDays: number;
-  maxFineAmount: number;
-  suspensionThresholds: {
-    first: number;
-    second: number;
-    third: number;
-    fourth: number;
-    fifthPlus: number;
+  GRACE_PERIOD_DAYS: number;
+  FINE_PER_DAY_USD: number;
+  MAX_FINE_DAYS: number;
+  MAX_FINE_AMOUNT: number;
+  SUSPENSION_THRESHOLDS: {
+    OFFENSE_COUNT: number;
+    OFFENSE_PERIOD_DAYS: number;
+    SUSPENSION_DAYS: number;
   };
 }
 
@@ -1747,10 +1745,12 @@ export interface DelayedTrip {
   micDta: string;
   driverId: string;
   driverName: string;
+  truckPlate?: string;
+  isSupportTruck?: boolean;
+  settlementId?: string;
+  missingDocuments?: string[];
   daysDelayed: number;
-  suggestedFine: number;
-  suggestedAction: 'FINE' | 'SUSPENSION' | 'WARNING';
-  existingOffenses: number;
+  shouldSanction?: boolean;
 }
 
 export interface GenerateAutomaticSanctionsInput {
