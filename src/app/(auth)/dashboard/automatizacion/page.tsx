@@ -56,7 +56,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tripsApi, documentAutomationApi } from '@/lib/api-client';
-import { DocumentChecklist } from '@/components/sprint5/DocumentChecklist';
+import { DocumentChecklist } from '@/components/modules/documents/DocumentChecklist';
 import type {
   Trip,
   DocumentAutomationStats,

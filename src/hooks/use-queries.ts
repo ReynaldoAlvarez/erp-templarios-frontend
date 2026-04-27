@@ -30,6 +30,7 @@ import {
   tramosApi,
   documentAutomationApi,
   paymentBlockApi,
+  sanctionsAutomationApi,
 } from '@/lib/api-client';
 import {
   UserListParams,
@@ -1373,6 +1374,76 @@ export function useCancelSanction() {
       queryClient.invalidateQueries({ queryKey: ['sanctions'] });
       queryClient.invalidateQueries({ queryKey: ['sanctions', id] });
     },
+  });
+}
+
+// ============ Sanctions Automation Hooks (Sprint 5 Phase 4) ============
+export function useSanctionConfig() {
+  return useQuery({
+    queryKey: ['sanctions', 'config'],
+    queryFn: () => sanctionsAutomationApi.getConfig(),
+    staleTime: 300000, // 5 minutes
+    retry: 1,
+  });
+}
+
+export function useSanctionReasons() {
+  return useQuery({
+    queryKey: ['sanctions', 'reasons'],
+    queryFn: () => sanctionsAutomationApi.getReasons(),
+    staleTime: 300000, // 5 minutes
+    retry: 1,
+  });
+}
+
+export function useDelayedTrips() {
+  return useQuery({
+    queryKey: ['sanctions', 'delayed-trips'],
+    queryFn: () => sanctionsAutomationApi.getDelayedTrips(),
+    refetchInterval: 60000, // Refetch every minute
+    retry: 1,
+  });
+}
+
+export function useGenerateAutomaticSanctions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: import('@/types/api').GenerateAutomaticSanctionsInput) =>
+      sanctionsAutomationApi.generateAutomatic(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sanctions'] });
+      queryClient.invalidateQueries({ queryKey: ['sanctions', 'delayed-trips'] });
+      queryClient.invalidateQueries({ queryKey: ['sanctions', 'automation-stats'] });
+    },
+  });
+}
+
+export function useCheckRecurringOffense(driverId: string | undefined) {
+  return useQuery({
+    queryKey: ['sanctions', 'recurring', driverId],
+    queryFn: () => sanctionsAutomationApi.checkRecurring(driverId!),
+    enabled: !!driverId,
+    retry: 1,
+  });
+}
+
+export function useProcessDriverSanctions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (driverId: string) => sanctionsAutomationApi.processDriver(driverId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sanctions'] });
+      queryClient.invalidateQueries({ queryKey: ['sanctions', 'delayed-trips'] });
+      queryClient.invalidateQueries({ queryKey: ['sanctions', 'automation-stats'] });
+    },
+  });
+}
+
+export function useSanctionAutomationStats() {
+  return useQuery({
+    queryKey: ['sanctions', 'automation-stats'],
+    queryFn: () => sanctionsAutomationApi.getAutomationStats(),
+    retry: 1,
   });
 }
 

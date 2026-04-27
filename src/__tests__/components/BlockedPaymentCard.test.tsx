@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import { BlockedPaymentCard } from '@/components/sprint5/BlockedPaymentCard';
+import { BlockedPaymentCard } from '@/components/modules/payments/BlockedPaymentCard';
 import type { BlockedSettlement } from '@/types/api';
 
 // Mock framer-motion

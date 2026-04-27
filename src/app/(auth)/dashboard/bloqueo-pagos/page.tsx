@@ -44,7 +44,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BlockedPaymentCard } from '@/components/sprint5/BlockedPaymentCard';
+import { BlockedPaymentCard } from '@/components/modules/payments/BlockedPaymentCard';
 import {
   usePaymentBlockStats,
   useBlockedPayments,
