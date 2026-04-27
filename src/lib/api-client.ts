@@ -1688,6 +1688,46 @@ export const sanctionsApi = {
 };
 
 // ==========================================
+// Sanctions Automation API (Sprint 5 Phase 4)
+// ==========================================
+export const sanctionsAutomationApi = {
+  getConfig: async (): Promise<import('@/types/api').SanctionConfig> => {
+    const response = await api.get<{ data: import('@/types/api').SanctionConfig }>('/sanctions/config');
+    return response.data.data;
+  },
+
+  getReasons: async (): Promise<import('@/types/api').SanctionReasonOption[]> => {
+    const response = await api.get<{ data: import('@/types/api').SanctionReasonOption[] }>('/sanctions/reasons');
+    return response.data.data;
+  },
+
+  getDelayedTrips: async (): Promise<import('@/types/api').DelayedTrip[]> => {
+    const response = await api.get<{ data: import('@/types/api').DelayedTrip[] }>('/sanctions/delayed-trips');
+    return response.data.data;
+  },
+
+  generateAutomatic: async (data: import('@/types/api').GenerateAutomaticSanctionsInput): Promise<import('@/types/api').GenerateAutomaticSanctionsResult> => {
+    const response = await api.post<{ data: import('@/types/api').GenerateAutomaticSanctionsResult }>('/sanctions/generate-automatic', data);
+    return response.data.data;
+  },
+
+  checkRecurring: async (driverId: string): Promise<import('@/types/api').RecurringOffenseCheck> => {
+    const response = await api.get<{ data: import('@/types/api').RecurringOffenseCheck }>(`/sanctions/check-recurring/${driverId}`);
+    return response.data.data;
+  },
+
+  processDriver: async (driverId: string): Promise<import('@/types/api').ProcessDriverSanctionsResult> => {
+    const response = await api.post<{ data: import('@/types/api').ProcessDriverSanctionsResult }>(`/sanctions/process-driver/${driverId}`);
+    return response.data.data;
+  },
+
+  getAutomationStats: async (): Promise<import('@/types/api').SanctionAutomationStats> => {
+    const response = await api.get<{ data: import('@/types/api').SanctionAutomationStats }>('/sanctions/automation-stats');
+    return response.data.data;
+  },
+};
+
+// ==========================================
 // Driver History API (Sprint 7)
 // ==========================================
 interface BackendDriverHistoryResponse {

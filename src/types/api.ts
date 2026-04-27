@@ -1632,9 +1632,10 @@ export interface MaintenanceTypeOption {
 }
 
 // ============ Sanction (Sanciones) Types ============
-// Según schema.prisma
+// Según schema.prisma + Sprint 5 Phase 4: Sanciones Automáticas
 export type SanctionType = 'FINE' | 'SUSPENSION' | 'WARNING';
 export type SanctionStatus = 'PENDING' | 'COMPLETED' | 'CANCELLED';
+export type SanctionReason = 'DOCUMENT_DELAY' | 'REPEATED_OFFENSE' | 'SAFETY_VIOLATION' | 'OTHER';
 
 export interface Sanction {
   id: string;
@@ -1653,6 +1654,10 @@ export interface Sanction {
   };
   type: SanctionType;
   reason: string;
+  sanctionReason?: SanctionReason;
+  tripId?: string;
+  daysDelayed?: number;
+  automatic?: boolean;
   amount?: number | string;
   startDate: string;
   endDate?: string;
@@ -1666,6 +1671,10 @@ export interface CreateSanctionInput {
   driverId: string;
   type: SanctionType;
   reason: string;
+  sanctionReason?: SanctionReason;
+  tripId?: string;
+  daysDelayed?: number;
+  automatic?: boolean;
   amount?: number;
   startDate?: string;
   endDate?: string;
@@ -1675,6 +1684,10 @@ export interface CreateSanctionInput {
 export interface UpdateSanctionInput {
   type?: SanctionType;
   reason?: string;
+  sanctionReason?: SanctionReason;
+  tripId?: string;
+  daysDelayed?: number;
+  automatic?: boolean;
   amount?: number;
   startDate?: string;
   endDate?: string;
@@ -1686,6 +1699,8 @@ export interface SanctionListParams extends PaginationParams {
   driverId?: string;
   type?: SanctionType;
   status?: SanctionStatus;
+  sanctionReason?: SanctionReason;
+  automatic?: boolean;
   dateFrom?: string;
   dateTo?: string;
 }
@@ -1694,13 +1709,113 @@ export interface SanctionStats {
   total: number;
   activeCount: number;
   totalFines: number;
+  automaticCount: number;
+  manualCount: number;
   byType: Record<SanctionType, number>;
   byStatus: Record<SanctionStatus, number>;
+  byReason: Record<SanctionReason, number>;
 }
 
 export interface SanctionTypeOption {
   value: SanctionType;
   label: string;
+}
+
+// Sprint 5 Phase 4: Sanciones Automáticas - Nuevos Tipos
+export interface SanctionReasonOption {
+  value: SanctionReason;
+  label: string;
+  description: string;
+}
+
+export interface SanctionConfig {
+  gracePeriodDays: number;
+  finePerDayUsd: number;
+  maxFineDays: number;
+  maxFineAmount: number;
+  suspensionThresholds: {
+    first: number;
+    second: number;
+    third: number;
+    fourth: number;
+    fifthPlus: number;
+  };
+}
+
+export interface DelayedTrip {
+  tripId: string;
+  micDta: string;
+  driverId: string;
+  driverName: string;
+  daysDelayed: number;
+  suggestedFine: number;
+  suggestedAction: 'FINE' | 'SUSPENSION' | 'WARNING';
+  existingOffenses: number;
+}
+
+export interface GenerateAutomaticSanctionsInput {
+  tripIds?: string[];
+  driverIds?: string[];
+  dryRun?: boolean;
+}
+
+export interface GeneratedSanctionPreview {
+  tripId: string;
+  micDta: string;
+  driverId: string;
+  driverName: string;
+  type: SanctionType;
+  sanctionReason: SanctionReason;
+  daysDelayed: number;
+  amount: number;
+  existingOffenses: number;
+}
+
+export interface GenerateAutomaticSanctionsResult {
+  previews: GeneratedSanctionPreview[];
+  totalToGenerate: number;
+  totalFines: number;
+  totalSuspensions: number;
+  totalWarnings: number;
+  totalAmount: number;
+}
+
+export interface RecurringOffenseCheck {
+  driverId: string;
+  driverName: string;
+  totalSanctions: number;
+  pendingSanctions: number;
+  completedSanctions: number;
+  offenseLevel: 'FIRST' | 'SECOND' | 'THIRD' | 'FOURTH' | 'RECURRENT';
+  suggestedSuspensionDays: number;
+  lastSanctionDate?: string;
+}
+
+export interface ProcessDriverSanctionsResult {
+  driverId: string;
+  driverName: string;
+  sanctionsGenerated: number;
+  sanctionsSkipped: number;
+  totalAmount: number;
+}
+
+export interface SanctionAutomationStats {
+  totalAutomatic: number;
+  totalManual: number;
+  automationRate: number;
+  totalFinesGenerated: number;
+  totalSuspensionsGenerated: number;
+  totalWarningsGenerated: number;
+  totalAmountGenerated: number;
+  pendingDelayedTrips: number;
+  averageDaysDelayed: number;
+  topSanctionedDrivers: Array<{
+    driverId: string;
+    driverName: string;
+    sanctionCount: number;
+    totalAmount: number;
+  }>;
+  byReason: Record<SanctionReason, number>;
 }
 
 // ============ Driver History (Historial de Conductores) Types ============
