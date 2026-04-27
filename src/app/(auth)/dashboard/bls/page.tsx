@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -17,8 +17,12 @@ import {
   Anchor,
   CheckCircle,
   BarChart3,
-  Calendar,
   Download,
+  Upload,
+  FileDown,
+  FileSpreadsheet,
+  AlertCircle,
+  CheckCircle2,
 } from 'lucide-react';
 
 import {
@@ -61,10 +65,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+
 import { useToast } from '@/hooks/use-toast';
 import { blsApi, clientesApi } from '@/lib/api-client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { BillOfLading, CreateBLInput, UpdateBLInput, BLStatus, DeliveryType } from '@/types/api';
+import * as XLSX from 'xlsx';
 
 // Form schemas
 const blSchema = z.object({
@@ -152,6 +158,15 @@ export default function BLsPage() {
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [isProgressOpen, setIsProgressOpen] = useState(false);
   const [selectedBL, setSelectedBL] = useState<BillOfLading | null>(null);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importResults, setImportResults] = useState<{
+    total: number;
+    created: number;
+    skipped: number;
+    errors: string[];
+  } | null>(null);
+  const [parsedItems, setParsedItems] = useState<unknown[]>([]);
 
   // Queries
   const { data: blsData, isLoading } = useQuery({
@@ -244,6 +259,27 @@ export default function BLsPage() {
       toast({
         variant: 'destructive',
         title: 'Error al cancelar',
+        description: message,
+      });
+    },
+  });
+
+  const importMutation = useMutation({
+    mutationFn: (items: Array<{ blNumber: string; clientNit: string; clientName: string; totalWeight: number; unitCount: number; cargoType?: string; originPort: string; customsPoint: string; finalDestination: string }>) =>
+      blsApi.importFromJSON(items),
+    onSuccess: (result) => {
+      setImportResults(result);
+      queryClient.invalidateQueries({ queryKey: ['bls'] });
+      toast({
+        title: 'Importación completada',
+        description: `${result.created} BLs creados, ${result.skipped} omitidos, ${result.errors.length} errores`,
+      });
+    },
+    onError: (error: unknown) => {
+      const message = getErrorMessage(error, 'Error al importar BLs.');
+      toast({
+        variant: 'destructive',
+        title: 'Error en importación',
         description: message,
       });
     },
@@ -383,6 +419,134 @@ export default function BLsPage() {
     setIsProgressOpen(true);
   };
 
+  // Excel column mapping: friendly Spanish names → backend API field names
+  const excelColumnMap: Record<string, string> = {
+    'Número BL': 'blNumber',
+    'NIT Cliente': 'clientNit',
+    'Nombre Cliente': 'clientName',
+    'Peso Total (kg)': 'totalWeight',
+    'Unidades': 'unitCount',
+    'Tipo de Carga': 'cargoType',
+    'Puerto Origen': 'originPort',
+    'Aduana': 'customsPoint',
+    'Destino Final': 'finalDestination',
+  };
+
+  const excelColumns = Object.keys(excelColumnMap);
+
+  // Generate Excel template for download
+  const handleDownloadTemplate = useCallback(() => {
+    try {
+      const templateData = [
+        excelColumns,
+        ['BL-2024-001', '1023456789', 'EMPRESA S.R.L.', 25000, 6, 'Tubos de acero', 'Desaguadero', 'Desaguadero', 'La Paz'],
+        ['BL-2024-002', '2034567890', 'IMPORTADORA ANDINA S.A.', 35000, 9, 'Planchas de acero', 'Arica', 'Arica', 'Santa Cruz'],
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(templateData);
+
+      // Set column widths
+      ws['!cols'] = [
+        { wch: 18 }, // Número BL
+        { wch: 16 }, // NIT Cliente
+        { wch: 30 }, // Nombre Cliente
+        { wch: 16 }, // Peso Total (kg)
+        { wch: 10 }, // Unidades
+        { wch: 22 }, // Tipo de Carga
+        { wch: 18 }, // Puerto Origen
+        { wch: 18 }, // Aduana
+        { wch: 18 }, // Destino Final
+      ];
+
+      // Style header row (bold) - XLSX community edition supports basic styling
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'BLs');
+      XLSX.writeFile(wb, 'plantilla-importacion-bls.xlsx');
+
+      toast({
+        title: 'Plantilla descargada',
+        description: 'Archivo plantilla-importacion-bls.xlsx descargado exitosamente. Llena los datos y súbelo para importar.',
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al generar la plantilla.';
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: message,
+      });
+    }
+  }, [toast]);
+
+  // Parse Excel file to JSON array matching the backend API format
+  const handleFileUpload = useCallback((file: File) => {
+    setImportFile(file);
+    setImportResults(null);
+    setParsedItems([]);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: '' });
+
+        if (jsonData.length === 0) {
+          toast({
+            variant: 'destructive',
+            title: 'Archivo vacío',
+            description: 'El archivo Excel no contiene datos. Agrega al menos un BL.',
+          });
+          return;
+        }
+
+        // Map Spanish column headers to backend field names
+        const mappedItems = jsonData.map((row) => {
+          const mapped: Record<string, unknown> = {};
+          for (const [excelCol, apiField] of Object.entries(excelColumnMap)) {
+            const value = row[excelCol];
+            if (value !== undefined && value !== '') {
+              // Convert numeric fields
+              if (apiField === 'totalWeight' || apiField === 'unitCount') {
+                mapped[apiField] = Number(value) || 0;
+              } else {
+                mapped[apiField] = String(value).trim();
+              }
+            }
+          }
+          return mapped;
+        });
+
+        setParsedItems(mappedItems);
+        toast({
+          title: 'Archivo leído',
+          description: `Se encontraron ${mappedItems.length} BL(s) en el archivo.`,
+        });
+      } catch {
+        setParsedItems([]);
+        toast({
+          variant: 'destructive',
+          title: 'Error al leer archivo',
+          description: 'No se pudo leer el archivo Excel. Verifica que sea un archivo .xlsx o .xls válido.',
+        });
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }, [toast]);
+
+  const handleImport = () => {
+    if (parsedItems.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Sin datos',
+        description: 'No hay BLs para importar. Carga un archivo Excel con datos.',
+      });
+      return;
+    }
+    importMutation.mutate(parsedItems as Parameters<typeof importMutation.mutate>[0]);
+  };
+
   // Pagination
   const totalPages = blsData?.pagination?.totalPages || 1;
   const totalBLs = blsData?.pagination?.total || 0;
@@ -402,16 +566,38 @@ export default function BLsPage() {
             Gestiona los Bills of Lading de importación
           </p>
         </div>
-        <Button
-          className="bg-[#1B3F66] hover:bg-[#1B3F66]/90"
-          onClick={() => {
-            createForm.reset();
-            setIsCreateOpen(true);
-          }}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo BL
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleDownloadTemplate}
+          >
+            <FileDown className="h-4 w-4 mr-2" />
+            Descargar Plantilla
+          </Button>
+          <Button
+            variant="outline"
+            className="border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+            onClick={() => {
+              setImportFile(null);
+              setImportResults(null);
+              setParsedItems([]);
+              setIsImportOpen(true);
+            }}
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Importar BLs
+          </Button>
+          <Button
+            className="bg-[#1B3F66] hover:bg-[#1B3F66]/90"
+            onClick={() => {
+              createForm.reset();
+              setIsCreateOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo BL
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -1043,6 +1229,232 @@ export default function BLsPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import BL Dialog */}
+      <Dialog open={isImportOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsImportOpen(false);
+          setImportFile(null);
+          setImportResults(null);
+          setParsedItems([]);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[750px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5" />
+              Importar BLs desde Excel
+            </DialogTitle>
+            <DialogDescription>
+              Carga un archivo Excel (.xlsx / .xls) con los datos de los BLs para importarlos masivamente.
+              <button
+                type="button"
+                onClick={handleDownloadTemplate}
+                className="flex items-center gap-1 text-emerald-600 hover:text-emerald-700 hover:underline mt-1 text-sm"
+              >
+                <FileDown className="h-3.5 w-3.5" />
+                Descargar plantilla de Excel
+              </button>
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Results display */}
+          {importResults && (
+            <div className="space-y-4">
+              <div className="border rounded-lg p-4 space-y-3">
+                <h4 className="font-semibold text-sm">Resultado de la importación</h4>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-gray-50 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-[#1B3F66]">{importResults.total}</div>
+                    <div className="text-xs text-gray-500 mt-1">Total Procesados</div>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-green-600">{importResults.created}</div>
+                    <div className="text-xs text-gray-500 mt-1">Creados Exitosamente</div>
+                  </div>
+                  <div className="bg-amber-50 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-amber-600">{importResults.skipped}</div>
+                    <div className="text-xs text-gray-500 mt-1">Duplicados Omitidos</div>
+                  </div>
+                </div>
+                {importResults.errors.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-red-600 font-medium text-sm">
+                      <AlertCircle className="h-4 w-4" />
+                      Errores ({importResults.errors.length})
+                    </div>
+                    <div className="max-h-40 overflow-y-auto space-y-1">
+                      {importResults.errors.map((err, idx) => (
+                        <div key={idx} className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">
+                          {err}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsImportOpen(false)}>
+                  Cerrar
+                </Button>
+                <Button
+                  onClick={() => {
+                    setImportResults(null);
+                    setImportFile(null);
+                    setParsedItems([]);
+                  }}
+                  className="bg-[#1B3F66] hover:bg-[#1B3F66]/90"
+                >
+                  Importar más BLs
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+
+          {/* Input section (shown when no results yet) */}
+          {!importResults && (
+            <div className="space-y-4">
+              {/* Column info card */}
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                  <div className="text-sm text-blue-800">
+                    <p className="font-medium mb-1">Columnas requeridas en el archivo Excel:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {excelColumns.map((col) => (
+                        <Badge key={col} variant="outline" className="text-xs bg-white border-blue-200 text-blue-700">
+                          {col}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Excel file upload zone */}
+              <div
+                className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-[#1B3F66]/50 hover:bg-gray-50 transition-colors"
+                onClick={() => document.getElementById('import-file-input')?.click()}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const file = e.dataTransfer.files[0];
+                  if (file) {
+                    const ext = file.name.split('.').pop()?.toLowerCase();
+                    if (ext === 'xlsx' || ext === 'xls') {
+                      handleFileUpload(file);
+                    } else {
+                      toast({
+                        variant: 'destructive',
+                        title: 'Archivo inválido',
+                        description: 'Solo se permiten archivos Excel (.xlsx o .xls)',
+                      });
+                    }
+                  }
+                }}
+              >
+                <input
+                  id="import-file-input"
+                  type="file"
+                  accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload(file);
+                    e.target.value = '';
+                  }}
+                />
+                <FileSpreadsheet className="h-10 w-10 mx-auto text-emerald-500 mb-3" />
+                <p className="text-sm text-gray-600">
+                  {importFile ? (
+                    <span className="text-emerald-600 font-medium">{importFile.name}</span>
+                  ) : (
+                    'Haz clic o arrastra un archivo Excel aquí'
+                  )}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Formatos aceptados: .xlsx, .xls
+                </p>
+              </div>
+
+              {/* Preview table */}
+              {parsedItems.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-sm">
+                      Vista previa ({parsedItems.length} BL{parsedItems.length > 1 ? 's' : ''})
+                    </h4>
+                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      Listo para importar
+                    </Badge>
+                  </div>
+                  <div className="border rounded-lg max-h-64 overflow-y-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs">#</TableHead>
+                          <TableHead className="text-xs">Número BL</TableHead>
+                          <TableHead className="text-xs">NIT</TableHead>
+                          <TableHead className="text-xs">Cliente</TableHead>
+                          <TableHead className="text-xs">Peso (kg)</TableHead>
+                          <TableHead className="text-xs">Unidades</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {parsedItems.slice(0, 50).map((item, idx) => {
+                          const bl = item as Record<string, unknown>;
+                          return (
+                            <TableRow key={idx}>
+                              <TableCell className="text-xs text-gray-500">{idx + 1}</TableCell>
+                              <TableCell className="text-xs font-medium">{String(bl.blNumber || '-')}</TableCell>
+                              <TableCell className="text-xs">{String(bl.clientNit || '-')}</TableCell>
+                              <TableCell className="text-xs">{String(bl.clientName || '-')}</TableCell>
+                              <TableCell className="text-xs">{String(bl.totalWeight || '-')}</TableCell>
+                              <TableCell className="text-xs">{String(bl.unitCount || '-')}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        {parsedItems.length > 50 && (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center text-xs text-gray-500 py-2">
+                              ... y {parsedItems.length - 50} BLs más
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+
+              {/* Validation error display */}
+              {(importFile && parsedItems.length === 0) && (
+                <div className="flex items-center gap-2 text-amber-600 bg-amber-50 rounded-lg p-3 text-sm">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  No se pudieron leer BLs del archivo. Verifica que las columnas coincidan con la plantilla.
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsImportOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                  onClick={handleImport}
+                  disabled={parsedItems.length === 0 || importMutation.isPending}
+                >
+                  {importMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  <Upload className="h-4 w-4 mr-2" />
+                  Importar {parsedItems.length > 0 ? `${parsedItems.length} BL${parsedItems.length > 1 ? 's' : ''}` : ''}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

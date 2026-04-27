@@ -517,6 +517,17 @@ export const blsApi = {
     const response = await api.post<{ data: { total: number; created: number; skipped: number; errors: string[] } }>('/bl/import/json', items);
     return response.data.data;
   },
+
+  getImportTemplate: async (): Promise<{
+    fields: Array<{ name: string; type: string; required: boolean; description: string }>;
+    example: Array<Record<string, unknown>>;
+  }> => {
+    const response = await api.get<{ data: {
+      fields: Array<{ name: string; type: string; required: boolean; description: string }>;
+      example: Array<Record<string, unknown>>;
+    } }>('/bl/import/template');
+    return response.data.data;
+  },
 };
 
 // ==========================================
