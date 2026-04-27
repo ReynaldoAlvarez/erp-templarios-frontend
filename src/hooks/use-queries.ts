@@ -1397,10 +1397,10 @@ export function useSanctionReasons() {
   });
 }
 
-export function useDelayedTrips() {
+export function useDelayedTrips(params?: { minDaysDelayed?: number; driverId?: string }) {
   return useQuery({
-    queryKey: ['sanctions', 'delayed-trips'],
-    queryFn: () => sanctionsAutomationApi.getDelayedTrips(),
+    queryKey: ['sanctions', 'delayed-trips', params],
+    queryFn: () => sanctionsAutomationApi.getDelayedTrips(params),
     refetchInterval: 60000, // Refetch every minute
     retry: 1,
   });
@@ -1440,10 +1440,10 @@ export function useProcessDriverSanctions() {
   });
 }
 
-export function useSanctionAutomationStats() {
+export function useSanctionAutomationStats(params?: { driverId?: string }) {
   return useQuery({
-    queryKey: ['sanctions', 'automation-stats'],
-    queryFn: () => sanctionsAutomationApi.getAutomationStats(),
+    queryKey: ['sanctions', 'automation-stats', params],
+    queryFn: () => sanctionsAutomationApi.getAutomationStats(params),
     retry: 1,
   });
 }

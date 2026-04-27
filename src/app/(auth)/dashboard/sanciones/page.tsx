@@ -183,15 +183,15 @@ export default function SancionesPage() {
   // Hooks - Automatizacion
   // NOTA: Estos endpoints pueden no existir aún en el backend.
   // Se usa retry: false y enabled para evitar reintentos infinitos en 404.
-  const { data: _delayedTrips } = useDelayedTrips();
-  const delayedTrips = Array.isArray(_delayedTrips) ? _delayedTrips : [];
+  const { data: _delayedTripsData } = useDelayedTrips();
+  const delayedTrips = Array.isArray(_delayedTripsData?.trips) ? _delayedTripsData.trips : [];
   const { data: automationStats } = useSanctionAutomationStats();
   const { data: sanctionConfig } = useSanctionConfig();
   const { data: sanctionReasons } = useSanctionReasons();
   const generateMutation = useGenerateAutomaticSanctions();
 
   // Derived safe values for nested objects that may not exist
-  const thresholds = sanctionConfig?.suspensionThresholds;
+  const thresholds = sanctionConfig?.SUSPENSION_THRESHOLDS;
   const byReason = automationStats?.byReason as Record<string, number> | undefined;
 
   // Mutations
@@ -734,7 +734,7 @@ export default function SancionesPage() {
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
                   {new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'USD' }).format(
-                    delayedTrips.reduce((sum, t) => sum + t.suggestedFine, 0),
+                    delayedTrips.reduce((sum, t) => sum + (t.daysDelayed || 0), 0),
                   )}
                 </div>
               </CardContent>
@@ -749,9 +749,9 @@ export default function SancionesPage() {
                   <TableHead>MIC/DTA</TableHead>
                   <TableHead>Conductor</TableHead>
                   <TableHead className="text-center">Dias Retraso</TableHead>
-                  <TableHead>Multa Sugerida</TableHead>
-                  <TableHead>Accion Sugerida</TableHead>
-                  <TableHead>Ofensas Previas</TableHead>
+                  <TableHead>Placa Camion</TableHead>
+                  <TableHead>Sancionar</TableHead>
+                  <TableHead>Docs. Faltantes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -781,34 +781,30 @@ export default function SancionesPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'USD' }).format(
-                          trip.suggestedFine,
-                        )}
+                        {trip.truckPlate || '-'}
                       </TableCell>
                       <TableCell>
                         <Badge
                           className={
-                            trip.suggestedAction === 'SUSPENSION'
+                            trip.shouldSanction
                               ? 'bg-red-100 text-red-800'
-                              : trip.suggestedAction === 'FINE'
-                                ? 'bg-orange-100 text-orange-800'
-                                : 'bg-yellow-100 text-yellow-800'
+                              : 'bg-green-100 text-green-800'
                           }
                         >
-                          {trip.suggestedAction === 'SUSPENSION'
-                            ? 'Suspension'
-                            : trip.suggestedAction === 'FINE'
-                              ? 'Multa'
-                              : 'Amonestacion'}
+                          {trip.shouldSanction ? 'Si' : 'No'}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {trip.existingOffenses > 0 ? (
-                          <Badge variant="destructive" className="text-xs">
-                            {trip.existingOffenses}
-                          </Badge>
+                        {trip.missingDocuments && trip.missingDocuments.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {trip.missingDocuments.map((doc) => (
+                              <Badge key={doc} variant="outline" className="text-xs">
+                                {doc}
+                              </Badge>
+                            ))}
+                          </div>
                         ) : (
-                          <span className="text-gray-400">0</span>
+                          <span className="text-gray-400">-</span>
                         )}
                       </TableCell>
                     </TableRow>
@@ -847,28 +843,28 @@ export default function SancionesPage() {
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Periodo de Gracia</p>
-                    <p className="font-bold text-lg">{sanctionConfig.gracePeriodDays ?? '-'} dias</p>
+                    <p className="font-bold text-lg">{sanctionConfig.GRACE_PERIOD_DAYS ?? '-'} dias</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Multa por Dia</p>
                     <p className="font-bold text-lg">
-                      ${sanctionConfig.finePerDayUsd ?? '-'} USD
+                      ${sanctionConfig.FINE_PER_DAY_USD ?? '-'} USD
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Maximo Dias Multa</p>
-                    <p className="font-bold text-lg">{sanctionConfig.maxFineDays ?? '-'} dias</p>
+                    <p className="font-bold text-lg">{sanctionConfig.MAX_FINE_DAYS ?? '-'} dias</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Monto Maximo Multa</p>
                     <p className="font-bold text-lg">
-                      ${sanctionConfig.maxFineAmount ?? '-'} USD
+                      ${sanctionConfig.MAX_FINE_AMOUNT ?? '-'} USD
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Suspension Maxima</p>
                     <p className="font-bold text-lg">
-                      {thresholds?.fifthPlus ?? '-'} dias
+                      {thresholds?.SUSPENSION_DAYS ?? '-'} dias
                     </p>
                   </div>
                 </div>
@@ -876,11 +872,9 @@ export default function SancionesPage() {
                   <div className="mt-4 pt-4 border-t">
                     <p className="text-xs text-gray-500 mb-2">Umbrales de Suspension por Reincidencia</p>
                     <div className="flex flex-wrap gap-3">
-                      <Badge variant="outline">1ra: {thresholds.first ?? '-'} dias</Badge>
-                      <Badge variant="outline">2da: {thresholds.second ?? '-'} dias</Badge>
-                      <Badge variant="outline">3ra: {thresholds.third ?? '-'} dias</Badge>
-                      <Badge variant="outline">4ta: {thresholds.fourth ?? '-'} dias</Badge>
-                      <Badge variant="outline">5ta+: {thresholds.fifthPlus ?? '-'} dias</Badge>
+                      <Badge variant="outline">Ofensas: {thresholds.OFFENSE_COUNT ?? '-'}</Badge>
+                      <Badge variant="outline">Periodo: {thresholds.OFFENSE_PERIOD_DAYS ?? '-'} dias</Badge>
+                      <Badge variant="outline">Suspension: {thresholds.SUSPENSION_DAYS ?? '-'} dias</Badge>
                     </div>
                   </div>
                 )}

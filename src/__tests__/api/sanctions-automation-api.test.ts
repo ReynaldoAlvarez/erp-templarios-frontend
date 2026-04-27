@@ -35,16 +35,14 @@ describe('Sanctions Automation API', () => {
   describe('getConfig', () => {
     it('should fetch sanction configuration', async () => {
       const mockConfig = {
-        gracePeriodDays: 3,
-        finePerDayUsd: 10,
-        maxFineDays: 30,
-        maxFineAmount: 300,
-        suspensionThresholds: {
-          first: 1,
-          second: 3,
-          third: 7,
-          fourth: 15,
-          fifthPlus: 30,
+        GRACE_PERIOD_DAYS: 3,
+        FINE_PER_DAY_USD: 10,
+        MAX_FINE_DAYS: 30,
+        MAX_FINE_AMOUNT: 300,
+        SUSPENSION_THRESHOLDS: {
+          OFFENSE_COUNT: 3,
+          OFFENSE_PERIOD_DAYS: 30,
+          SUSPENSION_DAYS: 7,
         },
       };
 
@@ -53,10 +51,10 @@ describe('Sanctions Automation API', () => {
       const result = await sanctionsAutomationApi.getConfig();
 
       expect(result).toEqual(mockConfig);
-      expect(result.gracePeriodDays).toBe(3);
-      expect(result.finePerDayUsd).toBe(10);
-      expect(result.maxFineAmount).toBe(300);
-      expect(result.suspensionThresholds.third).toBe(7);
+      expect(result.GRACE_PERIOD_DAYS).toBe(3);
+      expect(result.FINE_PER_DAY_USD).toBe(10);
+      expect(result.MAX_FINE_AMOUNT).toBe(300);
+      expect(result.SUSPENSION_THRESHOLDS.SUSPENSION_DAYS).toBe(7);
       expect(sanctionsAutomationApi.getConfig).toHaveBeenCalledTimes(1);
     });
   });
@@ -83,47 +81,56 @@ describe('Sanctions Automation API', () => {
 
   describe('getDelayedTrips', () => {
     it('should fetch delayed trips list', async () => {
-      const mockTrips = [
-        {
-          tripId: 'trip-1',
-          micDta: 'MIC-2024-001',
-          driverId: 'driver-1',
-          driverName: 'Juan Perez',
-          daysDelayed: 5,
-          suggestedFine: 50,
-          suggestedAction: 'FINE' as const,
-          existingOffenses: 0,
-        },
-        {
-          tripId: 'trip-2',
-          micDta: 'MIC-2024-002',
-          driverId: 'driver-2',
-          driverName: 'Carlos Lopez',
-          daysDelayed: 12,
-          suggestedFine: 120,
-          suggestedAction: 'SUSPENSION' as const,
-          existingOffenses: 3,
-        },
-      ];
+      const mockResult = {
+        trips: [
+          {
+            tripId: 'trip-1',
+            micDta: 'MIC-2024-001',
+            driverId: 'driver-1',
+            driverName: 'Juan Perez',
+            truckPlate: 'ABC-123',
+            isSupportTruck: false,
+            settlementId: 'settlement-1',
+            missingDocuments: ['MIC', 'BALANZA'],
+            daysDelayed: 5,
+            shouldSanction: true,
+          },
+          {
+            tripId: 'trip-2',
+            micDta: 'MIC-2024-002',
+            driverId: 'driver-2',
+            driverName: 'Carlos Lopez',
+            truckPlate: 'DEF-456',
+            isSupportTruck: false,
+            settlementId: 'settlement-2',
+            missingDocuments: ['MIC'],
+            daysDelayed: 12,
+            shouldSanction: true,
+          },
+        ],
+        total: 2,
+      };
 
-      vi.mocked(sanctionsAutomationApi.getDelayedTrips).mockResolvedValue(mockTrips);
+      vi.mocked(sanctionsAutomationApi.getDelayedTrips).mockResolvedValue(mockResult);
 
       const result = await sanctionsAutomationApi.getDelayedTrips();
 
-      expect(result).toHaveLength(2);
-      expect(result[0].daysDelayed).toBe(5);
-      expect(result[1].suggestedAction).toBe('SUSPENSION');
-      expect(result[1].existingOffenses).toBe(3);
+      expect(result.trips).toHaveLength(2);
+      expect(result.total).toBe(2);
+      expect(result.trips[0].daysDelayed).toBe(5);
+      expect(result.trips[1].truckPlate).toBe('DEF-456');
+      expect(result.trips[1].shouldSanction).toBe(true);
       expect(sanctionsAutomationApi.getDelayedTrips).toHaveBeenCalledTimes(1);
     });
 
-    it('should return empty array when no delayed trips', async () => {
-      vi.mocked(sanctionsAutomationApi.getDelayedTrips).mockResolvedValue([]);
+    it('should return empty trips when no delayed trips', async () => {
+      const mockResult = { trips: [], total: 0 };
+      vi.mocked(sanctionsAutomationApi.getDelayedTrips).mockResolvedValue(mockResult);
 
       const result = await sanctionsAutomationApi.getDelayedTrips();
 
-      expect(result).toHaveLength(0);
-      expect(result).toEqual([]);
+      expect(result.trips).toHaveLength(0);
+      expect(result.total).toBe(0);
     });
   });
 

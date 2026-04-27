@@ -1701,8 +1701,8 @@ export const sanctionsAutomationApi = {
     return response.data.data;
   },
 
-  getDelayedTrips: async (): Promise<import('@/types/api').DelayedTrip[]> => {
-    const response = await api.get<{ data: import('@/types/api').DelayedTrip[] }>('/sanctions/delayed-trips');
+  getDelayedTrips: async (params?: { minDaysDelayed?: number; driverId?: string }): Promise<{ trips: import('@/types/api').DelayedTrip[]; total: number }> => {
+    const response = await api.get<{ data: { trips: import('@/types/api').DelayedTrip[]; total: number } }>('/sanctions/delayed-trips', params);
     return response.data.data;
   },
 
@@ -1721,8 +1721,8 @@ export const sanctionsAutomationApi = {
     return response.data.data;
   },
 
-  getAutomationStats: async (): Promise<import('@/types/api').SanctionAutomationStats> => {
-    const response = await api.get<{ data: import('@/types/api').SanctionAutomationStats }>('/sanctions/automation-stats');
+  getAutomationStats: async (params?: { driverId?: string }): Promise<import('@/types/api').SanctionAutomationStats> => {
+    const response = await api.get<{ data: import('@/types/api').SanctionAutomationStats }>('/sanctions/automation-stats', params);
     return response.data.data;
   },
 };
@@ -2524,6 +2524,21 @@ export const paymentBlockApi = {
 
   getHistory: async (settlementId: string): Promise<import('@/types/api').PaymentBlockHistory> => {
     const response = await api.get<{ data: import('@/types/api').PaymentBlockHistory }>(`/payment-block/history/${settlementId}`);
+    return response.data.data;
+  },
+};
+
+// ==========================================
+// Dashboard Consolidado (Automatización y Control)
+// ==========================================
+export const dashboardConsolidatedApi = {
+  getStats: async (params?: { startDate?: string; endDate?: string }): Promise<unknown> => {
+    const response = await api.get<{ data: unknown }>('/dashboard/sprint5/stats', params);
+    return response.data.data;
+  },
+
+  getTrends: async (params?: { startDate?: string; endDate?: string }): Promise<unknown> => {
+    const response = await api.get<{ data: unknown }>('/dashboard/sprint5/trends', params);
     return response.data.data;
   },
 };
