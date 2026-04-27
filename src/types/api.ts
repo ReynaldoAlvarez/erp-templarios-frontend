@@ -1277,7 +1277,7 @@ export interface BorderReport {
   borders: BorderReportItem[];
 }
 
-// ============ Sprint 5 Phase 3: Payment Block Types ============
+// ============ Payment Block Types ============
 
 export interface PaymentBlockMissingDocument {
   code: string;
@@ -1632,7 +1632,7 @@ export interface MaintenanceTypeOption {
 }
 
 // ============ Sanction (Sanciones) Types ============
-// Según schema.prisma + Sprint 5 Phase 4: Sanciones Automáticas
+// Según schema.prisma - Sanciones Automáticas
 export type SanctionType = 'FINE' | 'SUSPENSION' | 'WARNING';
 export type SanctionStatus = 'PENDING' | 'COMPLETED' | 'CANCELLED';
 export type SanctionReason = 'DOCUMENT_DELAY' | 'REPEATED_OFFENSE' | 'SAFETY_VIOLATION' | 'OTHER';
@@ -1721,7 +1721,7 @@ export interface SanctionTypeOption {
   label: string;
 }
 
-// Sprint 5 Phase 4: Sanciones Automáticas - Nuevos Tipos
+// Sanciones Automáticas - Nuevos Tipos
 export interface SanctionReasonOption {
   value: SanctionReason;
   label: string;
@@ -2256,7 +2256,7 @@ export interface NotificationPriorityOption {
   label: string;
 }
 
-// ============ Sprint 5: DocumentTypes and Tramos ============
+// ============ DocumentTypes and Tramos ============
 
 // ============ DocumentType (Tipos de Documento) Types ============
 export interface DocumentType {
@@ -2365,7 +2365,7 @@ export interface TramoStats {
   totalDestinations: number;
 }
 
-// ============ Sprint 5 Phase 2: Document Automation ============
+// ============ Document Automation ============
 
 // Raw backend document item from checklist
 export interface DocumentChecklistItemRaw {
@@ -2448,7 +2448,7 @@ export interface BatchCreateTripResult {
   created: number;
 }
 
-// ============ Sprint 5 Phase 5: Trip Reports (Snapshot) Types ============
+// ============ Trip Reports (Snapshot) Types ============
 // NOTA: Estos tipos son para el endpoint /trip-reports (snapshots de viajes)
 // Son diferentes de TripReport/TripReportItem/TripReportSummary de Sprint 6
 

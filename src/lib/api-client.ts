@@ -1688,7 +1688,7 @@ export const sanctionsApi = {
 };
 
 // ==========================================
-// Sanctions Automation API (Sprint 5 Phase 4)
+// Sanctions Automation API
 // ==========================================
 export const sanctionsAutomationApi = {
   getConfig: async (): Promise<import('@/types/api').SanctionConfig> => {
@@ -2157,7 +2157,7 @@ export const notificationsApi = {
 };
 
 // ==========================================
-// Document Types API (Sprint 5)
+// Document Types API
 // ==========================================
 // Backend response structure:
 // { success: true, data: { data: [...], meta: {...} }, timestamp }
@@ -2245,7 +2245,7 @@ export const documentTypesApi = {
 };
 
 // ==========================================
-// Tramos API (Sprint 5)
+// Tramos API
 // ==========================================
 interface BackendTramosResponse {
   success: boolean;
@@ -2339,7 +2339,7 @@ export const tramosApi = {
 };
 
 // ==========================================
-// Document Automation API (Sprint 5 Phase 2)
+// Document Automation API
 // ==========================================
 
 interface BackendChecklistResponse {
@@ -2453,7 +2453,7 @@ export const documentAutomationApi = {
 };
 
 // ==========================================
-// Payment Block API (Sprint 5 Phase 3)
+// Payment Block API
 // ==========================================
 interface BackendPaymentBlockStatsResponse {
   success: boolean;
@@ -2531,7 +2531,7 @@ export const paymentBlockApi = {
 export default apiClient;
 
 // ==========================================
-// Trip Reports API (Sprint 5 Phase 5)
+// Trip Reports API
 // ==========================================
 interface BackendTripReportsResponse {
   success: boolean;

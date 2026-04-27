@@ -27,7 +27,7 @@ vi.mock('@/lib/api-client', () => ({
 
 import { sanctionsAutomationApi } from '@/lib/api-client';
 
-describe('Sanctions Automation API (Sprint 5 Phase 4)', () => {
+describe('Sanctions Automation API', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

@@ -933,7 +933,7 @@ export function useBordersReport(params?: import('@/types/api').ReportParams) {
 }
 
 // ==========================================
-// Sprint 5 Phase 3: Payment Block Hooks
+// Payment Block Hooks
 // ==========================================
 
 export function usePaymentBlockStats() {
@@ -1378,7 +1378,7 @@ export function useCancelSanction() {
   });
 }
 
-// ============ Sanctions Automation Hooks (Sprint 5 Phase 4) ============
+// ============ Sanctions Automation Hooks ============
 export function useSanctionConfig() {
   return useQuery({
     queryKey: ['sanctions', 'config'],
@@ -2000,7 +2000,7 @@ export function useDeleteReadNotifications() {
 }
 
 // ==========================================
-// Sprint 5: DocumentTypes and Tramos
+// DocumentTypes and Tramos
 // ==========================================
 
 // ============ DocumentTypes Hooks ============
@@ -2262,7 +2262,7 @@ export const useBatchCreateDocuments = () => {
 };
 
 // ==========================================
-// Sprint 5 Phase 5: Trip Reports Hooks
+// Trip Reports Hooks
 // ==========================================
 
 export function useTripReports(params?: import('@/types/api').TripReportsListParams) {

@@ -17,6 +17,12 @@ import {
   Calculator,
   Receipt,
   RefreshCw,
+  Shield,
+  ClipboardList,
+  Wrench,
+  Landmark,
+  Building2,
+  ArrowRight,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -52,8 +58,23 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/hooks/use-auth';
-import { useMainDashboard, useFinancialDashboard, useOperationalDashboard } from '@/hooks/use-queries';
+import {
+  useMainDashboard,
+  useFinancialDashboard,
+  useOperationalDashboard,
+  useDocumentTypeStats,
+  useDocumentAutomationStats,
+  useTramoStats,
+  useTripReportsStats,
+  usePaymentBlockStats,
+  useSanctionStats,
+  useSanctionAutomationStats,
+  useMaintenanceStats,
+  useAssetStats,
+  useLiabilityStats,
+} from '@/hooks/use-queries';
 import { useQueryClient } from '@tanstack/react-query';
 import { TripStatus } from '@/types/api';
 
@@ -197,6 +218,18 @@ export default function DashboardPage() {
   const { data: mainData, isLoading: isLoadingMain, refetch: refetchMain } = useMainDashboard(params);
   const { data: financialData, isLoading: isLoadingFinancial } = useFinancialDashboard(params);
   const { data: operationalData, isLoading: isLoadingOperational } = useOperationalDashboard(params);
+
+  // Automation & operational data hooks
+  const { data: docAutoStats } = useDocumentAutomationStats();
+  const { data: payBlockStats } = usePaymentBlockStats();
+  const { data: tripReportStats } = useTripReportsStats();
+  const { data: sanctionAutoStats } = useSanctionAutomationStats();
+  const { data: sanctionStats } = useSanctionStats();
+  const { data: docTypeStats } = useDocumentTypeStats();
+  const { data: tramoStats } = useTramoStats();
+  const { data: assetStats } = useAssetStats();
+  const { data: liabilityStats } = useLiabilityStats();
+  const { data: maintenanceStats } = useMaintenanceStats();
 
   const isLoading = isLoadingMain || isLoadingFinancial || isLoadingOperational;
 
@@ -684,6 +717,428 @@ export default function DashboardPage() {
                 No hay datos de camiones
               </div>
             )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Section Header: Automation & Operational Control */}
+      <div className="pt-2">
+        <div className="flex items-center gap-3 mb-1">
+          <div className="h-10 w-10 rounded-lg bg-[#1B3F66]/10 flex items-center justify-center">
+            <Shield className="h-5 w-5 text-[#1B3F66]" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Automatización y Control</h2>
+            <p className="text-gray-500 text-sm mt-0.5">
+              Gestión automatizada de documentos, pagos, sanciones y reportes
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Row 1: Automation KPI Cards */}
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+        {/* Document Automation Rate */}
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Documentos Automatizados</CardTitle>
+            <div className="h-8 w-8 rounded-lg bg-[#1B3F66]/10 flex items-center justify-center">
+              <FileText className="h-4 w-4 text-[#1B3F66]" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">
+              {docAutoStats?.automationRate ?? 0}%
+            </div>
+            <Progress
+              value={docAutoStats?.automationRate ?? 0}
+              className="mt-2 h-2"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              {docAutoStats?.total ?? 0} total generados
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Blocked Payments */}
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Pagos Bloqueados</CardTitle>
+            <div className="h-8 w-8 rounded-lg bg-red-50 flex items-center justify-center">
+              <Shield className="h-4 w-4 text-red-600" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">
+              {payBlockStats?.blocked ?? 0}
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge variant="secondary" className="bg-red-100 text-red-700 text-xs">
+                {payBlockStats?.unblocked ?? 0} desbloqueados
+              </Badge>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {payBlockStats?.total ?? 0} liquidaciones revisadas
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Trip Reports */}
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Reportes de Viajes</CardTitle>
+            <div className="h-8 w-8 rounded-lg bg-[#1B3F66]/10 flex items-center justify-center">
+              <ClipboardList className="h-4 w-4 text-[#1B3F66]" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">
+              {tripReportStats?.total ?? 0}
+            </div>
+            <Progress
+              value={
+                (tripReportStats?.total ?? 0) > 0
+                  ? Math.round(((tripReportStats?.complete ?? 0) / (tripReportStats?.total ?? 1)) * 100)
+                  : 0
+              }
+              className="mt-2 h-2"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              {(tripReportStats?.total ?? 0) > 0
+                ? Math.round(((tripReportStats?.complete ?? 0) / (tripReportStats?.total ?? 1)) * 100)
+                : 0
+              }% completados
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Sanction Automation Rate */}
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Tasa Auto. Sanciones</CardTitle>
+            <div className="h-8 w-8 rounded-lg bg-orange-50 flex items-center justify-center">
+              <AlertTriangle className="h-4 w-4 text-orange-600" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">
+              {sanctionAutoStats?.automationRate ?? 0}%
+            </div>
+            <Progress
+              value={sanctionAutoStats?.automationRate ?? 0}
+              className="mt-2 h-2"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              {sanctionAutoStats?.automaticCount ?? 0} automaticas de{' '}
+              {sanctionAutoStats?.totalCount ?? 0}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Row 2: Detailed Cards */}
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+        {/* Card A: Sanciones y Pagos */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-[#1B3F66]" />
+              Sanciones y Pagos
+            </CardTitle>
+            <CardDescription>
+              Control de sanciones automaticas y pagos bloqueados
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {/* Sanctions Overview */}
+              <div className="p-3 bg-orange-50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-orange-600" />
+                    <span className="font-medium text-sm">Total Sanciones</span>
+                  </div>
+                  <Badge className="bg-orange-100 text-orange-800">
+                    {sanctionStats?.total ?? 0}
+                  </Badge>
+                </div>
+                <div className="flex gap-2 mt-2 text-xs text-gray-500">
+                  <span>{sanctionStats?.active ?? 0} activas</span>
+                  <span>·</span>
+                  <span>{sanctionStats?.completed ?? 0} completadas</span>
+                  <span>·</span>
+                  <span>{sanctionStats?.cancelled ?? 0} canceladas</span>
+                </div>
+              </div>
+
+              {/* Automation Ratio */}
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-sm">Automaticas vs Manuales</span>
+                </div>
+                <div className="flex items-center gap-3 mt-2">
+                  <div className="flex-1">
+                    <Progress
+                      value={sanctionAutoStats?.automationRate ?? 0}
+                      className="h-2"
+                    />
+                  </div>
+                  <span className="text-sm font-semibold text-[#1B3F66]">
+                    {sanctionAutoStats?.automationRate ?? 0}%
+                  </span>
+                </div>
+                <div className="flex gap-4 mt-2 text-xs">
+                  <span className="text-green-700">
+                    {sanctionAutoStats?.automaticCount ?? 0} automaticas
+                  </span>
+                  <span className="text-gray-500">
+                    {sanctionAutoStats?.manualCount ?? 0} manuales
+                  </span>
+                </div>
+              </div>
+
+              {/* Retention Amounts */}
+              <div className="p-3 bg-red-50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-sm">Retencion Total Bloqueada</span>
+                  <span className="text-sm font-bold text-red-700">
+                    USD {(payBlockStats?.totalRetention ?? 0).toLocaleString('es-BO', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick Links */}
+              <div className="flex gap-2 pt-1">
+                <Link href="/dashboard/sanciones">
+                  <Button variant="outline" size="sm" className="text-xs text-[#1B3F66] border-[#1B3F66] hover:bg-[#1B3F66] hover:text-white">
+                    <Shield className="h-3.5 w-3.5 mr-1.5" />
+                    Sanciones
+                    <ArrowRight className="h-3 w-3 ml-1" />
+                  </Button>
+                </Link>
+                <Link href="/dashboard/bloqueo-pagos">
+                  <Button variant="outline" size="sm" className="text-xs text-[#1B3F66] border-[#1B3F66] hover:bg-[#1B3F66] hover:text-white">
+                    <Landmark className="h-3.5 w-3.5 mr-1.5" />
+                    Bloqueo Pagos
+                    <ArrowRight className="h-3 w-3 ml-1" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card B: Documentos y Tramos */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-[#1B3F66]" />
+              Documentos y Tramos
+            </CardTitle>
+            <CardDescription>
+              Tipos de documentos, automatizacion y segmentos de ruta
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {/* Document Type Counts */}
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium text-sm">Tipos de Documento</span>
+                  <Badge className="bg-[#1B3F66] text-white">
+                    {docTypeStats?.total ?? 0} tipos
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-2 w-2 rounded-full bg-green-500" />
+                    <span className="text-gray-600">Activos: {docTypeStats?.active ?? 0}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-2 w-2 rounded-full bg-red-400" />
+                    <span className="text-gray-600">Inactivos: {docTypeStats?.inactive ?? 0}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-2 w-2 rounded-full bg-yellow-500" />
+                    <span className="text-gray-600">Obligatorios: {docTypeStats?.required ?? 0}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-2 w-2 rounded-full bg-gray-400" />
+                    <span className="text-gray-600">Opcionales: {docTypeStats?.optional ?? 0}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Document Automation */}
+              <div className="p-3 bg-green-50 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium text-sm">Generacion de Documentos</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <Progress
+                      value={docAutoStats?.automationRate ?? 0}
+                      className="h-2"
+                    />
+                  </div>
+                  <span className="text-sm font-semibold text-green-700">
+                    {docAutoStats?.automationRate ?? 0}%
+                  </span>
+                </div>
+                <div className="flex gap-4 mt-2 text-xs">
+                  <span className="text-green-700">
+                    {docAutoStats?.automaticCount ?? 0} automaticos
+                  </span>
+                  <span className="text-gray-500">
+                    {docAutoStats?.manualCount ?? 0} manuales
+                  </span>
+                </div>
+              </div>
+
+              {/* Tramo Stats */}
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium text-sm">Tramos (Segmentos de Ruta)</span>
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
+                    {tramoStats?.total ?? 0} tramos
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-xs text-gray-600">
+                  <div>
+                    <div className="font-semibold text-gray-800">{tramoStats?.totalOrigins ?? 0}</div>
+                    <div>Origenes</div>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-800">{tramoStats?.totalDestinations ?? 0}</div>
+                    <div>Destinos</div>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-800">{tramoStats?.avgDistance ?? 0} km</div>
+                    <div>Dist. Prom.</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Links */}
+              <div className="flex gap-2 pt-1">
+                <Link href="/dashboard/documentos-tipos">
+                  <Button variant="outline" size="sm" className="text-xs text-[#1B3F66] border-[#1B3F66] hover:bg-[#1B3F66] hover:text-white">
+                    <FileText className="h-3.5 w-3.5 mr-1.5" />
+                    Tipos Doc.
+                    <ArrowRight className="h-3 w-3 ml-1" />
+                  </Button>
+                </Link>
+                <Link href="/dashboard/tramos">
+                  <Button variant="outline" size="sm" className="text-xs text-[#1B3F66] border-[#1B3F66] hover:bg-[#1B3F66] hover:text-white">
+                    <Route className="h-3.5 w-3.5 mr-1.5" />
+                    Tramos
+                    <ArrowRight className="h-3 w-3 ml-1" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Row 3: Financial Overview */}
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+        {/* Assets */}
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Activos</CardTitle>
+            <div className="h-8 w-8 rounded-lg bg-[#1B3F66]/10 flex items-center justify-center">
+              <Building2 className="h-4 w-4 text-[#1B3F66]" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div>
+                <div className="text-xs text-gray-500">Valor Total</div>
+                <div className="text-lg font-bold text-gray-900">
+                  USD {(assetStats?.totalValue ?? 0).toLocaleString('es-BO', { minimumFractionDigits: 2 })}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500">Depreciacion Acumulada</div>
+                <div className="text-sm font-medium text-red-600">
+                  USD {(assetStats?.totalDepreciation ?? 0).toLocaleString('es-BO', { minimumFractionDigits: 2 })}
+                </div>
+              </div>
+              <div className="flex gap-2 text-xs">
+                <Badge variant="secondary" className="bg-green-100 text-green-700">
+                  {assetStats?.active ?? 0} activos
+                </Badge>
+                <Badge variant="secondary" className="bg-gray-100 text-gray-600">
+                  {assetStats?.total ?? 0} total
+                </Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Liabilities */}
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Pasivos</CardTitle>
+            <div className="h-8 w-8 rounded-lg bg-red-50 flex items-center justify-center">
+              <Landmark className="h-4 w-4 text-red-600" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div>
+                <div className="text-xs text-gray-500">Deuda Total</div>
+                <div className="text-lg font-bold text-gray-900">
+                  USD {(liabilityStats?.totalDebt ?? 0).toLocaleString('es-BO', { minimumFractionDigits: 2 })}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500">Monto Pendiente</div>
+                <div className="text-sm font-medium text-orange-600">
+                  USD {(liabilityStats?.pendingAmount ?? 0).toLocaleString('es-BO', { minimumFractionDigits: 2 })}
+                </div>
+              </div>
+              <div className="flex gap-2 text-xs">
+                <Badge variant="secondary" className="bg-orange-100 text-orange-700">
+                  {(liabilityStats?.overdue ?? 0)} vencidas
+                </Badge>
+                <Badge variant="secondary" className="bg-gray-100 text-gray-600">
+                  {liabilityStats?.total ?? 0} total
+                </Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Maintenance */}
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Mantenimiento</CardTitle>
+            <div className="h-8 w-8 rounded-lg bg-yellow-50 flex items-center justify-center">
+              <Wrench className="h-4 w-4 text-yellow-600" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div>
+                <div className="text-xs text-gray-500">Mantenimientos Pendientes</div>
+                <div className="text-lg font-bold text-gray-900">
+                  {maintenanceStats?.pending ?? 0}
+                </div>
+              </div>
+              <div className="flex gap-2 text-xs">
+                <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                  {maintenanceStats?.inProgress ?? 0} en progreso
+                </Badge>
+                <Badge variant="secondary" className="bg-green-100 text-green-700">
+                  {maintenanceStats?.completed ?? 0} completados
+                </Badge>
+              </div>
+              <div className="text-xs text-gray-500">
+                Costo total: USD {(maintenanceStats?.totalCost ?? 0).toLocaleString('es-BO', { minimumFractionDigits: 2 })}
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
