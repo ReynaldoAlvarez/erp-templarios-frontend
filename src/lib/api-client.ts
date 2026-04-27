@@ -2667,3 +2667,13 @@ export const tripReportsApi = {
     await api.delete(`/trip-reports/${id}`);
   },
 };
+
+// ==========================================
+// Sprint 5 Phase 6: Dashboard Sprint 5 API
+// ==========================================
+export const dashboardSprint5Api = {
+  getStats: async (params?: { startDate?: string; endDate?: string }): Promise<import('@/types/api').Sprint5DashboardData> => {
+    const response = await api.get<{ data: import('@/types/api').Sprint5DashboardData }>('/dashboard/sprint5', { params });
+    return response.data.data;
+  },
+};

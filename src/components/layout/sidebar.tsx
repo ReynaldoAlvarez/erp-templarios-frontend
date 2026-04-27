@@ -254,6 +254,11 @@ const navigation: NavGroup[] = [
         href: '/dashboard/reportes',
         icon: BarChart3,
       },
+      {
+        title: 'Dashboard Sprint 5',
+        href: '/dashboard/sprint5',
+        icon: TrendingUp,
+      },
     ],
   },
   {
