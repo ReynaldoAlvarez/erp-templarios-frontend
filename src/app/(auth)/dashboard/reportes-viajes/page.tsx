@@ -1,15 +1,17 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import {
   Table2, Search, Filter, Download, RefreshCw, ChevronLeft, ChevronRight,
   Eye, Trash2, RotateCcw, FileCheck, Lock, CheckCircle2, Clock, DollarSign,
+  CalendarDays, FileSpreadsheet,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import {
   Table, TableHeader, TableRow, TableHead, TableBody, TableCell,
 } from '@/components/ui/table';
@@ -46,6 +48,19 @@ const formatUSD = (value: string | number | null | undefined): string => {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
 };
 
+const formatDate = (date: string | null | undefined): string => {
+  if (!date) return '-';
+  return new Date(date).toLocaleDateString('es-BO', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+};
+
+const formatDateISO = (date: string): string => {
+  return new Date(date).toISOString().split('T')[0];
+};
+
 export default function ReportesViajesPage() {
   const { toast } = useToast();
 
@@ -54,6 +69,8 @@ export default function ReportesViajesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [docsFilter, setDocsFilter] = useState<string>('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<TripReportsSnapshot | null>(null);
 
@@ -68,6 +85,23 @@ export default function ReportesViajesPage() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Date filter handlers
+  const handleDateFromChange = (value: string) => {
+    setDateFrom(value);
+    setPage(1);
+  };
+
+  const handleDateToChange = (value: string) => {
+    setDateTo(value);
+    setPage(1);
+  };
+
+  const handleClearDates = () => {
+    setDateFrom('');
+    setDateTo('');
+    setPage(1);
+  };
+
   // Queries
   const queryParams = {
     page,
@@ -75,6 +109,8 @@ export default function ReportesViajesPage() {
     search: debouncedSearch || undefined,
     paymentStatus: paymentFilter !== 'all' ? paymentFilter as 'pending' | 'partial' | 'paid' : undefined,
     documentsComplete: docsFilter === 'complete' ? true : docsFilter === 'incomplete' ? false : undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
   };
 
   const { data: reportsData, isLoading, refetch } = useTripReports(queryParams);
@@ -85,6 +121,52 @@ export default function ReportesViajesPage() {
 
   const reports = reportsData?.data || [];
   const pagination = reportsData?.pagination;
+
+  // Pagination page numbers
+  const paginationRange = useMemo(() => {
+    if (!pagination) return [];
+    const totalPages = pagination.totalPages;
+    const currentPage = pagination.page;
+    const range: (number | '...')[] = [];
+
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) range.push(i);
+    } else {
+      range.push(1);
+      if (currentPage > 3) range.push('...');
+
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+      for (let i = start; i <= end; i++) range.push(i);
+
+      if (currentPage < totalPages - 2) range.push('...');
+      range.push(totalPages);
+    }
+
+    return range;
+  }, [pagination]);
+
+  // Fetch all data for export
+  const fetchAllData = async (): Promise<TripReportsSnapshot[]> => {
+    const allData: TripReportsSnapshot[] = [];
+    let currentPage = 1;
+    let totalPages = 1;
+    while (currentPage <= totalPages) {
+      const result = await tripReportsApi.getAll({
+        page: currentPage,
+        limit: 100,
+        search: debouncedSearch || undefined,
+        paymentStatus: paymentFilter !== 'all' ? paymentFilter as 'pending' | 'partial' | 'paid' : undefined,
+        documentsComplete: docsFilter === 'complete' ? true : docsFilter === 'incomplete' ? false : undefined,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
+      });
+      allData.push(...result.data);
+      totalPages = result.pagination.totalPages;
+      currentPage++;
+    }
+    return allData;
+  };
 
   // Handlers
   const handleGenerateMissing = () => {
@@ -133,27 +215,14 @@ export default function ReportesViajesPage() {
 
   const handleExportCSV = async () => {
     try {
-      const allData: TripReportsSnapshot[] = [];
-      let currentPage = 1;
-      let totalPages = 1;
-      while (currentPage <= totalPages) {
-        const result = await tripReportsApi.getAll({
-          page: currentPage,
-          limit: 100,
-          search: debouncedSearch || undefined,
-          paymentStatus: paymentFilter !== 'all' ? paymentFilter as 'pending' | 'partial' | 'paid' : undefined,
-          documentsComplete: docsFilter === 'complete' ? true : docsFilter === 'incomplete' ? false : undefined,
-        });
-        allData.push(...result.data);
-        totalPages = result.pagination.totalPages;
-        currentPage++;
-      }
+      const allData = await fetchAllData();
 
       const headers = [
         'Linea', 'MIC/DTA', 'BL', 'Cliente', 'NIT', 'Origen', 'Destino',
         'Conductor', 'CI', 'Camion', 'Remolque', 'Apoyo', 'Peso(Kg)', 'Unidades',
         'Flete(USD)', 'Retencion(%)', 'Retencion(USD)', 'Neto(USD)',
         'DocsCompletos', 'DocsPendientes', 'DocsFaltantes', 'PagoBloqueado', 'EstadoPago',
+        'Fecha Salida', 'Fecha Llegada', 'Fecha Creacion',
       ];
       const rows = allData.map(r => [
         r.lineNumber, r.micDta, r.blNumber, r.clientName, r.clientNit || '',
@@ -163,6 +232,7 @@ export default function ReportesViajesPage() {
         r.retentionAmount, r.netAmount,
         r.documentsComplete ? 'Si' : 'No', r.documentsPending,
         r.missingDocuments || '', r.isPaymentBlocked ? 'Si' : 'No', r.paymentStatus,
+        formatDate(r.departureDate), formatDate(r.arrivalDate), formatDate(r.createdAt),
       ]);
       const csvContent = [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
       const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -175,6 +245,65 @@ export default function ReportesViajesPage() {
       toast({ title: 'Exportado', description: 'Archivo CSV descargado exitosamente.' });
     } catch {
       toast({ title: 'Error', description: 'No se pudo exportar el archivo CSV.', variant: 'destructive' });
+    }
+  };
+
+  const handleExportXLS = async () => {
+    try {
+      const allData = await fetchAllData();
+
+      const headers = [
+        'Linea', 'MIC/DTA', 'BL', 'Cliente', 'NIT', 'Origen', 'Destino',
+        'Conductor', 'CI', 'Camion', 'Remolque', 'Apoyo', 'Peso(Kg)', 'Unidades',
+        'Flete(USD)', 'Retencion(%)', 'Retencion(USD)', 'Neto(USD)',
+        'DocsCompletos', 'DocsPendientes', 'DocsFaltantes', 'PagoBloqueado', 'EstadoPago',
+        'Fecha Salida', 'Fecha Llegada', 'Fecha Creacion',
+      ];
+
+      const buildHtmlTable = (data: TripReportsSnapshot[]) => {
+        const headerRow = headers.map(h => `<th style="background-color:#1B3F66;color:#fff;font-weight:bold;padding:8px 12px;border:1px solid #ccc;text-align:center;">${h}</th>`).join('');
+        const bodyRows = data.map(r => {
+          const cells = [
+            r.lineNumber, r.micDta, r.blNumber, r.clientName, r.clientNit || '',
+            r.origin, r.destination, r.driverName, r.driverCi, r.truckPlate,
+            r.trailerPlate || '', r.isSupportTruck ? 'Si' : 'No',
+            r.weightKg, r.unitCount, r.freightAmount, r.retentionPercent + '%',
+            r.retentionAmount, r.netAmount,
+            r.documentsComplete ? 'Si' : 'No', r.documentsPending,
+            r.missingDocuments || '', r.isPaymentBlocked ? 'Si' : 'No', r.paymentStatus,
+            formatDate(r.departureDate), formatDate(r.arrivalDate), formatDate(r.createdAt),
+          ];
+          return `<tr>${cells.map((c, i) => {
+            const align = [0, 13, 15, 16, 17].includes(i) ? 'text-align:right;' : '';
+            const bg = (data.indexOf(r) % 2 === 0) ? 'background-color:#f9fafb;' : '';
+            return `<td style="padding:6px 10px;border:1px solid #ddd;${align}${bg}">${c}</td>`;
+          }).join('')}</tr>`;
+        }).join('');
+
+        return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:spreadsheet" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="UTF-8">
+<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
+<x:Name>Reportes Viajes</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+<style>td,th{font-family:Calibri,Arial,sans-serif;font-size:11px;}</style>
+</head><body>
+<table border="1" cellpadding="0" cellspacing="0">
+<thead><tr>${headerRow}</tr></thead>
+<tbody>${bodyRows}</tbody>
+</table></body></html>`;
+      };
+
+      const htmlContent = buildHtmlTable(allData);
+      const blob = new Blob([htmlContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `reportes-viajes-${new Date().toISOString().slice(0, 10)}.xls`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast({ title: 'Exportado', description: 'Archivo XLS descargado exitosamente.' });
+    } catch {
+      toast({ title: 'Error', description: 'No se pudo exportar el archivo XLS.', variant: 'destructive' });
     }
   };
 
@@ -200,7 +329,7 @@ export default function ReportesViajesPage() {
     <TooltipProvider>
       <div className="p-4 md:p-6 space-y-6">
         {/* Page Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-[#1B3F66]">
               <Table2 className="h-6 w-6 text-white" />
@@ -210,7 +339,7 @@ export default function ReportesViajesPage() {
               <p className="text-sm text-gray-500">Snapshots de viajes con estado de documentos y pagos</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
@@ -224,10 +353,19 @@ export default function ReportesViajesPage() {
               variant="outline"
               size="sm"
               onClick={handleExportCSV}
-              className="gap-2"
+              className="gap-2 border-green-500 text-green-700 hover:bg-green-50"
             >
               <Download className="h-4 w-4" />
               Exportar CSV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportXLS}
+              className="gap-2 border-blue-500 text-blue-700 hover:bg-blue-50"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Exportar XLS
             </Button>
             <Button
               size="sm"
@@ -275,39 +413,83 @@ export default function ReportesViajesPage() {
         {/* Filters */}
         <Card>
           <CardContent className="p-4">
-            <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
-              <div className="relative flex-1 w-full">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Buscar por MIC/DTA, cliente, BL, destino..."
-                  value={searchQuery}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  className="pl-9"
-                />
+            <div className="flex flex-col gap-3">
+              {/* Row 1: Search + Selects */}
+              <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
+                <div className="relative flex-1 w-full">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Buscar por MIC/DTA, cliente, BL, destino..."
+                    value={searchQuery}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Filter className="h-4 w-4 text-gray-400" />
+                  <Select value={paymentFilter} onValueChange={(v) => { setPaymentFilter(v); setPage(1); }}>
+                    <SelectTrigger className="w-[160px]">
+                      <SelectValue placeholder="Estado Pago" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los Pagos</SelectItem>
+                      <SelectItem value="pending">Pendiente</SelectItem>
+                      <SelectItem value="partial">Parcial</SelectItem>
+                      <SelectItem value="paid">Pagado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={docsFilter} onValueChange={(v) => { setDocsFilter(v); setPage(1); }}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Estado Docs" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los Docs</SelectItem>
+                      <SelectItem value="complete">Completos</SelectItem>
+                      <SelectItem value="incomplete">Incompletos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-gray-400" />
-                <Select value={paymentFilter} onValueChange={(v) => { setPaymentFilter(v); setPage(1); }}>
-                  <SelectTrigger className="w-[160px]">
-                    <SelectValue placeholder="Estado Pago" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos los Pagos</SelectItem>
-                    <SelectItem value="pending">Pendiente</SelectItem>
-                    <SelectItem value="partial">Parcial</SelectItem>
-                    <SelectItem value="paid">Pagado</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={docsFilter} onValueChange={(v) => { setDocsFilter(v); setPage(1); }}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Estado Docs" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos los Docs</SelectItem>
-                    <SelectItem value="complete">Completos</SelectItem>
-                    <SelectItem value="incomplete">Incompletos</SelectItem>
-                  </SelectContent>
-                </Select>
+              {/* Row 2: Date filters */}
+              <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4 text-gray-400" />
+                  <Label className="text-xs font-medium text-gray-500 whitespace-nowrap">Fecha:</Label>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="dateFrom" className="text-xs text-gray-500 whitespace-nowrap">Desde</Label>
+                    <Input
+                      id="dateFrom"
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => handleDateFromChange(e.target.value)}
+                      className="w-[150px] h-9 text-sm"
+                      max={dateTo || undefined}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="dateTo" className="text-xs text-gray-500 whitespace-nowrap">Hasta</Label>
+                    <Input
+                      id="dateTo"
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => handleDateToChange(e.target.value)}
+                      className="w-[150px] h-9 text-sm"
+                      min={dateFrom || undefined}
+                    />
+                  </div>
+                  {(dateFrom || dateTo) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearDates}
+                      className="text-xs text-gray-500 hover:text-red-600 h-8 px-2"
+                    >
+                      Limpiar fechas
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </CardContent>
@@ -327,6 +509,7 @@ export default function ReportesViajesPage() {
                     <TableHead className="min-w-[160px] text-xs font-semibold text-gray-600">Ruta</TableHead>
                     <TableHead className="min-w-[140px] text-xs font-semibold text-gray-600">Conductor</TableHead>
                     <TableHead className="min-w-[90px] text-xs font-semibold text-gray-600">Camion</TableHead>
+                    <TableHead className="min-w-[100px] text-center text-xs font-semibold text-gray-600">Fecha Salida</TableHead>
                     <TableHead className="text-right text-xs font-semibold text-gray-600">Peso(Kg)</TableHead>
                     <TableHead className="text-right text-xs font-semibold text-gray-600">Flete(USD)</TableHead>
                     <TableHead className="text-right text-xs font-semibold text-gray-600">Ret.(%)</TableHead>
@@ -341,7 +524,7 @@ export default function ReportesViajesPage() {
                   {isLoading ? (
                     Array.from({ length: 10 }).map((_, i) => (
                       <TableRow key={i}>
-                        {Array.from({ length: 15 }).map((_, j) => (
+                        {Array.from({ length: 16 }).map((_, j) => (
                           <TableCell key={j}>
                             <Skeleton className="h-5 w-full" />
                           </TableCell>
@@ -350,7 +533,7 @@ export default function ReportesViajesPage() {
                     ))
                   ) : reports.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={15} className="text-center py-12 text-gray-500">
+                      <TableCell colSpan={16} className="text-center py-12 text-gray-500">
                         <Table2 className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                         <p className="text-lg font-medium">No se encontraron reportes</p>
                         <p className="text-sm">Ajusta los filtros o genera reportes faltantes</p>
@@ -379,6 +562,21 @@ export default function ReportesViajesPage() {
                           </TableCell>
                           <TableCell className="text-sm text-gray-700">{report.driverName}</TableCell>
                           <TableCell className="text-sm text-gray-600 font-mono">{report.truckPlate}</TableCell>
+                          <TableCell className="text-center text-sm text-gray-600">
+                            {report.departureDate ? (
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <span className="text-xs">{formatDate(report.departureDate)}</span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  Salida: {formatDate(report.departureDate)}
+                                  {report.arrivalDate && ` | Llegada: ${formatDate(report.arrivalDate)}`}
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right text-sm text-gray-700 font-mono">{report.weightKg}</TableCell>
                           <TableCell className="text-right text-sm text-gray-900 font-mono">{formatUSD(report.freightAmount)}</TableCell>
                           <TableCell className="text-right text-sm text-gray-600 font-mono">{report.retentionPercent}%</TableCell>
@@ -465,33 +663,67 @@ export default function ReportesViajesPage() {
               </Table>
             </div>
 
-            {/* Pagination */}
+            {/* Pagination with page numbers */}
             {pagination && pagination.totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t">
                 <p className="text-sm text-gray-600">
                   Mostrando {(pagination.page - 1) * pagination.limit + 1} a{' '}
                   {Math.min(pagination.page * pagination.limit, pagination.total)} de{' '}
                   {pagination.total} registros
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   <Button
                     variant="outline"
                     size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setPage(1)}
+                    disabled={pagination.page === 1}
+                  >
+                    <span className="text-xs">«</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0"
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={!pagination.hasPrev}
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <span className="text-sm text-gray-600">
-                    Pagina {pagination.page} de {pagination.totalPages}
-                  </span>
+                  {paginationRange.map((item, index) =>
+                    item === '...' ? (
+                      <span key={`dots-${index}`} className="px-1 text-gray-400 text-sm">
+                        ...
+                      </span>
+                    ) : (
+                      <Button
+                        key={item}
+                        variant={pagination.page === item ? 'default' : 'outline'}
+                        size="sm"
+                        className={`h-8 w-8 p-0 text-xs ${pagination.page === item ? 'bg-[#1B3F66] hover:bg-[#15305a]' : ''}`}
+                        onClick={() => setPage(item as number)}
+                      >
+                        {item}
+                      </Button>
+                    )
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
+                    className="h-8 w-8 p-0"
                     onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
                     disabled={!pagination.hasNext}
                   >
                     <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setPage(pagination.totalPages)}
+                    disabled={pagination.page === pagination.totalPages}
+                  >
+                    <span className="text-xs">»</span>
                   </Button>
                 </div>
               </div>

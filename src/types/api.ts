@@ -2507,6 +2507,8 @@ export interface TripReportsListParams extends PaginationParams {
   documentsComplete?: boolean;
   blNumber?: string;
   clientId?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export interface UpdateTripReportInput {
