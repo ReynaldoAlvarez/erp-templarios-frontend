@@ -32,6 +32,7 @@ import {
   paymentBlockApi,
   sanctionsAutomationApi,
   tripReportsApi,
+  dashboardSprint5Api,
 } from '@/lib/api-client';
 import {
   UserListParams,
@@ -2360,5 +2361,15 @@ export function useDeleteTripReport() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trip-reports'] });
     },
+  });
+}
+
+// ============ Sprint 5 Phase 6: Dashboard Sprint 5 Hooks ============
+
+export function useSprint5Dashboard(params?: { startDate?: string; endDate?: string }) {
+  return useQuery<import('@/types/api').Sprint5DashboardData>({
+    queryKey: ['dashboard', 'sprint5', params],
+    queryFn: () => dashboardSprint5Api.getStats(params),
+    staleTime: 30 * 1000,
   });
 }
