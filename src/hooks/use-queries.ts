@@ -31,6 +31,7 @@ import {
   documentAutomationApi,
   paymentBlockApi,
   sanctionsAutomationApi,
+  tripReportsApi,
 } from '@/lib/api-client';
 import {
   UserListParams,
@@ -2259,3 +2260,105 @@ export const useBatchCreateDocuments = () => {
     },
   });
 };
+
+// ==========================================
+// Sprint 5 Phase 5: Trip Reports Hooks
+// ==========================================
+
+export function useTripReports(params?: import('@/types/api').TripReportsListParams) {
+  return useQuery({
+    queryKey: ['trip-reports', params],
+    queryFn: () => tripReportsApi.getAll(params),
+  });
+}
+
+export function useTripReportsStats() {
+  return useQuery({
+    queryKey: ['trip-reports', 'stats'],
+    queryFn: () => tripReportsApi.getStats(),
+    staleTime: 30000,
+  });
+}
+
+export function useTripReportsBlockedPayments(params?: { page?: number; limit?: number }) {
+  return useQuery({
+    queryKey: ['trip-reports', 'blocked-payments', params],
+    queryFn: () => tripReportsApi.getBlockedPayments(params),
+  });
+}
+
+export function useTripReportsIncompleteDocuments(params?: { page?: number; limit?: number }) {
+  return useQuery({
+    queryKey: ['trip-reports', 'incomplete-documents', params],
+    queryFn: () => tripReportsApi.getIncompleteDocuments(params),
+  });
+}
+
+export function useTripReportByBL(blNumber: string | undefined) {
+  return useQuery({
+    queryKey: ['trip-reports', 'bl', blNumber],
+    queryFn: () => tripReportsApi.getByBL(blNumber!),
+    enabled: !!blNumber,
+  });
+}
+
+export function useTripReportBLSummary(blNumber: string | undefined) {
+  return useQuery({
+    queryKey: ['trip-reports', 'bl-summary', blNumber],
+    queryFn: () => tripReportsApi.getBLSummary(blNumber!),
+    enabled: !!blNumber,
+  });
+}
+
+export function useGenerateTripReport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (tripId: string) => tripReportsApi.generateFromTrip(tripId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trip-reports'] });
+    },
+  });
+}
+
+export function useGenerateMissingTripReports() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => tripReportsApi.generateMissing(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trip-reports'] });
+    },
+  });
+}
+
+export function useUpdateTripReport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: import('@/types/api').UpdateTripReportInput }) =>
+      tripReportsApi.update(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['trip-reports'] });
+      queryClient.invalidateQueries({ queryKey: ['trip-reports', id] });
+    },
+  });
+}
+
+export function useRegenerateTripReport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => tripReportsApi.regenerate(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['trip-reports'] });
+      queryClient.invalidateQueries({ queryKey: ['trip-reports', id] });
+    },
+  });
+}
+
+export function useDeleteTripReport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => tripReportsApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trip-reports'] });
+    },
+  });
+}

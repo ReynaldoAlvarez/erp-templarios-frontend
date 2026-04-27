@@ -36,6 +36,7 @@ import {
   Bell,
   FileSpreadsheet,
   Settings2,
+  Table2,
 } from 'lucide-react';
 
 import {
@@ -122,6 +123,11 @@ const navigation: NavGroup[] = [
         title: 'Automatización',
         href: '/dashboard/automatizacion',
         icon: Settings2,
+      },
+      {
+        title: 'Reportes de Viajes',
+        href: '/dashboard/reportes-viajes',
+        icon: Table2,
       },
       {
         title: 'Clientes',
