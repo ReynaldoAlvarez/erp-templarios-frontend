@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -25,9 +25,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { settlementsApi, tripsApi } from '@/lib/api-client';
-import { Settlement, CreateSettlementInput, UpdateSettlementInput, SettlementStatus, SettlementCalculation } from '@/types/api';
+import {
+  useSettlements, useSettlementStats, useTrips,
+  useCreateSettlement, useUpdateSettlement, useApproveSettlement, useMarkSettlementPaid,
+} from '@/hooks/use-queries';
+import { settlementsApi } from '@/lib/api-client';
+import { Settlement, SettlementStatus, SettlementCalculation } from '@/types/api';
 
 // Form schema
 const settlementSchema = z.object({
@@ -67,7 +70,6 @@ const formatCurrency = (amount: number, currency: 'BOB' | 'USD' = 'BOB') => {
 
 export default function LiquidacionesPage() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   // State
   const [page, setPage] = useState(1);
@@ -78,76 +80,25 @@ export default function LiquidacionesPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [selectedSettlement, setSelectedSettlement] = useState<Settlement | null>(null);
   const [calculationResult, setCalculationResult] = useState<SettlementCalculation | null>(null);
-  const [isCalculating, setIsCalculating] = useState(false);
 
   // Queries
-  const { data: settlementsData, isLoading } = useQuery({
-    queryKey: ['settlements', { page, limit, search, status: statusFilter }],
-    queryFn: () => settlementsApi.getAll({
-      page,
-      limit,
-      status: statusFilter !== 'all' ? statusFilter as SettlementStatus : undefined,
-    }),
+  const { data: settlementsData, isLoading } = useSettlements({
+    page,
+    limit,
+    status: statusFilter !== 'all' ? statusFilter as SettlementStatus : undefined,
   });
 
-  const { data: stats } = useQuery({
-    queryKey: ['settlements', 'stats'],
-    queryFn: () => settlementsApi.getStats(),
-  });
+  const { data: stats } = useSettlementStats();
 
-  const { data: trips } = useQuery({
-    queryKey: ['trips', { status: 'DELIVERED', limit: 100 }],
-    queryFn: () => tripsApi.getAll({ status: 'DELIVERED', limit: 100 }),
-  });
+  const { data: trips } = useTrips({ status: 'DELIVERED', limit: 100 });
+
+  const [isCalculating, setIsCalculating] = useState(false);
 
   // Mutations
-  const createMutation = useMutation({
-    mutationFn: (data: CreateSettlementInput) => settlementsApi.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settlements'] });
-      toast({ title: 'Liquidación creada', description: 'La liquidación ha sido creada exitosamente.' });
-      setIsCreateOpen(false);
-      createForm.reset();
-    },
-    onError: (error: unknown) => {
-      toast({ variant: 'destructive', title: 'Error al crear', description: getErrorMessage(error, 'No se pudo crear la liquidación.') });
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateSettlementInput }) => settlementsApi.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settlements'] });
-      toast({ title: 'Liquidación actualizada' });
-      setIsEditOpen(false);
-      setSelectedSettlement(null);
-    },
-    onError: (error: unknown) => {
-      toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo actualizar.') });
-    },
-  });
-
-  const approveMutation = useMutation({
-    mutationFn: (id: string) => settlementsApi.approve(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settlements'] });
-      toast({ title: 'Liquidación aprobada' });
-    },
-    onError: (error: unknown) => {
-      toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo aprobar.') });
-    },
-  });
-
-  const payMutation = useMutation({
-    mutationFn: (id: string) => settlementsApi.markAsPaid(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settlements'] });
-      toast({ title: 'Liquidación pagada' });
-    },
-    onError: (error: unknown) => {
-      toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo marcar como pagada.') });
-    },
-  });
+  const createSettlement = useCreateSettlement();
+  const updateSettlement = useUpdateSettlement();
+  const approveSettlement = useApproveSettlement();
+  const markSettlementPaid = useMarkSettlementPaid();
 
   // Forms
   const createForm = useForm<SettlementFormData>({
@@ -168,19 +119,45 @@ export default function LiquidacionesPage() {
     },
   });
 
+  // Calculate settlement from trip (imperative to avoid setState-in-effect lint issue)
+  const handleCalculate = useCallback(async (tripId: string) => {
+    setIsCalculating(true);
+    try {
+      const result = await settlementsApi.calculateFromTrip(tripId);
+      setCalculationResult(result as any);
+      createForm.setValue('freightBob', (result as any).grossAmount);
+      createForm.setValue('taxIt3Percent', (result as any).itAmount);
+      createForm.setValue('retention7Percent', (result as any).retentionAmount);
+      toast({ title: 'Cálculo completado', description: 'Los valores han sido auto-completados.' });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error al calcular', description: getErrorMessage(error, 'No se pudo calcular la liquidación.') });
+    } finally {
+      setIsCalculating(false);
+    }
+  }, [createForm, toast]);
+
   // Handlers
   const handleCreate = (data: SettlementFormData) => {
-    createMutation.mutate({
+    createSettlement.mutate({
       ...data,
       externalCommission: data.externalCommission || 0,
       advance: data.advance || 0,
       notes: data.notes || undefined,
+    }, {
+      onSuccess: () => {
+        toast({ title: 'Liquidación creada', description: 'La liquidación ha sido creada exitosamente.' });
+        setIsCreateOpen(false);
+        createForm.reset();
+      },
+      onError: (error: unknown) => {
+        toast({ variant: 'destructive', title: 'Error al crear', description: getErrorMessage(error, 'No se pudo crear la liquidación.') });
+      },
     });
   };
 
   const handleEdit = (data: SettlementFormData) => {
     if (!selectedSettlement) return;
-    updateMutation.mutate({
+    updateSettlement.mutate({
       id: selectedSettlement.id,
       data: {
         freightUsd: data.freightUsd,
@@ -192,6 +169,15 @@ export default function LiquidacionesPage() {
         externalCommission: data.externalCommission,
         advance: data.advance,
         notes: data.notes,
+      },
+    }, {
+      onSuccess: () => {
+        toast({ title: 'Liquidación actualizada' });
+        setIsEditOpen(false);
+        setSelectedSettlement(null);
+      },
+      onError: (error: unknown) => {
+        toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo actualizar.') });
       },
     });
   };
@@ -214,29 +200,13 @@ export default function LiquidacionesPage() {
   };
 
   // Handle calculate from trip
-  const handleCalculateFromTrip = async () => {
+  const handleCalculateFromTrip = () => {
     const tripId = createForm.getValues('tripId');
     if (!tripId) {
       toast({ variant: 'destructive', title: 'Error', description: 'Seleccione un viaje primero.' });
       return;
     }
-
-    setIsCalculating(true);
-    try {
-      const result = await settlementsApi.calculateFromTrip(tripId);
-      setCalculationResult(result);
-      
-      // Auto-fill form fields based on calculation
-      createForm.setValue('freightBob', result.grossAmount);
-      createForm.setValue('taxIt3Percent', result.itAmount);
-      createForm.setValue('retention7Percent', result.retentionAmount);
-      
-      toast({ title: 'Cálculo completado', description: 'Los valores han sido auto-completados.' });
-    } catch (error: unknown) {
-      toast({ variant: 'destructive', title: 'Error al calcular', description: getErrorMessage(error, 'No se pudo calcular la liquidación.') });
-    } finally {
-      setIsCalculating(false);
-    }
+    handleCalculate(tripId);
   };
 
   // Pagination
@@ -376,12 +346,18 @@ export default function LiquidacionesPage() {
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuItem onClick={() => openEditDialog(settlement)}><Edit className="h-4 w-4 mr-2" /> Editar</DropdownMenuItem>
                                   {settlement.status === 'PENDING' && (
-                                    <DropdownMenuItem onClick={() => approveMutation.mutate(settlement.id)}>
+                                    <DropdownMenuItem onClick={() => approveSettlement.mutate(settlement.id, {
+                                      onSuccess: () => toast({ title: 'Liquidación aprobada' }),
+                                      onError: (error: unknown) => toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo aprobar.') }),
+                                    })}>
                                       <CheckCircle className="h-4 w-4 mr-2" /> Aprobar
                                     </DropdownMenuItem>
                                   )}
                                   {settlement.status === 'APPROVED' && (
-                                    <DropdownMenuItem onClick={() => payMutation.mutate(settlement.id)}>
+                                    <DropdownMenuItem onClick={() => markSettlementPaid.mutate(settlement.id, {
+                                      onSuccess: () => toast({ title: 'Liquidación pagada' }),
+                                      onError: (error: unknown) => toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo marcar como pagada.') }),
+                                    })}>
                                       <Banknote className="h-4 w-4 mr-2" /> Marcar Pagada
                                     </DropdownMenuItem>
                                   )}
@@ -414,7 +390,9 @@ export default function LiquidacionesPage() {
       {/* Create Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={(open) => { 
         setIsCreateOpen(open); 
-        if (!open) setCalculationResult(null);
+        if (!open) {
+          setCalculationResult(null);
+        }
       }}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -535,8 +513,8 @@ export default function LiquidacionesPage() {
             )} />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
-              <Button type="submit" className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={createMutation.isPending}>
-                {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Crear
+              <Button type="submit" className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={createSettlement.isPending}>
+                {createSettlement.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Crear
               </Button>
             </DialogFooter>
           </form>
@@ -613,8 +591,8 @@ export default function LiquidacionesPage() {
             )} />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
-              <Button type="submit" className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={updateMutation.isPending}>
-                {updateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Guardar
+              <Button type="submit" className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={updateSettlement.isPending}>
+                {updateSettlement.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Guardar
               </Button>
             </DialogFooter>
           </form>

@@ -27,9 +27,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { invoicesApi, clientesApi, tripsApi } from '@/lib/api-client';
-import { Invoice, CreateInvoiceInput, UpdateInvoiceInput, InvoiceStatus, InvoiceCalculation, Trip } from '@/types/api';
+import {
+  useInvoices, useInvoiceStats, useClientes, useTrips,
+  useCreateInvoice, useUpdateInvoice, useApproveInvoice, useMarkInvoicePaid, useCancelInvoice,
+  useCalculateInvoiceFromTrips,
+} from '@/hooks/use-queries';
+import { Invoice, InvoiceStatus, InvoiceCalculation } from '@/types/api';
 
 // Form schema
 const invoiceSchema = z.object({
@@ -72,7 +75,6 @@ const formatDate = (date: string | undefined) => {
 
 export default function FacturasPage() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   // State
   const [page, setPage] = useState(1);
@@ -87,97 +89,30 @@ export default function FacturasPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [selectedTripIds, setSelectedTripIds] = useState<string[]>([]);
   const [calculationResult, setCalculationResult] = useState<InvoiceCalculation | null>(null);
-  const [isCalculating, setIsCalculating] = useState(false);
+  const calculateInvoiceFromTrips = useCalculateInvoiceFromTrips();
+  const isCalculating = calculateInvoiceFromTrips.isPending;
   const [calculationError, setCalculationError] = useState<string | null>(null);
 
   // Queries
-  const { data: invoicesData, isLoading } = useQuery({
-    queryKey: ['invoices', { page, limit, search, status: statusFilter, clientId: clientFilter }],
-    queryFn: () => invoicesApi.getAll({
-      page,
-      limit,
-      status: statusFilter !== 'all' ? statusFilter as InvoiceStatus : undefined,
-      clientId: clientFilter || undefined,
-    }),
+  const { data: invoicesData, isLoading } = useInvoices({
+    page,
+    limit,
+    status: statusFilter !== 'all' ? statusFilter as InvoiceStatus : undefined,
+    clientId: clientFilter || undefined,
   });
 
-  const { data: stats } = useQuery({
-    queryKey: ['invoices', 'stats'],
-    queryFn: () => invoicesApi.getStats(),
-  });
+  const { data: stats } = useInvoiceStats();
 
-  const { data: clientes } = useQuery({
-    queryKey: ['clientes', { limit: 100 }],
-    queryFn: () => clientesApi.getAll({ limit: 100 }),
-  });
+  const { data: clientes } = useClientes({ limit: 100 });
 
-  const { data: trips } = useQuery({
-    queryKey: ['trips', { status: 'DELIVERED', limit: 100 }],
-    queryFn: () => tripsApi.getAll({ status: 'DELIVERED', limit: 100 }),
-  });
+  const { data: trips } = useTrips({ status: 'DELIVERED', limit: 100 });
 
   // Mutations
-  const createMutation = useMutation({
-    mutationFn: (data: CreateInvoiceInput) => invoicesApi.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      toast({ title: 'Factura creada', description: 'La factura ha sido creada exitosamente.' });
-      setIsCreateOpen(false);
-      createForm.reset();
-    },
-    onError: (error: unknown) => {
-      toast({ variant: 'destructive', title: 'Error al crear', description: getErrorMessage(error, 'No se pudo crear la factura.') });
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateInvoiceInput }) => invoicesApi.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      toast({ title: 'Factura actualizada' });
-      setIsEditOpen(false);
-      setSelectedInvoice(null);
-    },
-    onError: (error: unknown) => {
-      toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo actualizar.') });
-    },
-  });
-
-  const approveMutation = useMutation({
-    mutationFn: (id: string) => invoicesApi.approve(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      toast({ title: 'Factura emitida' });
-    },
-    onError: (error: unknown) => {
-      toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo emitir.') });
-    },
-  });
-
-  const payMutation = useMutation({
-    mutationFn: (id: string) => invoicesApi.markAsPaid(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      toast({ title: 'Factura marcada como pagada' });
-    },
-    onError: (error: unknown) => {
-      toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo marcar como pagada.') });
-    },
-  });
-
-  const cancelMutation = useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason: string }) => invoicesApi.cancel(id, reason),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      toast({ title: 'Factura cancelada' });
-      setIsCancelOpen(false);
-      setSelectedInvoice(null);
-      setCancelReason('');
-    },
-    onError: (error: unknown) => {
-      toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo cancelar.') });
-    },
-  });
+  const createInvoice = useCreateInvoice();
+  const updateInvoice = useUpdateInvoice();
+  const approveInvoice = useApproveInvoice();
+  const markInvoicePaid = useMarkInvoicePaid();
+  const cancelInvoice = useCancelInvoice();
 
   // Forms
   const createForm = useForm<InvoiceFormData>({
@@ -198,7 +133,7 @@ export default function FacturasPage() {
 
   // Handlers
   const handleCreate = (data: InvoiceFormData) => {
-    createMutation.mutate({
+    createInvoice.mutate({
       invoiceNumber: data.invoiceNumber,
       clientId: data.clientId,
       invoiceDate: data.invoiceDate || new Date().toISOString(),
@@ -207,12 +142,21 @@ export default function FacturasPage() {
       exchangeRate: data.exchangeRate,
       notes: data.notes || undefined,
       tripIds: selectedTripIds,
+    }, {
+      onSuccess: () => {
+        toast({ title: 'Factura creada', description: 'La factura ha sido creada exitosamente.' });
+        setIsCreateOpen(false);
+        createForm.reset();
+      },
+      onError: (error: unknown) => {
+        toast({ variant: 'destructive', title: 'Error al crear', description: getErrorMessage(error, 'No se pudo crear la factura.') });
+      },
     });
   };
 
   const handleEdit = (data: InvoiceFormData) => {
     if (!selectedInvoice) return;
-    updateMutation.mutate({
+    updateInvoice.mutate({
       id: selectedInvoice.id,
       data: {
         invoiceNumber: data.invoiceNumber,
@@ -222,6 +166,15 @@ export default function FacturasPage() {
         amountUsd: data.amountUsd,
         exchangeRate: data.exchangeRate,
         notes: data.notes,
+      },
+    }, {
+      onSuccess: () => {
+        toast({ title: 'Factura actualizada' });
+        setIsEditOpen(false);
+        setSelectedInvoice(null);
+      },
+      onError: (error: unknown) => {
+        toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo actualizar.') });
       },
     });
   };
@@ -253,37 +206,63 @@ export default function FacturasPage() {
     setCalculationError(null);
   };
 
+  // Helper handlers for inline mutations
+  const handleApproveInvoice = (id: string) => {
+    approveInvoice.mutate(id, {
+      onSuccess: () => toast({ title: 'Factura emitida' }),
+      onError: (error: unknown) => toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo emitir.') }),
+    });
+  };
+
+  const handleMarkInvoicePaid = (id: string) => {
+    markInvoicePaid.mutate(id, {
+      onSuccess: () => toast({ title: 'Factura marcada como pagada' }),
+      onError: (error: unknown) => toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo marcar como pagada.') }),
+    });
+  };
+
+  const handleCancelInvoice = (id: string, reason: string) => {
+    cancelInvoice.mutate({ id, reason }, {
+      onSuccess: () => {
+        toast({ title: 'Factura cancelada' });
+        setIsCancelOpen(false);
+        setSelectedInvoice(null);
+        setCancelReason('');
+      },
+      onError: (error: unknown) => toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo cancelar.') }),
+    });
+  };
+
   // Handle calculate from trips
-  const handleCalculateFromTrips = async () => {
+  const handleCalculateFromTrips = () => {
     if (selectedTripIds.length === 0) {
       toast({ variant: 'destructive', title: 'Error', description: 'Seleccione al menos un viaje.' });
       return;
     }
 
-    setIsCalculating(true);
     setCalculationError(null);
-    try {
-      const result = await invoicesApi.calculateFromTrips(selectedTripIds);
-      setCalculationResult(result);
-      
-      // Check for validation issues
-      if (!result.calculations.sameClient) {
-        setCalculationError('Los viajes seleccionados pertenecen a diferentes clientes.');
-      } else if (!result.calculations.allDelivered) {
-        setCalculationError('No todos los viajes seleccionados están entregados (DELIVERED).');
-      } else {
-        // Auto-fill client and total amount
-        createForm.setValue('clientId', result.clientId);
-        createForm.setValue('totalAmount', result.subtotal);
-        toast({ title: 'Cálculo completado', description: `Cliente: ${result.clientName}, Total: ${formatCurrency(result.subtotal)}` });
-      }
-    } catch (error: unknown) {
-      const errorMsg = getErrorMessage(error, 'No se pudo calcular la factura.');
-      setCalculationError(errorMsg);
-      toast({ variant: 'destructive', title: 'Error al calcular', description: errorMsg });
-    } finally {
-      setIsCalculating(false);
-    }
+    calculateInvoiceFromTrips.mutate(selectedTripIds, {
+      onSuccess: (result) => {
+        setCalculationResult(result);
+
+        // Check for validation issues
+        if (!result.calculations.sameClient) {
+          setCalculationError('Los viajes seleccionados pertenecen a diferentes clientes.');
+        } else if (!result.calculations.allDelivered) {
+          setCalculationError('No todos los viajes seleccionados están entregados (DELIVERED).');
+        } else {
+          // Auto-fill client and total amount
+          createForm.setValue('clientId', result.clientId);
+          createForm.setValue('totalAmount', result.subtotal);
+          toast({ title: 'Cálculo completado', description: `Cliente: ${result.clientName}, Total: ${formatCurrency(result.subtotal)}` });
+        }
+      },
+      onError: (error: unknown) => {
+        const errorMsg = getErrorMessage(error, 'No se pudo calcular la factura.');
+        setCalculationError(errorMsg);
+        toast({ variant: 'destructive', title: 'Error al calcular', description: errorMsg });
+      },
+    });
   };
 
   // Pagination
@@ -442,12 +421,12 @@ export default function FacturasPage() {
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuItem onClick={() => openEditDialog(invoice)}><Edit className="h-4 w-4 mr-2" /> Editar</DropdownMenuItem>
                                   {invoice.status === 'PENDING' && (
-                                    <DropdownMenuItem onClick={() => approveMutation.mutate(invoice.id)}>
+                                    <DropdownMenuItem onClick={() => handleApproveInvoice(invoice.id)}>
                                       <Send className="h-4 w-4 mr-2" /> Emitir
                                     </DropdownMenuItem>
                                   )}
                                   {invoice.status === 'ISSUED' && (
-                                    <DropdownMenuItem onClick={() => payMutation.mutate(invoice.id)}>
+                                    <DropdownMenuItem onClick={() => handleMarkInvoicePaid(invoice.id)}>
                                       <CheckCircle className="h-4 w-4 mr-2" /> Marcar Pagada
                                     </DropdownMenuItem>
                                   )}
@@ -654,8 +633,8 @@ export default function FacturasPage() {
             )} />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
-              <Button type="submit" className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={createMutation.isPending}>
-                {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Crear
+              <Button type="submit" className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={createInvoice.isPending}>
+                {createInvoice.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Crear
               </Button>
             </DialogFooter>
           </form>
@@ -719,8 +698,8 @@ export default function FacturasPage() {
             )} />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
-              <Button type="submit" className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={updateMutation.isPending}>
-                {updateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Guardar
+              <Button type="submit" className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={updateInvoice.isPending}>
+                {updateInvoice.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Guardar
               </Button>
             </DialogFooter>
           </form>
@@ -742,8 +721,8 @@ export default function FacturasPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setIsCancelOpen(false); setCancelReason(''); }}>Cerrar</Button>
-            <Button variant="destructive" onClick={() => { if (selectedInvoice && cancelReason) cancelMutation.mutate({ id: selectedInvoice.id, reason: cancelReason }); }} disabled={!cancelReason || cancelMutation.isPending}>
-              {cancelMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Cancelar Factura
+            <Button variant="destructive" onClick={() => { if (selectedInvoice && cancelReason) handleCancelInvoice(selectedInvoice.id, cancelReason); }} disabled={!cancelReason || cancelInvoice.isPending}>
+              {cancelInvoice.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Cancelar Factura
             </Button>
           </DialogFooter>
         </DialogContent>

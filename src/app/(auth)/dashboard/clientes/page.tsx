@@ -72,9 +72,8 @@ import {
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { clientesApi } from '@/lib/api-client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Client, CreateClientInput, UpdateClientInput } from '@/types/api';
+import { useClientes, useCreateCliente, useUpdateCliente, useDeleteCliente, useRestoreCliente, useClienteCredit } from '@/hooks/use-queries';
+import { Client } from '@/types/api';
 
 // Form schemas - with conditional credit validation
 const clienteSchema = z.object({
@@ -124,19 +123,8 @@ const getErrorMessage = (error: unknown, defaultMessage: string): string => {
   return defaultMessage;
 };
 
-// Interface para estado de crédito
-interface CreditState {
-  hasCredit: boolean;
-  creditLimit: number;
-  usedCredit: number;
-  availableCredit: number;
-  utilizationPercent: number;
-  pendingInvoices: number;
-}
-
 export default function ClientesPage() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   // State
   const [page, setPage] = useState(1);
@@ -149,110 +137,23 @@ export default function ClientesPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isCreditOpen, setIsCreditOpen] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState<Client | null>(null);
-  const [creditData, setCreditData] = useState<CreditState | null>(null);
 
-  // Query con filtros
-  const { data: clientesData, isLoading } = useQuery({
-    queryKey: ['clientes', { page, limit, search, isActive: activoFilter, hasCredit: creditoFilter }],
-    queryFn: () => clientesApi.getAll({
-      page,
-      limit,
-      search: search || undefined,
-      isActive: activoFilter !== 'all' ? activoFilter === 'true' : undefined,
-      hasCredit: creditoFilter !== 'all' ? creditoFilter === 'true' : undefined,
-    }),
+  // Queries (centralized hooks)
+  const { data: clientesData, isLoading } = useClientes({
+    page,
+    limit,
+    search: search || undefined,
+    isActive: activoFilter !== 'all' ? activoFilter === 'true' : undefined,
+    hasCredit: creditoFilter !== 'all' ? creditoFilter === 'true' : undefined,
   });
 
-  // Mutations
-  const createMutation = useMutation({
-    mutationFn: (data: CreateClientInput) => clientesApi.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clientes'] });
-      toast({
-        title: 'Cliente creado',
-        description: 'El cliente ha sido creado exitosamente.',
-      });
-      setIsCreateOpen(false);
-      createForm.reset();
-    },
-    onError: (error: unknown) => {
-      const message = getErrorMessage(error, 'No se pudo crear el cliente.');
-      toast({
-        variant: 'destructive',
-        title: 'Error al crear cliente',
-        description: message,
-      });
-    },
-  });
+  const creditQuery = useClienteCredit(isCreditOpen ? selectedCliente?.id : undefined);
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateClientInput }) =>
-      clientesApi.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clientes'] });
-      toast({
-        title: 'Cliente actualizado',
-        description: 'El cliente ha sido actualizado exitosamente.',
-      });
-      setIsEditOpen(false);
-      setSelectedCliente(null);
-      editForm.reset();
-    },
-    onError: (error: unknown) => {
-      const message = getErrorMessage(error, 'No se pudo actualizar el cliente.');
-      toast({
-        variant: 'destructive',
-        title: 'Error al actualizar',
-        description: message,
-      });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => clientesApi.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clientes'] });
-      toast({
-        title: 'Cliente desactivado',
-        description: 'El cliente ha sido desactivado exitosamente.',
-      });
-      setIsDeleteOpen(false);
-      setSelectedCliente(null);
-    },
-    onError: (error: unknown) => {
-      const message = getErrorMessage(error, 'No se pudo desactivar el cliente.');
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: message,
-      });
-    },
-  });
-
-  const restoreMutation = useMutation({
-    mutationFn: (id: string) => clientesApi.restore(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clientes'] });
-      toast({
-        title: 'Cliente reactivado',
-        description: 'El cliente ha sido reactivado exitosamente.',
-      });
-    },
-    onError: (error: unknown) => {
-      const message = getErrorMessage(error, 'No se pudo reactivar el cliente.');
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: message,
-      });
-    },
-  });
-
-  const creditQuery = useQuery({
-    queryKey: ['client-credit', selectedCliente?.id],
-    queryFn: () => clientesApi.getCredit(selectedCliente!.id),
-    enabled: !!selectedCliente?.id && isCreditOpen,
-  });
+  // Mutations (centralized hooks - cache invalidation handled by hooks, toasts at call sites)
+  const createMutation = useCreateCliente();
+  const updateMutation = useUpdateCliente();
+  const deleteMutation = useDeleteCliente();
+  const restoreMutation = useRestoreCliente();
 
   // Forms
   const createForm = useForm<ClienteFormData>({
@@ -294,6 +195,23 @@ export default function ClientesPage() {
       address: data.address || undefined,
       hasCredit: data.hasCredit || false,
       creditLimit: data.hasCredit ? data.creditLimit || 0 : undefined,
+    }, {
+      onSuccess: () => {
+        toast({
+          title: 'Cliente creado',
+          description: 'El cliente ha sido creado exitosamente.',
+        });
+        setIsCreateOpen(false);
+        createForm.reset();
+      },
+      onError: (error: unknown) => {
+        const message = getErrorMessage(error, 'No se pudo crear el cliente.');
+        toast({
+          variant: 'destructive',
+          title: 'Error al crear cliente',
+          description: message,
+        });
+      },
     });
   };
 
@@ -311,16 +229,66 @@ export default function ClientesPage() {
         hasCredit: data.hasCredit,
         creditLimit: data.hasCredit ? data.creditLimit || 0 : undefined,
       },
+    }, {
+      onSuccess: () => {
+        toast({
+          title: 'Cliente actualizado',
+          description: 'El cliente ha sido actualizado exitosamente.',
+        });
+        setIsEditOpen(false);
+        setSelectedCliente(null);
+        editForm.reset();
+      },
+      onError: (error: unknown) => {
+        const message = getErrorMessage(error, 'No se pudo actualizar el cliente.');
+        toast({
+          variant: 'destructive',
+          title: 'Error al actualizar',
+          description: message,
+        });
+      },
     });
   };
 
   const handleDelete = async () => {
     if (!selectedCliente) return;
-    deleteMutation.mutate(selectedCliente.id);
+    deleteMutation.mutate(selectedCliente.id, {
+      onSuccess: () => {
+        toast({
+          title: 'Cliente desactivado',
+          description: 'El cliente ha sido desactivado exitosamente.',
+        });
+        setIsDeleteOpen(false);
+        setSelectedCliente(null);
+      },
+      onError: (error: unknown) => {
+        const message = getErrorMessage(error, 'No se pudo desactivar el cliente.');
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: message,
+        });
+      },
+    });
   };
 
   const handleRestore = (cliente: Client) => {
-    restoreMutation.mutate(cliente.id);
+    restoreMutation.mutate(cliente.id, {
+      onSuccess: () => {
+        toast({
+          title: 'Cliente reactivado',
+          description: 'El cliente ha sido reactivado exitosamente.',
+        });
+      },
+      onError: (error: unknown) => {
+        const message = getErrorMessage(error, 'No se pudo reactivar el cliente.');
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: message,
+        });
+      },
+    });
   };
 
   const openEditDialog = (cliente: Client) => {

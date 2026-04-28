@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
+import * as XLSX from 'xlsx';
 import {
   BarChart3,
   FileText,
@@ -53,6 +54,7 @@ import {
   useFleetReport,
   useBordersReport,
 } from '@/hooks/use-queries';
+import { useToast } from '@/hooks/use-toast';
 
 // Report Type Icons
 const reportTypeIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -138,7 +140,10 @@ const statusConfig: Record<string, { label: string; className: string }> = {
 export default function ReportesPage() {
   const [selectedReportType, setSelectedReportType] = useState<string>('trips');
   const [dateRange, setDateRange] = useState<string>('month');
-  
+
+  const { toast } = useToast();
+  const [isExporting, setIsExporting] = useState(false);
+
   const params = useMemo(() => getDateRange(dateRange), [dateRange]);
 
   // Fetch report types
@@ -177,6 +182,152 @@ export default function ReportesPage() {
   const selectedReport = reportTypes?.find(r => r.type === selectedReportType);
   const SelectedIcon = selectedReportType ? reportTypeIcons[selectedReportType] || FileText : FileText;
 
+  // Client-side xlsx export — generates valid .xlsx from current report data
+  const handleExport = useCallback(() => {
+    setIsExporting(true);
+    try {
+      const wb = XLSX.utils.book_new();
+      const fileName = `reporte_${selectedReportType}_${new Date().toISOString().split('T')[0]}`;
+
+      switch (selectedReportType) {
+        case 'trips': {
+          if (!tripsReport) break;
+          const summary = tripsReport.summary as any;
+          // Summary sheet
+          const summaryData = [
+            ['Resumen de Viajes'],
+            [],
+            ['Total Viajes', summary.totalTrips],
+            ['Peso Total (tn)', summary.totalWeight],
+            ['Duración Promedio (min)', summary.averageTripDuration ?? summary.avgDeliveryHours],
+            ['Cruces de Frontera', summary.totalBorderCrossings ?? summary.borderCrossings],
+          ];
+          const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
+          XLSX.utils.book_append_sheet(wb, summaryWs, 'Resumen');
+          // Detail sheet
+          const detailRows = tripsReport.trips.map((t: any) => ({
+            'MIC/DTA': t.micDta,
+            'Cliente': t.client,
+            'Conductor': t.driver,
+            'Camión': t.truck,
+            'Peso (tn)': t.weight,
+            'Estado': statusConfig[t.status]?.label || t.status,
+            'Fecha Salida': t.departureDate,
+          }));
+          const detailWs = XLSX.utils.json_to_sheet(detailRows);
+          XLSX.utils.book_append_sheet(wb, detailWs, 'Detalle Viajes');
+          break;
+        }
+        case 'financial': {
+          if (!financialReport) break;
+          const settlementsData = [
+            ['Liquidaciones'],
+            [],
+            ['Total', financialReport.settlements.count],
+            ['Flete USD', financialReport.settlements.totalFreightUsd],
+            ['Flete BOB', financialReport.settlements.totalFreightBob],
+            ['Pago Neto', financialReport.settlements.totalNetPayment],
+          ];
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(settlementsData), 'Liquidaciones');
+
+          const invoices = financialReport.invoices as any;
+          const invoicesData = [
+            ['Facturas'],
+            [],
+            ['Total', invoices.count],
+            ['Monto Total (USD)', invoices.totalAmount ?? 0],
+            ['Promedio (USD)', invoices.averageInvoice ?? invoices.avgAmount ?? 0],
+          ];
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(invoicesData), 'Facturas');
+
+          const expRows = Object.entries(financialReport.expenses.byCategory).map(([cat, d]: [string, any]) => ({
+            'Categoría': cat,
+            'Cantidad': d.count,
+            'Total (BOB)': d.total ?? 0,
+          }));
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(expRows), 'Gastos por Categoría');
+          break;
+        }
+        case 'clients': {
+          if (!clientsReport) break;
+          const clientRows = clientsReport.clients.map((c: any) => ({
+            'Razón Social': c.businessName,
+            'NIT': c.nit,
+            'Viajes': c.totalTrips,
+            'Peso Total (tn)': c.totalWeight,
+            'Facturado (USD)': c.totalInvoiced ?? 0,
+            'Facturas Pendientes': c.pendingInvoices,
+          }));
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(clientRows), 'Clientes');
+          break;
+        }
+        case 'drivers': {
+          if (!driversReport) break;
+          const driverRows = driversReport.drivers.map((d: any) => ({
+            'Nombre': d.name,
+            'Licencia': d.licenseNumber,
+            'Total Viajes': d.totalTrips,
+            'Peso Total (tn)': d.totalWeight,
+            'Tiempo Prom. Entrega (min)': d.avgDeliveryHours,
+            'Calificación': d.rating,
+          }));
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(driverRows), 'Conductores');
+          break;
+        }
+        case 'fleet': {
+          if (!fleetReport) break;
+          const truckRows = (Array.isArray(fleetReport.trucks) ? fleetReport.trucks : []).map((t: any) => ({
+            'Placa': t.plateNumber,
+            'Marca': t.brand,
+            'Modelo': t.model,
+            'Capacidad (tn)': t.capacityTons ?? 0,
+            'Total Viajes': t.totalTrips ?? 0,
+            'Peso Total (tn)': t.totalWeight ?? 0,
+            'Utilización (%)': (t.utilizationPercent ?? 0).toFixed(1),
+            'Estado': statusConfig[t.status]?.label || t.status,
+          }));
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(truckRows), 'Flota');
+          break;
+        }
+        case 'borders': {
+          if (!bordersReport) break;
+          const borderRows = (bordersReport.borders ?? []).map((b: any) => ({
+            'Frontera': b.borderName,
+            'Total Cruces': b.totalCrossings,
+            'Tiempo Prom. (h)': b.avgDurationHours?.toFixed(1) ?? '0.0',
+            'Canal Verde': b.channelDistribution?.GREEN ?? 0,
+            'Canal Rojo': b.channelDistribution?.RED ?? 0,
+          }));
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(borderRows), 'Fronteras');
+          break;
+        }
+        default:
+          toast({ variant: 'destructive', title: 'Error', description: 'Tipo de reporte no soportado para exportación.' });
+          setIsExporting(false);
+          return;
+      }
+
+      // Generate and download the xlsx binary
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${fileName}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({ title: 'Reporte exportado', description: 'El archivo se ha descargado correctamente.' });
+    } catch (error) {
+      console.error('Error exporting report:', error);
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el archivo Excel.' });
+    } finally {
+      setIsExporting(false);
+    }
+  }, [selectedReportType, tripsReport, financialReport, clientsReport, driversReport, fleetReport, bordersReport, toast]);
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -201,9 +352,13 @@ export default function ReportesPage() {
               ))}
             </SelectContent>
           </Select>
-          <Button className="bg-[#1B3F66] hover:bg-[#1B3F66]/90">
-            <Download className="h-4 w-4 mr-2" />
-            Exportar
+          <Button 
+            className="bg-[#1B3F66] hover:bg-[#1B3F66]/90"
+            onClick={handleExport}
+            disabled={isExporting}
+          >
+            {isExporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+            {isExporting ? 'Exportando...' : 'Exportar'}
           </Button>
         </div>
       </div>

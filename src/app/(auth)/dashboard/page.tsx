@@ -23,6 +23,7 @@ import {
   Landmark,
   Building2,
   ArrowRight,
+  BarChart3,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -74,6 +75,8 @@ import {
   useMaintenanceStats,
   useAssetStats,
   useLiabilityStats,
+  useDashboardConsolidatedStats,
+  useDashboardConsolidatedTrends,
 } from '@/hooks/use-queries';
 import { useQueryClient } from '@tanstack/react-query';
 import { TripStatus } from '@/types/api';
@@ -230,6 +233,8 @@ export default function DashboardPage() {
   const { data: assetStats } = useAssetStats();
   const { data: liabilityStats } = useLiabilityStats();
   const { data: maintenanceStats } = useMaintenanceStats();
+  const { data: consolidatedStats } = useDashboardConsolidatedStats(params);
+  const { data: consolidatedTrends } = useDashboardConsolidatedTrends(params);
 
   const isLoading = isLoadingMain || isLoadingFinancial || isLoadingOperational;
 
@@ -491,6 +496,58 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Consolidado General */}
+      {consolidatedStats && (
+        <Card className="bg-gradient-to-r from-[#1B3F66] to-[#2a5a8a] text-white">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              Consolidado General
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white/10 rounded-lg p-3">
+                <div className="text-sm opacity-80">Viajes Totales</div>
+                <div className="text-2xl font-bold">{(consolidatedStats as any).totalTrips ?? 0}</div>
+              </div>
+              <div className="bg-white/10 rounded-lg p-3">
+                <div className="text-sm opacity-80">Peso Total</div>
+                <div className="text-2xl font-bold">{((consolidatedStats as any).totalWeight ?? 0).toLocaleString()} tn</div>
+              </div>
+              <div className="bg-white/10 rounded-lg p-3">
+                <div className="text-sm opacity-80">Facturación Total</div>
+                <div className="text-2xl font-bold">${((consolidatedStats as any).totalInvoiced ?? 0).toLocaleString()}</div>
+              </div>
+              <div className="bg-white/10 rounded-lg p-3">
+                <div className="text-sm opacity-80">Gastos Totales</div>
+                <div className="text-2xl font-bold">Bs {((consolidatedStats as any).totalExpenses ?? 0).toLocaleString()}</div>
+              </div>
+            </div>
+            {consolidatedTrends && Array.isArray(consolidatedTrends) && consolidatedTrends.length > 0 && (
+              <div className="mt-4">
+                <div className="text-sm opacity-80 mb-2">Tendencia (últimos 7 períodos)</div>
+                <div className="flex items-end gap-1 h-16">
+                  {(consolidatedTrends as any[]).slice(-7).map((trend: any, idx: number) => {
+                    const maxVal = Math.max(...(consolidatedTrends as any[]).slice(-7).map((t: any) => t.totalTrips || 0));
+                    const h = maxVal > 0 ? Math.max(8, ((trend.totalTrips || 0) / maxVal) * 100) : 8;
+                    return (
+                      <div key={idx} className="flex-1 flex flex-col items-center gap-1">
+                        <span className="text-xs">{trend.totalTrips || 0}</span>
+                        <div 
+                          className="w-full bg-white/30 rounded-t-sm transition-all"
+                          style={{ height: `${h}%` }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Active Border Crossings */}
       {operationalData?.borders?.activeCrossings && operationalData.borders.activeCrossings.length > 0 && (
