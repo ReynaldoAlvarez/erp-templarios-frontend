@@ -11,6 +11,7 @@ import {
   Edit,
   Trash2,
   Shield,
+  Unlock,
   Loader2,
   ChevronLeft,
   ChevronRight,
@@ -74,6 +75,7 @@ import {
   useUpdateUser,
   useDeleteUser,
   useAssignUserRoles,
+  useUnlockUser,
 } from '@/hooks/use-queries';
 import { User } from '@/types/api';
 
@@ -131,6 +133,7 @@ export default function UsuariosPage() {
   const updateUser = useUpdateUser();
   const deleteUser = useDeleteUser();
   const assignRoles = useAssignUserRoles();
+  const unlockUser = useUnlockUser();
 
   // Forms
   const createForm = useForm<UserFormData>({
@@ -439,6 +442,20 @@ export default function UsuariosPage() {
                                   <Shield className="h-4 w-4 mr-2" />
                                   Asignar Roles
                                 </DropdownMenuItem>
+                                {user.status === 'LOCKED' && (
+                                  <DropdownMenuItem 
+                                    onClick={() => {
+                                      unlockUser.mutate(user.id, {
+                                        onSuccess: () => toast({ title: 'Usuario desbloqueado', description: `El usuario ${user.email} ha sido desbloqueado.` }),
+                                        onError: () => toast({ variant: 'destructive', title: 'Error', description: 'No se pudo desbloquear el usuario.' }),
+                                      });
+                                    }}
+                                    disabled={unlockUser.isPending}
+                                  >
+                                    <Unlock className="h-4 w-4 mr-2" />
+                                    Desbloquear
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   className="text-red-600"

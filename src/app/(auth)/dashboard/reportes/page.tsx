@@ -52,7 +52,9 @@ import {
   useDriversReport,
   useFleetReport,
   useBordersReport,
+  useExportReport,
 } from '@/hooks/use-queries';
+import { useToast } from '@/hooks/use-toast';
 
 // Report Type Icons
 const reportTypeIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -138,7 +140,10 @@ const statusConfig: Record<string, { label: string; className: string }> = {
 export default function ReportesPage() {
   const [selectedReportType, setSelectedReportType] = useState<string>('trips');
   const [dateRange, setDateRange] = useState<string>('month');
-  
+
+  const { toast } = useToast();
+  const exportReport = useExportReport();
+
   const params = useMemo(() => getDateRange(dateRange), [dateRange]);
 
   // Fetch report types
@@ -201,9 +206,35 @@ export default function ReportesPage() {
               ))}
             </SelectContent>
           </Select>
-          <Button className="bg-[#1B3F66] hover:bg-[#1B3F66]/90">
-            <Download className="h-4 w-4 mr-2" />
-            Exportar
+          <Button 
+            className="bg-[#1B3F66] hover:bg-[#1B3F66]/90"
+            onClick={() => {
+              exportReport.mutate(
+                { type: selectedReportType, params },
+                {
+                  onSuccess: (data: unknown) => {
+                    // Create download from blob/arraybuffer
+                    const blob = data instanceof Blob ? data : new Blob([data as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `reporte_${selectedReportType}_${new Date().toISOString().split('T')[0]}.xlsx`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    toast({ title: 'Reporte exportado', description: 'El archivo se ha descargado correctamente.' });
+                  },
+                  onError: () => {
+                    toast({ variant: 'destructive', title: 'Error', description: 'No se pudo exportar el reporte.' });
+                  },
+                }
+              );
+            }}
+            disabled={exportReport.isPending}
+          >
+            {exportReport.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+            {exportReport.isPending ? 'Exportando...' : 'Exportar'}
           </Button>
         </div>
       </div>

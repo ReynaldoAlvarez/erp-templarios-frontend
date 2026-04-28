@@ -71,18 +71,13 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  tripsApi, 
-  blsApi, 
-  trucksApi, 
-  driversApi, 
-  trailersApi,
-} from '@/lib/api-client';
-import { 
-  Trip, 
-  CreateTripInput, 
-  UpdateTripInput, 
+import {
+  useTrips, useTripStats, useBLs,
+  useAvailableTrucks, useAvailableDrivers, useAvailableTrailers,
+  useCreateTrip, useUpdateTrip, useUpdateTripStatus,
+} from '@/hooks/use-queries';
+import {
+  Trip,
   TripStatus,
 } from '@/types/api';
 
@@ -127,7 +122,6 @@ const getErrorMessage = (error: unknown, defaultMessage: string): string => {
 
 export default function ViajesPage() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   // State
   const [page, setPage] = useState(1);
@@ -144,97 +138,31 @@ export default function ViajesPage() {
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
 
   // Queries
-  const { data: tripsData, isLoading } = useQuery({
-    queryKey: ['trips', { page, limit, search, status: statusFilter, blId: blFilter, driverId: driverFilter, dateFrom: dateFromFilter, dateTo: dateToFilter }],
-    queryFn: () => tripsApi.getAll({
-      page,
-      limit,
-      search: search || undefined,
-      status: statusFilter !== 'all' ? statusFilter as TripStatus : undefined,
-      blId: blFilter || undefined,
-      driverId: driverFilter || undefined,
-      dateFrom: dateFromFilter || undefined,
-      dateTo: dateToFilter || undefined,
-    }),
+  const { data: tripsData, isLoading } = useTrips({
+    page,
+    limit,
+    search: search || undefined,
+    status: statusFilter !== 'all' ? statusFilter as TripStatus : undefined,
+    blId: blFilter || undefined,
+    driverId: driverFilter || undefined,
+    dateFrom: dateFromFilter || undefined,
+    dateTo: dateToFilter || undefined,
   });
 
-  const { data: stats } = useQuery({
-    queryKey: ['trips', 'stats'],
-    queryFn: () => tripsApi.getStats(),
-  });
+  const { data: stats } = useTripStats();
 
-  const { data: bls } = useQuery({
-    queryKey: ['bls', 'all'],
-    queryFn: () => blsApi.getAll({ limit: 100 }),
-  });
+  const { data: bls } = useBLs({ limit: 100 });
 
-  const { data: trucks } = useQuery({
-    queryKey: ['trucks', 'available'],
-    queryFn: () => trucksApi.getAvailable(),
-  });
+  const { data: trucks } = useAvailableTrucks();
 
-  const { data: drivers } = useQuery({
-    queryKey: ['drivers', 'available'],
-    queryFn: () => driversApi.getAvailable(),
-  });
+  const { data: drivers } = useAvailableDrivers();
 
-  const { data: trailers } = useQuery({
-    queryKey: ['trailers', 'available'],
-    queryFn: () => trailersApi.getAvailable(),
-  });
+  const { data: trailers } = useAvailableTrailers();
 
   // Mutations
-  const createMutation = useMutation({
-    mutationFn: (data: CreateTripInput) => tripsApi.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trips'] });
-      toast({ title: 'Viaje creado', description: 'El viaje ha sido creado exitosamente.' });
-      setIsCreateOpen(false);
-      createForm.reset();
-    },
-    onError: (error: unknown) => {
-      toast({
-        variant: 'destructive',
-        title: 'Error al crear',
-        description: getErrorMessage(error, 'No se pudo crear el viaje.'),
-      });
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateTripInput }) => tripsApi.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trips'] });
-      toast({ title: 'Viaje actualizado', description: 'El viaje ha sido actualizado.' });
-      setIsEditOpen(false);
-      setSelectedTrip(null);
-      editForm.reset();
-    },
-    onError: (error: unknown) => {
-      toast({
-        variant: 'destructive',
-        title: 'Error al actualizar',
-        description: getErrorMessage(error, 'No se pudo actualizar el viaje.'),
-      });
-    },
-  });
-
-  const statusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: TripStatus }) => tripsApi.updateStatus(id, status),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trips'] });
-      queryClient.invalidateQueries({ queryKey: ['trucks'] }); // Refresh truck status
-      queryClient.invalidateQueries({ queryKey: ['drivers'] }); // Refresh driver availability
-      toast({ title: 'Estado actualizado', description: 'El estado del viaje ha sido actualizado.' });
-    },
-    onError: (error: unknown) => {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: getErrorMessage(error, 'No se pudo actualizar el estado.'),
-      });
-    },
-  });
+  const createTrip = useCreateTrip();
+  const updateTrip = useUpdateTrip();
+  const updateTripStatus = useUpdateTripStatus();
 
   // Forms
   const createForm = useForm<TripFormData>({
@@ -271,7 +199,7 @@ export default function ViajesPage() {
 
   // Handlers
   const handleCreate = (data: TripFormData) => {
-    createMutation.mutate({
+    createTrip.mutate({
       micDta: data.micDta,
       departureDate: data.departureDate,
       arrivalDate: data.arrivalDate || undefined,
@@ -282,12 +210,25 @@ export default function ViajesPage() {
       weight: data.weight,
       ratePerTon: data.ratePerTon,
       notes: data.notes || undefined,
+    }, {
+      onSuccess: () => {
+        toast({ title: 'Viaje creado', description: 'El viaje ha sido creado exitosamente.' });
+        setIsCreateOpen(false);
+        createForm.reset();
+      },
+      onError: (error: unknown) => {
+        toast({
+          variant: 'destructive',
+          title: 'Error al crear',
+          description: getErrorMessage(error, 'No se pudo crear el viaje.'),
+        });
+      },
     });
   };
 
   const handleEdit = (data: TripFormData) => {
     if (!selectedTrip) return;
-    updateMutation.mutate({
+    updateTrip.mutate({
       id: selectedTrip.id,
       data: {
         micDta: data.micDta,
@@ -299,6 +240,35 @@ export default function ViajesPage() {
         weight: data.weight,
         ratePerTon: data.ratePerTon,
         notes: data.notes || undefined,
+      },
+    }, {
+      onSuccess: () => {
+        toast({ title: 'Viaje actualizado', description: 'El viaje ha sido actualizado.' });
+        setIsEditOpen(false);
+        setSelectedTrip(null);
+        editForm.reset();
+      },
+      onError: (error: unknown) => {
+        toast({
+          variant: 'destructive',
+          title: 'Error al actualizar',
+          description: getErrorMessage(error, 'No se pudo actualizar el viaje.'),
+        });
+      },
+    });
+  };
+
+  const handleStatusChange = (id: string, status: TripStatus) => {
+    updateTripStatus.mutate({ id, status }, {
+      onSuccess: () => {
+        toast({ title: 'Estado actualizado', description: 'El estado del viaje ha sido actualizado.' });
+      },
+      onError: (error: unknown) => {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: getErrorMessage(error, 'No se pudo actualizar el estado.'),
+        });
       },
     });
   };
@@ -539,27 +509,27 @@ export default function ViajesPage() {
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   {trip.status === 'SCHEDULED' && (
-                                    <DropdownMenuItem onClick={() => statusMutation.mutate({ id: trip.id, status: 'IN_TRANSIT' })}>
+                                    <DropdownMenuItem onClick={() => handleStatusChange(trip.id, 'IN_TRANSIT')}>
                                       <Play className="h-4 w-4 mr-2" /> Iniciar Viaje
                                     </DropdownMenuItem>
                                   )}
                                   {trip.status === 'IN_TRANSIT' && (
                                     <>
-                                      <DropdownMenuItem onClick={() => statusMutation.mutate({ id: trip.id, status: 'AT_BORDER' })}>
+                                      <DropdownMenuItem onClick={() => handleStatusChange(trip.id, 'AT_BORDER')}>
                                         <MapPin className="h-4 w-4 mr-2" /> En Frontera
                                       </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => statusMutation.mutate({ id: trip.id, status: 'DELIVERED' })}>
+                                      <DropdownMenuItem onClick={() => handleStatusChange(trip.id, 'DELIVERED')}>
                                         <CheckCircle className="h-4 w-4 mr-2" /> Marcar Entregado
                                       </DropdownMenuItem>
                                     </>
                                   )}
                                   {trip.status === 'AT_BORDER' && (
-                                    <DropdownMenuItem onClick={() => statusMutation.mutate({ id: trip.id, status: 'DELIVERED' })}>
+                                    <DropdownMenuItem onClick={() => handleStatusChange(trip.id, 'DELIVERED')}>
                                       <CheckCircle className="h-4 w-4 mr-2" /> Marcar Entregado
                                     </DropdownMenuItem>
                                   )}
                                   {trip.status !== 'CANCELLED' && trip.status !== 'DELIVERED' && (
-                                    <DropdownMenuItem className="text-red-600" onClick={() => statusMutation.mutate({ id: trip.id, status: 'CANCELLED' })}>
+                                    <DropdownMenuItem className="text-red-600" onClick={() => handleStatusChange(trip.id, 'CANCELLED')}>
                                       <XCircle className="h-4 w-4 mr-2" /> Cancelar
                                     </DropdownMenuItem>
                                   )}
@@ -725,8 +695,8 @@ export default function ViajesPage() {
             )} />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
-              <Button type="submit" className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={createMutation.isPending}>
-                {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Crear
+              <Button type="submit" className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={createTrip.isPending}>
+                {createTrip.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Crear
               </Button>
             </DialogFooter>
           </form>
@@ -843,8 +813,8 @@ export default function ViajesPage() {
             )} />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
-              <Button type="submit" className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={updateMutation.isPending}>
-                {updateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Guardar
+              <Button type="submit" className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={updateTrip.isPending}>
+                {updateTrip.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Guardar
               </Button>
             </DialogFooter>
           </form>

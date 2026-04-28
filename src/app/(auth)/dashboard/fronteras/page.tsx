@@ -23,8 +23,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { borderCrossingsApi, tripsApi } from '@/lib/api-client';
+import { useActiveBorderCrossings, useBorderCrossingStats, useBorderNames, useCreateBorderCrossing, useRegisterBorderExit, useAddBorderChannelHistory, useTrips } from '@/hooks/use-queries';
 import { BorderCrossing, CreateBorderCrossingInput, BorderChannel } from '@/types/api';
 
 // Form schema
@@ -42,12 +41,6 @@ const channelConfig: Record<BorderChannel, { label: string; className: string; i
   YELLOW: { label: 'Canal Amarillo', className: 'bg-yellow-50 text-yellow-700 border-yellow-300', icon: '🟡' },
   RED: { label: 'Canal Rojo', className: 'bg-red-50 text-red-700 border-red-300', icon: '🔴' },
 };
-
-// Common borders
-const BORDER_NAMES = [
-  'Desaguadero', 'Chilecito', 'El Tambo', 'Villazón', 'Yacuiba', 
-  'Bermejo', 'Puerto Suárez', 'Corumba', 'Iñapari', 'Cobija'
-];
 
 // Helper
 const getErrorMessage = (error: unknown, defaultMessage: string): string => {
@@ -74,65 +67,20 @@ const calculateDuration = (start: string | undefined, end: string | undefined): 
 
 export default function FronterasPage() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-
   // State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedChannel, setSelectedChannel] = useState<{ crossing: BorderCrossing; channel: BorderChannel } | null>(null);
 
-  // Queries
-  const { data: activeCrossings, isLoading } = useQuery({
-    queryKey: ['borderCrossings', 'active'],
-    queryFn: () => borderCrossingsApi.getActive(),
-  });
+  // Queries - using centralized hooks
+  const { data: activeCrossings, isLoading } = useActiveBorderCrossings();
+  const { data: stats } = useBorderCrossingStats();
+  const { data: borderNamesData } = useBorderNames();
+  const { data: tripsData } = useTrips({ status: 'IN_TRANSIT', limit: 100 });
 
-  const { data: stats } = useQuery({
-    queryKey: ['borderCrossings', 'stats'],
-    queryFn: () => borderCrossingsApi.getStats(),
-  });
-
-  const { data: trips } = useQuery({
-    queryKey: ['trips', { status: 'IN_TRANSIT', limit: 100 }],
-    queryFn: () => tripsApi.getAll({ status: 'IN_TRANSIT', limit: 100 }),
-  });
-
-  // Mutations
-  const createMutation = useMutation({
-    mutationFn: (data: CreateBorderCrossingInput) => borderCrossingsApi.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['borderCrossings'] });
-      toast({ title: 'Llegada registrada', description: 'Se registró la llegada a frontera.' });
-      setIsCreateOpen(false);
-      createForm.reset();
-    },
-    onError: (error: unknown) => {
-      toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo registrar.') });
-    },
-  });
-
-  const exitMutation = useMutation({
-    mutationFn: (id: string) => borderCrossingsApi.registerExit(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['borderCrossings'] });
-      toast({ title: 'Salida registrada' });
-    },
-    onError: (error: unknown) => {
-      toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo registrar la salida.') });
-    },
-  });
-
-  const channelMutation = useMutation({
-    mutationFn: ({ crossingId, channel, reason }: { crossingId: string; channel: BorderChannel; reason?: string }) =>
-      borderCrossingsApi.addChannelHistory(crossingId, { channel, reason }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['borderCrossings'] });
-      toast({ title: 'Canal actualizado' });
-      setSelectedChannel(null);
-    },
-    onError: (error: unknown) => {
-      toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo actualizar el canal.') });
-    },
-  });
+  // Mutations - using centralized hooks
+  const createMutation = useCreateBorderCrossing();
+  const exitMutation = useRegisterBorderExit();
+  const channelMutation = useAddBorderChannelHistory();
 
   // Form
   const createForm = useForm<BorderFormData>({
@@ -145,11 +93,20 @@ export default function FronterasPage() {
       tripId: data.tripId,
       borderName: data.borderName,
       arrivedAt: data.arrivedAt || new Date().toISOString(),
+    }, {
+      onSuccess: () => {
+        toast({ title: 'Llegada registrada', description: 'Se registró la llegada a frontera.' });
+        setIsCreateOpen(false);
+        createForm.reset();
+      },
+      onError: (error: unknown) => {
+        toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo registrar.') });
+      },
     });
   };
 
   // Data
-  const tripsList = trips?.data || [];
+  const tripsList = tripsData?.data || [];
 
   return (
     <div className="space-y-6" suppressHydrationWarning>
@@ -200,7 +157,7 @@ export default function FronterasPage() {
             <CheckCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats?.byChannel?.GREEN || 0}</div>
+            <div className="text-2xl font-bold text-green-600">{(stats as any)?.byChannel?.GREEN || 0}</div>
           </CardContent>
         </Card>
       </div>
@@ -268,14 +225,17 @@ export default function FronterasPage() {
                               {channelConf?.icon} {channelConf?.label}
                             </Badge>
                           </TableCell>
-                          <TableCell>{crossing.trip?.driver?.firstName || ''} {crossing.trip?.driver?.lastName || ''}</TableCell>
+                          <TableCell>{(crossing as any)?.trip?.driver?.firstName || ''} {(crossing as any)?.trip?.driver?.lastName || ''}</TableCell>
                           <TableCell>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => exitMutation.mutate(crossing.id)}>
+                                <DropdownMenuItem onClick={() => exitMutation.mutate(crossing.id, {
+                                  onSuccess: () => toast({ title: 'Salida registrada' }),
+                                  onError: (error: unknown) => toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo registrar la salida.') }),
+                                })}>
                                   <ArrowRight className="h-4 w-4 mr-2" /> Registrar Salida
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => setSelectedChannel({ crossing, channel: 'GREEN' })}>
@@ -333,7 +293,7 @@ export default function FronterasPage() {
                     <SelectValue placeholder="Seleccionar frontera" />
                   </SelectTrigger>
                   <SelectContent>
-                    {BORDER_NAMES.map((name) => (
+                    {(borderNamesData && borderNamesData.length > 0 ? borderNamesData.map(bn => bn.name) : ['Desaguadero', 'Chilecito', 'El Tambo', 'Villazón', 'Yacuiba', 'Bermejo', 'Puerto Suárez', 'Corumba', 'Iñapari', 'Cobija']).map((name) => (
                       <SelectItem key={name} value={name}>{name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -369,7 +329,13 @@ export default function FronterasPage() {
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setSelectedChannel(null)}>Cancelar</Button>
             <Button className="bg-[#1B3F66] hover:bg-[#1B3F66]/90" disabled={channelMutation.isPending} onClick={() => {
-              if (selectedChannel) channelMutation.mutate({ crossingId: selectedChannel.crossing.id, channel: selectedChannel.channel });
+              if (selectedChannel) channelMutation.mutate({ id: selectedChannel.crossing.id, channel: selectedChannel.channel }, {
+                onSuccess: () => {
+                  toast({ title: 'Canal actualizado' });
+                  setSelectedChannel(null);
+                },
+                onError: (error: unknown) => toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo actualizar el canal.') }),
+              });
             }}>
               {channelMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Confirmar
             </Button>

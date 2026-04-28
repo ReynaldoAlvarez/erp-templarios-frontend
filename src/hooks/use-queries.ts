@@ -831,6 +831,13 @@ export function useUpdateBorderChannel() {
 // ==========================================
 // Routes Queries
 // ==========================================
+export function useCommonRoutes() {
+  return useQuery({
+    queryKey: ['routes', 'common'],
+    queryFn: () => routesApi.getCommon(),
+  });
+}
+
 export function useRoutesByTrip(tripId: string | undefined) {
   return useQuery({
     queryKey: ['routes', 'trip', tripId],

@@ -74,9 +74,8 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { driversApi } from '@/lib/api-client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Driver, CreateDriverInput, UpdateDriverInput, ContractType, DriverStats } from '@/types/api';
+import { useDriversList, useDriverStats, useCreateDriver, useUpdateDriver, useDeleteDriver, useRestoreDriver, useSetDriverAvailability } from '@/hooks/use-queries';
+import { Driver, ContractType } from '@/types/api';
 
 // Form schema
 const driverSchema = z.object({
@@ -126,7 +125,6 @@ const getErrorMessage = (error: unknown, defaultMessage: string): string => {
 
 export default function ConductoresPage() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   // State
   const [page, setPage] = useState(1);
@@ -140,20 +138,18 @@ export default function ConductoresPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
-  const [selectedDriverStats, setSelectedDriverStats] = useState<DriverStats | null>(null);
 
-  // Queries
-  const { data: driversData, isLoading } = useQuery({
-    queryKey: ['drivers', { page, limit, search, isActive: activoFilter, isAvailable: disponibleFilter, contractType: contratoFilter }],
-    queryFn: () => driversApi.getAll({
-      page,
-      limit,
-      search: search || undefined,
-      isActive: activoFilter !== 'all' ? activoFilter === 'true' : undefined,
-      isAvailable: disponibleFilter !== 'all' ? disponibleFilter === 'true' : undefined,
-      contractType: contratoFilter !== 'all' ? contratoFilter as ContractType : undefined,
-    }),
+  // Queries (centralized hooks)
+  const { data: driversData, isLoading } = useDriversList({
+    page,
+    limit,
+    search: search || undefined,
+    isActive: activoFilter !== 'all' ? activoFilter === 'true' : undefined,
+    isAvailable: disponibleFilter !== 'all' ? disponibleFilter === 'true' : undefined,
+    contractType: contratoFilter !== 'all' ? contratoFilter as ContractType : undefined,
   });
+
+  const statsQuery = useDriverStats(isStatsOpen ? selectedDriver?.id : undefined);
 
   // TODO: Fetch branches from API when available
   // const { data: branches } = useQuery({
@@ -165,88 +161,12 @@ export default function ConductoresPage() {
     { id: 'default-branch-id', name: 'Sucursal Principal - La Paz' },
   ];
 
-  // Mutations
-  const createMutation = useMutation({
-    mutationFn: (data: CreateDriverInput) => driversApi.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['drivers'] });
-      toast({ title: 'Conductor creado', description: 'El conductor ha sido creado exitosamente.' });
-      setIsCreateOpen(false);
-      createForm.reset();
-    },
-    onError: (error: unknown) => {
-      toast({
-        variant: 'destructive',
-        title: 'Error al crear',
-        description: getErrorMessage(error, 'No se pudo crear el conductor.'),
-      });
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateDriverInput }) => driversApi.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['drivers'] });
-      toast({ title: 'Conductor actualizado', description: 'El conductor ha sido actualizado.' });
-      setIsEditOpen(false);
-      setSelectedDriver(null);
-      editForm.reset();
-    },
-    onError: (error: unknown) => {
-      toast({
-        variant: 'destructive',
-        title: 'Error al actualizar',
-        description: getErrorMessage(error, 'No se pudo actualizar el conductor.'),
-      });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => driversApi.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['drivers'] });
-      toast({ title: 'Conductor desactivado', description: 'El conductor ha sido desactivado.' });
-      setIsDeleteOpen(false);
-      setSelectedDriver(null);
-    },
-    onError: (error: unknown) => {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: getErrorMessage(error, 'No se pudo desactivar el conductor.'),
-      });
-    },
-  });
-
-  const restoreMutation = useMutation({
-    mutationFn: (id: string) => driversApi.restore(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['drivers'] });
-      toast({ title: 'Conductor reactivado', description: 'El conductor ha sido reactivado.' });
-    },
-    onError: (error: unknown) => {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: getErrorMessage(error, 'No se pudo reactivar el conductor.'),
-      });
-    },
-  });
-
-  const availabilityMutation = useMutation({
-    mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) => driversApi.setAvailability(id, isAvailable),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['drivers'] });
-      toast({ title: 'Disponibilidad actualizada', description: 'La disponibilidad del conductor ha sido actualizada.' });
-    },
-    onError: (error: unknown) => {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: getErrorMessage(error, 'No se pudo actualizar la disponibilidad.'),
-      });
-    },
-  });
+  // Mutations (centralized hooks - cache invalidation handled by hooks, toasts at call sites)
+  const createMutation = useCreateDriver();
+  const updateMutation = useUpdateDriver();
+  const deleteMutation = useDeleteDriver();
+  const restoreMutation = useRestoreDriver();
+  const availabilityMutation = useSetDriverAvailability();
 
   // Forms
   const createForm = useForm<DriverFormData>({
@@ -285,6 +205,19 @@ export default function ConductoresPage() {
       licenseExpiryDate: data.licenseExpiryDate,
       contractType: data.contractType,
       branchId: data.branchId,
+    }, {
+      onSuccess: () => {
+        toast({ title: 'Conductor creado', description: 'El conductor ha sido creado exitosamente.' });
+        setIsCreateOpen(false);
+        createForm.reset();
+      },
+      onError: (error: unknown) => {
+        toast({
+          variant: 'destructive',
+          title: 'Error al crear',
+          description: getErrorMessage(error, 'No se pudo crear el conductor.'),
+        });
+      },
     });
   };
 
@@ -307,20 +240,69 @@ export default function ConductoresPage() {
         contractType: data.contractType,
         branchId: data.branchId,
       },
+    }, {
+      onSuccess: () => {
+        toast({ title: 'Conductor actualizado', description: 'El conductor ha sido actualizado.' });
+        setIsEditOpen(false);
+        setSelectedDriver(null);
+        editForm.reset();
+      },
+      onError: (error: unknown) => {
+        toast({
+          variant: 'destructive',
+          title: 'Error al actualizar',
+          description: getErrorMessage(error, 'No se pudo actualizar el conductor.'),
+        });
+      },
     });
   };
 
   const handleDelete = () => {
     if (!selectedDriver) return;
-    deleteMutation.mutate(selectedDriver.id);
+    deleteMutation.mutate(selectedDriver.id, {
+      onSuccess: () => {
+        toast({ title: 'Conductor desactivado', description: 'El conductor ha sido desactivado.' });
+        setIsDeleteOpen(false);
+        setSelectedDriver(null);
+      },
+      onError: (error: unknown) => {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: getErrorMessage(error, 'No se pudo desactivar el conductor.'),
+        });
+      },
+    });
   };
 
   const handleRestore = (driver: Driver) => {
-    restoreMutation.mutate(driver.id);
+    restoreMutation.mutate(driver.id, {
+      onSuccess: () => {
+        toast({ title: 'Conductor reactivado', description: 'El conductor ha sido reactivado.' });
+      },
+      onError: (error: unknown) => {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: getErrorMessage(error, 'No se pudo reactivar el conductor.'),
+        });
+      },
+    });
   };
 
   const handleToggleAvailability = (driver: Driver) => {
-    availabilityMutation.mutate({ id: driver.id, isAvailable: !driver.isAvailable });
+    availabilityMutation.mutate({ id: driver.id, isAvailable: !driver.isAvailable }, {
+      onSuccess: () => {
+        toast({ title: 'Disponibilidad actualizada', description: 'La disponibilidad del conductor ha sido actualizada.' });
+      },
+      onError: (error: unknown) => {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: getErrorMessage(error, 'No se pudo actualizar la disponibilidad.'),
+        });
+      },
+    });
   };
 
   const openEditDialog = (driver: Driver) => {
@@ -343,19 +325,9 @@ export default function ConductoresPage() {
     setIsEditOpen(true);
   };
 
-  const openStatsDialog = async (driver: Driver) => {
+  const openStatsDialog = (driver: Driver) => {
     setSelectedDriver(driver);
-    try {
-      const stats = await driversApi.getStats(driver.id);
-      setSelectedDriverStats(stats);
-      setIsStatsOpen(true);
-    } catch {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'No se pudieron obtener las estadísticas del conductor.',
-      });
-    }
+    setIsStatsOpen(true);
   };
 
   // Pagination
@@ -979,39 +951,43 @@ export default function ConductoresPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">
-            {selectedDriverStats ? (
+            {statsQuery.isLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <Loader2 className="h-8 w-8 animate-spin text-[#1B3F66]" />
+              </div>
+            ) : statsQuery.data ? (
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <div className="text-sm text-gray-500">Total Viajes</div>
-                    <div className="text-2xl font-bold text-[#1B3F66]">{selectedDriverStats.totalTrips}</div>
+                    <div className="text-2xl font-bold text-[#1B3F66]">{statsQuery.data.totalTrips}</div>
                   </div>
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <div className="text-sm text-gray-500">Peso Transportado</div>
-                    <div className="text-2xl font-bold text-[#1B3F66]">{selectedDriverStats.totalWeightTransported?.toLocaleString()} Tn</div>
+                    <div className="text-2xl font-bold text-[#1B3F66]">{statsQuery.data.totalWeightTransported?.toLocaleString()} Tn</div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <div className="text-sm text-gray-500">Promedio Horas</div>
-                    <div className="text-2xl font-bold text-[#1B3F66]">{selectedDriverStats.avgDeliveryHours?.toFixed(1) || '-'} h</div>
+                    <div className="text-2xl font-bold text-[#1B3F66]">{statsQuery.data.avgDeliveryHours?.toFixed(1) || '-'} h</div>
                   </div>
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <div className="text-sm text-gray-500">Rating</div>
                     <div className="flex items-center gap-2">
                       <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                      <span className="text-2xl font-bold text-[#1B3F66]">{selectedDriverStats.rating?.toFixed(1) || '-'}</span>
+                      <span className="text-2xl font-bold text-[#1B3F66]">{statsQuery.data.rating?.toFixed(1) || '-'}</span>
                     </div>
                   </div>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="text-sm text-gray-500">Total Gastos</div>
-                  <div className="text-2xl font-bold text-[#1B3F66]">Bs {selectedDriverStats.totalGastos?.toLocaleString() || 0}</div>
+                  <div className="text-2xl font-bold text-[#1B3F66]">Bs {statsQuery.data.totalGastos?.toLocaleString() || 0}</div>
                 </div>
               </>
             ) : (
-              <div className="flex items-center justify-center h-32">
-                <Loader2 className="h-8 w-8 animate-spin text-[#1B3F66]" />
+              <div className="text-center text-gray-500">
+                No se pudieron cargar las estadísticas
               </div>
             )}
           </div>

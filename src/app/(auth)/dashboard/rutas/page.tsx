@@ -26,8 +26,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { routesApi, tripsApi } from '@/lib/api-client';
+import { useCommonRoutes, useRoutesByTrip, useCreateRoute, useUpdateRoute, useDeleteRoute, useTrips } from '@/hooks/use-queries';
 import { Route as RouteType, CreateRouteInput, UpdateRouteInput } from '@/types/api';
 
 // Form schema
@@ -70,7 +69,6 @@ const COMMON_CITIES = [
 
 export default function RutasPage() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   // State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -79,64 +77,15 @@ export default function RutasPage() {
   const [selectedRoute, setSelectedRoute] = useState<RouteType | null>(null);
   const [tripFilter, setTripFilter] = useState<string>('');
 
-  // Queries
-  const { data: commonRoutes, isLoading } = useQuery({
-    queryKey: ['routes', 'common'],
-    queryFn: () => routesApi.getCommon(),
-  });
+  // Queries - using centralized hooks
+  const { data: commonRoutes, isLoading } = useCommonRoutes();
+  const { data: tripsData } = useTrips({ limit: 100 });
+  const { data: tripRoutes } = useRoutesByTrip(tripFilter || undefined);
 
-  const { data: trips } = useQuery({
-    queryKey: ['trips', { limit: 100 }],
-    queryFn: () => tripsApi.getAll({ limit: 100 }),
-  });
-
-  // Filtered routes by trip
-  const { data: tripRoutes } = useQuery({
-    queryKey: ['routes', 'trip', tripFilter],
-    queryFn: () => tripFilter ? routesApi.getByTrip(tripFilter) : Promise.resolve([]),
-    enabled: !!tripFilter,
-  });
-
-  // Mutations
-  const createMutation = useMutation({
-    mutationFn: (data: CreateRouteInput) => routesApi.create(data),
-    onSuccess: (_, { tripId }) => {
-      queryClient.invalidateQueries({ queryKey: ['routes'] });
-      queryClient.invalidateQueries({ queryKey: ['routes', 'trip', tripId] });
-      toast({ title: 'Ruta creada', description: 'La ruta ha sido creada exitosamente.' });
-      setIsCreateOpen(false);
-      createForm.reset();
-    },
-    onError: (error: unknown) => {
-      toast({ variant: 'destructive', title: 'Error al crear', description: getErrorMessage(error, 'No se pudo crear la ruta.') });
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateRouteInput }) => routesApi.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['routes'] });
-      toast({ title: 'Ruta actualizada' });
-      setIsEditOpen(false);
-      setSelectedRoute(null);
-    },
-    onError: (error: unknown) => {
-      toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo actualizar.') });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => routesApi.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['routes'] });
-      toast({ title: 'Ruta eliminada' });
-      setIsDeleteOpen(false);
-      setSelectedRoute(null);
-    },
-    onError: (error: unknown) => {
-      toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo eliminar.') });
-    },
-  });
+  // Mutations - using centralized hooks
+  const createMutation = useCreateRoute();
+  const updateMutation = useUpdateRoute();
+  const deleteMutation = useDeleteRoute();
 
   // Forms
   const createForm = useForm<RouteFormData>({
@@ -155,26 +104,43 @@ export default function RutasPage() {
 
   // Handlers
   const handleCreate = (data: RouteFormData) => {
-    createMutation.mutate({
+    const formData: CreateRouteInput = {
       tripId: data.tripId,
       origin: data.origin,
       destination: data.destination,
       distanceKm: data.distanceKm,
       rate: data.rate,
       durationHours: data.durationHours,
+    };
+    createMutation.mutate(formData, {
+      onSuccess: () => {
+        toast({ title: 'Ruta creada', description: 'La ruta ha sido creada exitosamente.' });
+        setIsCreateOpen(false);
+        createForm.reset();
+      },
+      onError: (error: unknown) => {
+        toast({ variant: 'destructive', title: 'Error al crear', description: getErrorMessage(error, 'No se pudo crear la ruta.') });
+      },
     });
   };
 
   const handleEdit = (data: RouteFormData) => {
     if (!selectedRoute) return;
-    updateMutation.mutate({
-      id: selectedRoute.id,
-      data: {
-        origin: data.origin,
-        destination: data.destination,
-        distanceKm: data.distanceKm,
-        rate: data.rate,
-        durationHours: data.durationHours,
+    updateMutation.mutate({ id: selectedRoute.id, data: {
+      origin: data.origin,
+      destination: data.destination,
+      distanceKm: data.distanceKm,
+      rate: data.rate,
+      durationHours: data.durationHours,
+    }, tripId: selectedRoute.tripId }, {
+      onSuccess: () => {
+        toast({ title: 'Ruta actualizada', description: 'La ruta ha sido actualizada.' });
+        setIsEditOpen(false);
+        setSelectedRoute(null);
+        editForm.reset();
+      },
+      onError: (error: unknown) => {
+        toast({ variant: 'destructive', title: 'Error al actualizar', description: getErrorMessage(error, 'No se pudo actualizar la ruta.') });
       },
     });
   };
@@ -194,7 +160,7 @@ export default function RutasPage() {
 
   // Data
   const routes = tripFilter ? (tripRoutes || []) : (commonRoutes || []);
-  const tripsList = trips?.data || [];
+  const tripsList = tripsData?.data || [];
 
   // Stats
   const totalDistance = routes.reduce((sum, r) => sum + (r.distanceKm || 0), 0);
@@ -587,7 +553,16 @@ export default function RutasPage() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700"
-              onClick={() => selectedRoute && deleteMutation.mutate(selectedRoute.id)}
+              onClick={() => selectedRoute && deleteMutation.mutate({ id: selectedRoute.id, tripId: selectedRoute.tripId }, {
+                onSuccess: () => {
+                  toast({ title: 'Ruta eliminada', description: 'La ruta ha sido eliminada.' });
+                  setIsDeleteOpen(false);
+                  setSelectedRoute(null);
+                },
+                onError: (error: unknown) => {
+                  toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(error, 'No se pudo eliminar la ruta.') });
+                },
+              })}
               disabled={deleteMutation.isPending}
             >
               {deleteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Eliminar
