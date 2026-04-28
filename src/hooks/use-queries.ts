@@ -835,6 +835,7 @@ export function useCommonRoutes() {
   return useQuery({
     queryKey: ['routes', 'common'],
     queryFn: () => routesApi.getCommon(),
+    staleTime: 300000, // 5 minutes
   });
 }
 
@@ -1893,16 +1894,8 @@ export function useAddBorderChannelHistory() {
 }
 
 // ==========================================
-// Sprint 8B: Routes - Missing Hooks
+// Sprint 8B: Routes - Missing Hooks (useRoute)
 // ==========================================
-export function useCommonRoutes() {
-  return useQuery({
-    queryKey: ['routes', 'common'],
-    queryFn: () => routesApi.getCommon(),
-    staleTime: 300000, // 5 minutes
-  });
-}
-
 export function useRoute(id: string | undefined) {
   return useQuery({
     queryKey: ['routes', id],
