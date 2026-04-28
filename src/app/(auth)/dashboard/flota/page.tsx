@@ -46,9 +46,12 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw, CalendarDays } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  useFleetDashboard,
   useMaintenanceStats,
   useTrucksList,
+  useAvailableTrucks,
+  useTrailers,
+  useAvailableTrailers,
+  useUpcomingMaintenance,
 } from '@/hooks/use-queries';
 
 // KPI Card with colored icon background
@@ -134,59 +137,82 @@ const dateRangeOptions = [
   { value: 'year', label: 'Este Año' },
 ];
 
-function getDateRange(range: string): { startDate: string; endDate: string } {
-  const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  switch (range) {
-    case 'today':
-      return { startDate: startOfDay.toISOString(), endDate: now.toISOString() };
-    case 'week': {
-      const weekStart = new Date(startOfDay);
-      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-      return { startDate: weekStart.toISOString(), endDate: now.toISOString() };
-    }
-    case 'month': {
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      return { startDate: monthStart.toISOString(), endDate: now.toISOString() };
-    }
-    case 'quarter': {
-      const quarter = Math.floor(now.getMonth() / 3);
-      const quarterStart = new Date(now.getFullYear(), quarter * 3, 1);
-      return { startDate: quarterStart.toISOString(), endDate: now.toISOString() };
-    }
-    case 'year': {
-      const yearStart = new Date(now.getFullYear(), 0, 1);
-      return { startDate: yearStart.toISOString(), endDate: now.toISOString() };
-    }
-    default:
-      return { startDate: startOfDay.toISOString(), endDate: now.toISOString() };
-  }
-}
-
 export default function FleetDashboardPage() {
   const queryClient = useQueryClient();
   const [dateRange, setDateRange] = useState('month');
 
-  const params = useMemo(() => getDateRange(dateRange), [dateRange]);
-
-  const { data: fleetData, isLoading: isLoadingFleet } = useFleetDashboard(params);
+  // Fetch data from individual working endpoints
+  const { data: trucksData, isLoading: isLoadingTrucks } = useTrucksList({ page: 1, limit: 1000 });
+  const { data: availableTrucksData, isLoading: isLoadingAvailable } = useAvailableTrucks();
+  const { data: trailersData, isLoading: isLoadingTrailers } = useTrailers({ page: 1, limit: 1000 });
+  const { data: availableTrailersData } = useAvailableTrailers();
   const { data: maintenanceStats } = useMaintenanceStats();
-  const { data: trucksData } = useTrucksList();
+  const { data: upcomingMaintenance } = useUpcomingMaintenance();
 
-  const summary = (fleetData as any)?.summary || {};
-  const trucksByStatus = (fleetData as any)?.trucksByStatus || [];
-  const trucksByBrand = (fleetData as any)?.trucksByBrand || [];
-  const recentMaintenance = (fleetData as any)?.recentMaintenance || [];
-  const alerts = (fleetData as any)?.alerts || [];
+  const trucks = (trucksData as any)?.trucks || [];
+  const trailers = (trailersData as any)?.trailers || [];
+  const availableTrucks = availableTrucksData || [];
+  const availableTrailersList = availableTrailersData || [];
+
+  const isLoading = isLoadingTrucks || isLoadingAvailable || isLoadingTrailers;
+
+  // Computed summary from real data
+  const summary = useMemo(() => {
+    const activeTrucks = trucks.filter((t: any) => t.isActive);
+    const byStatus: Record<string, number> = {};
+    trucks.forEach((t: any) => { byStatus[t.status] = (byStatus[t.status] || 0) + 1; });
+    const byBrand: Record<string, number> = {};
+    trucks.forEach((t: any) => { if (t.brand) byBrand[t.brand] = (byBrand[t.brand] || 0) + 1; });
+    const assignedTrailers = trailers.filter((t: any) => t.truckId && t.isActive).length;
+    const totalCapacity = trucks.reduce((sum: number, t: any) => sum + (t.capacityTons || 0), 0);
+    const avgMileage = activeTrucks.length > 0
+      ? Math.round(trucks.reduce((sum: number, t: any) => sum + (t.mileage || 0), 0) / activeTrucks.length)
+      : 0;
+    const avgUtilization = activeTrucks.length > 0
+      ? Math.round((availableTrucks.length / activeTrucks.length) * 100)
+      : 0;
+
+    return {
+      totalTrucks: trucks.length,
+      activeTrucks: activeTrucks.length,
+      trucksInMaintenance: byStatus['MAINTENANCE'] || 0,
+      trucksInTransit: byStatus['IN_TRANSIT'] || 0,
+      trucksScheduled: byStatus['SCHEDULED'] || 0,
+      trucksByStatus: Object.entries(byStatus).map(([status, count]) => ({ status, count })),
+      trucksByBrand: Object.entries(byBrand)
+        .map(([brand, count]) => ({ brand, count }))
+        .sort((a: any, b: any) => b.count - a.count),
+      totalTrailers: trailers.length,
+      assignedTrailers,
+      availableTrailers: availableTrailersList.length,
+      totalCapacity,
+      avgMileage,
+      avgUtilization,
+    };
+  }, [trucks, trailers, availableTrucks, availableTrailersList]);
+
+  // Alerts computed from truck data
+  const alerts = useMemo(() => {
+    const result: any[] = [];
+    trucks.forEach((t: any) => {
+      if (t.isActive && t.operationPermitExpiry) {
+        const days = Math.ceil((new Date(t.operationPermitExpiry).getTime() - Date.now()) / 86400000);
+        if (days <= 0) result.push({ type: 'permit_expiry', message: `Permiso vencido: ${t.plateNumber}`, severity: 'high', id: t.id });
+        else if (days <= 30) result.push({ type: 'permit_expiry', message: `Permiso vence en ${days} días: ${t.plateNumber}`, severity: 'medium', id: t.id });
+        else if (days <= 90) result.push({ type: 'permit_expiry', message: `Permiso por vencer (${days}d): ${t.plateNumber}`, severity: 'low', id: t.id });
+      }
+      if (t.isActive && t.mileage > 500000) {
+        result.push({ type: 'mileage_alert', message: `Kilometraje alto: ${t.plateNumber} (${(t.mileage / 1000).toFixed(0)}k km)`, severity: 'medium', id: t.id });
+      }
+    });
+    return result.sort((a, b) => a.severity === 'high' ? -1 : 1);
+  }, [trucks]);
 
   const handleRefresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['dashboard', 'fleet'] });
+    queryClient.invalidateQueries({ queryKey: ['trucks'] });
+    queryClient.invalidateQueries({ queryKey: ['trailers'] });
+    queryClient.invalidateQueries({ queryKey: ['maintenance'] });
   };
-
-  // Calculate total trucks from by-status data as fallback
-  const totalTrucksFromStatus = trucksByStatus.reduce((sum: number, item: any) => sum + (item.count || 0), 0);
-  const displayTotalTrucks = summary.totalTrucks || totalTrucksFromStatus || 0;
 
   return (
     <div className="space-y-6">
@@ -230,39 +256,39 @@ export default function FleetDashboardPage() {
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <FleetKPICard
           title="Total Camiones"
-          value={displayTotalTrucks}
-          subtitle={`${summary.totalCapacityTons || 0} tn capacidad total`}
+          value={summary.totalTrucks}
+          subtitle={`${summary.totalCapacity} tn capacidad total`}
           icon={Truck}
           iconBg="bg-blue-100"
           iconColor="text-blue-600"
-          isLoading={isLoadingFleet}
+          isLoading={isLoading}
         />
         <FleetKPICard
           title="Camiones Activos"
-          value={summary.activeTrucks || 0}
+          value={summary.activeTrucks}
           subtitle="en operación"
           icon={CheckCircle}
           iconBg="bg-green-100"
           iconColor="text-green-600"
-          isLoading={isLoadingFleet}
+          isLoading={isLoading}
         />
         <FleetKPICard
           title="En Mantenimiento"
-          value={summary.trucksInMaintenance || 0}
-          subtitle={maintenanceStats ? `${maintenanceStats.upcomingCount || 0} próximos` : 'pendientes'}
+          value={summary.trucksInMaintenance}
+          subtitle={maintenanceStats ? `${(maintenanceStats as any).upcomingCount || 0} próximos` : 'pendientes'}
           icon={Wrench}
           iconBg="bg-orange-100"
           iconColor="text-orange-600"
-          isLoading={isLoadingFleet}
+          isLoading={isLoading}
         />
         <FleetKPICard
           title="En Tránsito"
-          value={summary.trucksInTransit || 0}
-          subtitle={`${summary.trucksScheduled || 0} programados`}
+          value={summary.trucksInTransit}
+          subtitle={`${summary.trucksScheduled} programados`}
           icon={Route}
           iconBg="bg-purple-100"
           iconColor="text-purple-600"
-          isLoading={isLoadingFleet}
+          isLoading={isLoading}
         />
       </div>
 
@@ -270,30 +296,30 @@ export default function FleetDashboardPage() {
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <FleetKPICard
           title="Total Remolques"
-          value={summary.totalTrailers || 0}
+          value={summary.totalTrailers}
           subtitle="remolques registrados"
           icon={Truck}
           iconBg="bg-gray-100"
           iconColor="text-gray-600"
-          isLoading={isLoadingFleet}
+          isLoading={isLoading}
         />
         <FleetKPICard
           title="Remolques Asignados"
-          value={summary.assignedTrailers || 0}
+          value={summary.assignedTrailers}
           subtitle="a camiones activos"
           icon={Link2}
           iconBg="bg-blue-50"
           iconColor="text-blue-500"
-          isLoading={isLoadingFleet}
+          isLoading={isLoading}
         />
         <FleetKPICard
           title="Disponibles"
-          value={summary.availableTrailers || 0}
+          value={summary.availableTrailers}
           subtitle="sin asignar"
           icon={CheckCircle}
           iconBg="bg-green-50"
           iconColor="text-green-500"
-          isLoading={isLoadingFleet}
+          isLoading={isLoading}
         />
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -303,15 +329,15 @@ export default function FleetDashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {isLoadingFleet ? (
+            {isLoading ? (
               <>
                 <Skeleton className="h-8 w-20 mb-2" />
                 <Skeleton className="h-2 w-full" />
               </>
             ) : (
               <>
-                <div className="text-2xl font-bold text-gray-900">{summary.avgUtilization || 0}%</div>
-                <Progress value={summary.avgUtilization || 0} className="mt-2 h-2" />
+                <div className="text-2xl font-bold text-gray-900">{summary.avgUtilization}%</div>
+                <Progress value={summary.avgUtilization} className="mt-2 h-2" />
                 <p className="text-xs text-gray-500 mt-1">de la capacidad total</p>
               </>
             )}
@@ -333,7 +359,7 @@ export default function FleetDashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoadingFleet ? (
+            {isLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3, 4].map((i) => (
                   <Skeleton key={i} className="h-14 w-full" />
@@ -385,17 +411,17 @@ export default function FleetDashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoadingFleet ? (
+            {isLoading ? (
               <div className="space-y-4">
                 {[1, 2, 3, 4].map((i) => (
                   <Skeleton key={i} className="h-10 w-full" />
                 ))}
               </div>
-            ) : trucksByStatus && trucksByStatus.length > 0 ? (
+            ) : summary.trucksByStatus && summary.trucksByStatus.length > 0 ? (
               <div className="space-y-3">
-                {trucksByStatus.map((item: any, index: number) => {
+                {summary.trucksByStatus.map((item: any, index: number) => {
                   const config = truckStatusConfig[item.status] || { label: item.status, className: 'bg-gray-100 text-gray-800' };
-                  const percent = displayTotalTrucks > 0 ? Math.round((item.count / displayTotalTrucks) * 100) : 0;
+                  const percent = summary.totalTrucks > 0 ? Math.round((item.count / summary.totalTrucks) * 100) : 0;
                   return (
                     <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center gap-3">
@@ -437,16 +463,16 @@ export default function FleetDashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoadingFleet ? (
+            {isLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3, 4, 5].map((i) => (
                   <Skeleton key={i} className="h-10 w-full" />
                 ))}
               </div>
-            ) : trucksByBrand && trucksByBrand.length > 0 ? (
+            ) : summary.trucksByBrand && summary.trucksByBrand.length > 0 ? (
               <div className="space-y-3">
-                {trucksByBrand.map((item: any, index: number) => {
-                  const percent = displayTotalTrucks > 0 ? Math.round((item.count / displayTotalTrucks) * 100) : 0;
+                {summary.trucksByBrand.map((item: any, index: number) => {
+                  const percent = summary.totalTrucks > 0 ? Math.round((item.count / summary.totalTrucks) * 100) : 0;
                   return (
                     <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center gap-3">
@@ -483,13 +509,13 @@ export default function FleetDashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoadingFleet ? (
+            {isLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3, 4, 5].map((i) => (
                   <Skeleton key={i} className="h-12 w-full" />
                 ))}
               </div>
-            ) : recentMaintenance && recentMaintenance.length > 0 ? (
+            ) : upcomingMaintenance && (upcomingMaintenance as any[])?.length > 0 ? (
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
@@ -502,11 +528,11 @@ export default function FleetDashboardPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {recentMaintenance.slice(0, 5).map((item: any) => {
+                    {(upcomingMaintenance as any[]).slice(0, 5).map((item: any) => {
                       const statusCfg = maintenanceStatusConfig[item.status] || { label: item.status, className: 'bg-gray-100 text-gray-800' };
                       return (
                         <TableRow key={item.id} className="hover:bg-gray-50">
-                          <TableCell className="font-medium">{item.truckPlate}</TableCell>
+                          <TableCell className="font-medium">{(item as any).truckPlate || (item as any).truck?.plateNumber || '-'}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className="text-xs">
                               {item.type === 'PREVENTIVE' ? 'Preventivo' : 'Correctivo'}
@@ -537,6 +563,31 @@ export default function FleetDashboardPage() {
               <div className="text-center py-8 text-gray-500">
                 No hay datos disponibles
               </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Average Mileage Card */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Kilometraje Promedio</CardTitle>
+            <div className="h-8 w-8 rounded-lg bg-teal-100 flex items-center justify-center">
+              <Gauge className="h-4 w-4 text-teal-600" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <>
+                <Skeleton className="h-8 w-24 mb-1" />
+                <Skeleton className="h-4 w-32" />
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-gray-900">{summary.avgMileage.toLocaleString('es-BO')} km</div>
+                <p className="text-xs text-gray-500 mt-1">promedio de la flota activa</p>
+              </>
             )}
           </CardContent>
         </Card>

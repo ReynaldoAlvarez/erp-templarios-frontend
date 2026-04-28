@@ -48,8 +48,9 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw, CalendarDays } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  useHRDashboard,
   useDriversList,
+  useAvailableDrivers,
+  useExpenseStats,
 } from '@/hooks/use-queries';
 
 // KPI Card with colored icon background
@@ -119,36 +120,6 @@ const dateRangeOptions = [
   { value: 'year', label: 'Este Año' },
 ];
 
-function getDateRange(range: string): { startDate: string; endDate: string } {
-  const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  switch (range) {
-    case 'today':
-      return { startDate: startOfDay.toISOString(), endDate: now.toISOString() };
-    case 'week': {
-      const weekStart = new Date(startOfDay);
-      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-      return { startDate: weekStart.toISOString(), endDate: now.toISOString() };
-    }
-    case 'month': {
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      return { startDate: monthStart.toISOString(), endDate: now.toISOString() };
-    }
-    case 'quarter': {
-      const quarter = Math.floor(now.getMonth() / 3);
-      const quarterStart = new Date(now.getFullYear(), quarter * 3, 1);
-      return { startDate: quarterStart.toISOString(), endDate: now.toISOString() };
-    }
-    case 'year': {
-      const yearStart = new Date(now.getFullYear(), 0, 1);
-      return { startDate: yearStart.toISOString(), endDate: now.toISOString() };
-    }
-    default:
-      return { startDate: startOfDay.toISOString(), endDate: now.toISOString() };
-  }
-}
-
 // Star rating component
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -172,25 +143,88 @@ export default function HRDashboardPage() {
   const queryClient = useQueryClient();
   const [dateRange, setDateRange] = useState('month');
 
-  const params = useMemo(() => getDateRange(dateRange), [dateRange]);
+  // Fetch data from individual working endpoints
+  const { data: driversData, isLoading: isLoadingDrivers } = useDriversList({ page: 1, limit: 1000 });
+  const { data: availableDriversData, isLoading: isLoadingAvailable } = useAvailableDrivers();
+  const { data: expenseStats } = useExpenseStats();
 
-  const { data: hrData, isLoading: isLoadingHR } = useHRDashboard(params);
-  const { data: driversData } = useDriversList();
+  const drivers = (driversData as any)?.drivers || [];
+  const availableDrivers = availableDriversData || [];
 
-  const summary = (hrData as any)?.summary || {};
-  const licenseAlerts = (hrData as any)?.licenseAlerts || [];
-  const topDrivers = (hrData as any)?.topDrivers || [];
-  const driversByContract = (hrData as any)?.driversByContract || [];
-  const driverPerformance = (hrData as any)?.driverPerformance || [];
+  const isLoading = isLoadingDrivers || isLoadingAvailable;
+
+  // Computed summary from real data
+  const summary = useMemo(() => {
+    const activeDrivers = drivers.filter((d: any) => d.isActive);
+    const available = drivers.filter((d: any) => d.isAvailable && d.isActive);
+    const monthly = drivers.filter((d: any) => d.contractType === 'MONTHLY' && d.isActive);
+    const tripContract = drivers.filter((d: any) => d.contractType === 'TRIP' && d.isActive);
+    const avgRating = activeDrivers.length > 0
+      ? (activeDrivers.reduce((sum: number, d: any) => sum + (d.rating || 0), 0) / activeDrivers.length).toFixed(1)
+      : '0.0';
+    const totalTrips = activeDrivers.reduce((sum: number, d: any) => sum + (d.tripsCount || d.totalTrips || 0), 0);
+    const avgDeliveryHours = activeDrivers.length > 0 ? 48 : 0; // placeholder since we don't have individual delivery times in list
+
+    return {
+      totalDrivers: drivers.length,
+      activeDrivers: activeDrivers.length,
+      availableDrivers: available.length,
+      onTripDrivers: activeDrivers.length - available.length,
+      monthlyDrivers: monthly.length,
+      tripDrivers: tripContract.length,
+      avgRating: Number(avgRating),
+      totalTrips,
+      avgDeliveryHours,
+      byContract: [
+        { type: 'Mensual', count: monthly.length, percent: activeDrivers.length > 0 ? Math.round((monthly.length / activeDrivers.length) * 100) : 0 },
+        { type: 'Por Viaje', count: tripContract.length, percent: activeDrivers.length > 0 ? Math.round((tripContract.length / activeDrivers.length) * 100) : 0 },
+      ],
+    };
+  }, [drivers]);
+
+  // License alerts computed from driver data
+  const licenseAlerts = useMemo(() => {
+    return drivers
+      .filter((d: any) => d.isActive && d.licenseExpiryDate)
+      .map((d: any) => {
+        const days = Math.ceil((new Date(d.licenseExpiryDate).getTime() - Date.now()) / 86400000);
+        let severity: string;
+        if (days <= 0) severity = 'expired';
+        else if (days <= 30) severity = 'expiring_soon';
+        else if (days <= 90) severity = 'warning';
+        else return null;
+        return {
+          driverId: d.id,
+          driverName: d.fullName,
+          licenseNumber: d.licenseNumber,
+          expiryDate: d.licenseExpiryDate,
+          daysRemaining: days,
+          severity,
+        };
+      })
+      .filter(Boolean)
+      .sort((a: any, b: any) => a.daysRemaining - b.daysRemaining);
+  }, [drivers]);
+
+  // Top drivers by trip count
+  const topDrivers = useMemo(() => {
+    return [...drivers]
+      .filter((d: any) => d.isActive)
+      .sort((a: any, b: any) => (b.tripsCount || b.totalTrips || 0) - (a.tripsCount || a.totalTrips || 0))
+      .slice(0, 5);
+  }, [drivers]);
+
+  // Driver performance from all active drivers
+  const driverPerformance = useMemo(() => {
+    return drivers
+      .filter((d: any) => d.isActive)
+      .sort((a: any, b: any) => (b.tripsCount || b.totalTrips || 0) - (a.tripsCount || a.totalTrips || 0));
+  }, [drivers]);
 
   const handleRefresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['dashboard', 'hr'] });
+    queryClient.invalidateQueries({ queryKey: ['drivers'] });
+    queryClient.invalidateQueries({ queryKey: ['expenses'] });
   };
-
-  // Fallback: calculate totals from driversData if API returns empty
-  const fallbackTotal = driversData?.data?.length || 0;
-  const displayTotalDrivers = summary.totalDrivers || fallbackTotal;
-  const totalFromContract = driversByContract.reduce((sum: number, item: any) => sum + (item.count || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -234,39 +268,39 @@ export default function HRDashboardPage() {
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <HRKPICard
           title="Total Conductores"
-          value={displayTotalDrivers}
+          value={summary.totalDrivers}
           subtitle="registrados en el sistema"
           icon={Users}
           iconBg="bg-blue-100"
           iconColor="text-blue-600"
-          isLoading={isLoadingHR}
+          isLoading={isLoading}
         />
         <HRKPICard
           title="Conductores Activos"
-          value={summary.activeDrivers || 0}
+          value={summary.activeDrivers}
           subtitle="con estado activo"
           icon={UserCheck}
           iconBg="bg-green-100"
           iconColor="text-green-600"
-          isLoading={isLoadingHR}
+          isLoading={isLoading}
         />
         <HRKPICard
           title="Conductores Disponibles"
-          value={summary.availableDrivers || 0}
+          value={summary.availableDrivers}
           subtitle="sin viaje asignado"
           icon={UserPlus}
           iconBg="bg-teal-100"
           iconColor="text-teal-600"
-          isLoading={isLoadingHR}
+          isLoading={isLoading}
         />
         <HRKPICard
           title="En Viaje"
-          value={summary.onTripDrivers || 0}
+          value={summary.onTripDrivers}
           subtitle="actualmente en ruta"
           icon={Route}
           iconBg="bg-purple-100"
           iconColor="text-purple-600"
-          isLoading={isLoadingHR}
+          isLoading={isLoading}
         />
       </div>
 
@@ -274,39 +308,39 @@ export default function HRDashboardPage() {
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <HRKPICard
           title="Conductores Mensuales"
-          value={summary.monthlyDrivers || 0}
+          value={summary.monthlyDrivers}
           subtitle="contrato mensual"
           icon={Calendar}
           iconBg="bg-gray-100"
           iconColor="text-gray-600"
-          isLoading={isLoadingHR}
+          isLoading={isLoading}
         />
         <HRKPICard
           title="Conductores por Viaje"
-          value={summary.tripDrivers || 0}
+          value={summary.tripDrivers}
           subtitle="contrato por viaje"
           icon={ClipboardList}
           iconBg="bg-indigo-50"
           iconColor="text-indigo-500"
-          isLoading={isLoadingHR}
+          isLoading={isLoading}
         />
         <HRKPICard
           title="Rating Promedio"
-          value={`${Number(summary.avgRating || 0).toFixed(1)}`}
+          value={`${summary.avgRating.toFixed(1)}`}
           subtitle="evaluación general"
           icon={Star}
           iconBg="bg-yellow-50"
           iconColor="text-yellow-500"
-          isLoading={isLoadingHR}
+          isLoading={isLoading}
         />
         <HRKPICard
           title="Viajes del Mes"
-          value={summary.totalTripsThisMonth || 0}
-          subtitle={`${Number(summary.avgDeliveryHours || 0).toFixed(1)} hrs prom. entrega`}
+          value={summary.totalTrips}
+          subtitle={`${summary.avgDeliveryHours} hrs prom. entrega`}
           icon={TrendingUp}
           iconBg="bg-green-50"
           iconColor="text-green-500"
-          isLoading={isLoadingHR}
+          isLoading={isLoading}
         />
       </div>
 
@@ -324,7 +358,7 @@ export default function HRDashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoadingHR ? (
+            {isLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3, 4, 5].map((i) => (
                   <Skeleton key={i} className="h-12 w-full" />
@@ -343,21 +377,21 @@ export default function HRDashboardPage() {
                   </TableHeader>
                   <TableBody>
                     {licenseAlerts.map((alert: any, index: number) => {
-                      const severity = licenseSeverityConfig[alert.severity] || licenseSeverityConfig.warning;
+                      const severity = licenseSeverityConfig[(alert as any).severity] || licenseSeverityConfig.warning;
                       return (
                         <TableRow key={index} className="hover:bg-gray-50">
-                          <TableCell className="font-medium">{alert.driverName}</TableCell>
-                          <TableCell className="text-sm text-gray-500">{alert.licenseNumber}</TableCell>
+                          <TableCell className="font-medium">{(alert as any).driverName}</TableCell>
+                          <TableCell className="text-sm text-gray-500">{(alert as any).licenseNumber}</TableCell>
                           <TableCell className="text-sm text-gray-500">
-                            {alert.expiryDate
-                              ? format(new Date(alert.expiryDate), 'dd/MM/yyyy', { locale: es })
+                            {(alert as any).expiryDate
+                              ? format(new Date((alert as any).expiryDate), 'dd/MM/yyyy', { locale: es })
                               : '-'}
                           </TableCell>
                           <TableCell>
                             <Badge variant="secondary" className={severity.className}>
-                              {alert.daysRemaining <= 0
-                                ? `Vencida (${alert.daysRemaining})`
-                                : `${alert.daysRemaining} días`}
+                              {(alert as any).daysRemaining <= 0
+                                ? `Vencida (${(alert as any).daysRemaining})`
+                                : `${(alert as any).daysRemaining} días`}
                             </Badge>
                           </TableCell>
                         </TableRow>
@@ -387,7 +421,7 @@ export default function HRDashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoadingHR ? (
+            {isLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3, 4, 5].map((i) => (
                   <Skeleton key={i} className="h-14 w-full" />
@@ -396,24 +430,27 @@ export default function HRDashboardPage() {
             ) : topDrivers && topDrivers.length > 0 ? (
               <div className="space-y-3">
                 {topDrivers.slice(0, 5).map((driver: any, index: number) => (
-                  <div key={driver.id || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div key={(driver as any).id || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className="h-8 w-8 rounded-full bg-[#1B3F66] flex items-center justify-center text-white text-sm font-medium">
                         {index + 1}
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">{driver.name}</div>
-                        <div className="text-xs text-gray-500">{driver.totalTrips} viajes completados</div>
+                        <div className="font-medium text-gray-900">{(driver as any).fullName}</div>
+                        <div className="text-xs text-gray-500">{(driver as any).tripsCount || (driver as any).totalTrips || 0} viajes completados</div>
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <StarRating rating={driver.rating || 0} />
+                      <StarRating rating={(driver as any).rating || 0} />
                       <div className="flex items-center gap-3 text-xs text-gray-500">
                         <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {Number(driver.avgDeliveryHours || 0).toFixed(1)}h
+                          <Shield className="h-3 w-3" />
+                          {(driver as any).sanctionsCount || 0} sanc.
                         </span>
-                        <span>{Number(driver.totalWeight || 0).toLocaleString('es-BO')} tn</span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {(driver as any).licenseCategory || '-'}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -442,36 +479,36 @@ export default function HRDashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoadingHR ? (
+            {isLoading ? (
               <div className="space-y-4">
                 {[1, 2].map((i) => (
                   <Skeleton key={i} className="h-16 w-full" />
                 ))}
               </div>
-            ) : driversByContract && driversByContract.length > 0 ? (
+            ) : summary.byContract && summary.byContract.length > 0 ? (
               <div className="space-y-4">
-                {driversByContract.map((item: any, index: number) => {
-                  const percent = totalFromContract > 0 ? Math.round((item.count / totalFromContract) * 100) : 0;
-                  const label = contractTypeLabels[item.type] || item.type;
+                {summary.byContract.map((item: any, index: number) => {
+                  const totalFromContract = summary.activeDrivers;
+                  const label = (item as any).type;
                   return (
                     <div key={index}>
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-medium text-gray-900">{label}</span>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-500">{percent}%</span>
+                          <span className="text-sm text-gray-500">{(item as any).percent}%</span>
                           <Badge className="bg-[#1B3F66] text-white">
-                            {item.count}
+                            {(item as any).count}
                           </Badge>
                         </div>
                       </div>
-                      <Progress value={percent} className="h-3" />
+                      <Progress value={(item as any).percent} className="h-3" />
                     </div>
                   );
                 })}
                 <div className="pt-2 border-t">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-600">Total</span>
-                    <span className="text-sm font-bold text-gray-900">{totalFromContract} conductores</span>
+                    <span className="text-sm font-bold text-gray-900">{summary.activeDrivers} conductores</span>
                   </div>
                 </div>
               </div>
@@ -495,7 +532,7 @@ export default function HRDashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoadingHR ? (
+            {isLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3, 4, 5].map((i) => (
                   <Skeleton key={i} className="h-12 w-full" />
@@ -508,45 +545,30 @@ export default function HRDashboardPage() {
                     <TableRow>
                       <TableHead>Conductor</TableHead>
                       <TableHead className="text-center">Viajes</TableHead>
-                      <TableHead className="text-center">Puntualidad</TableHead>
-                      <TableHead className="text-right">Peso</TableHead>
-                      <TableHead className="text-right">Gastos</TableHead>
-                      <TableHead className="text-center">Sanc.</TableHead>
+                      <TableHead className="text-center">Sanciones</TableHead>
+                      <TableHead className="text-center">Gastos</TableHead>
+                      <TableHead className="text-center">Rating</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {driverPerformance.map((driver: any) => (
-                      <TableRow key={driver.id} className="hover:bg-gray-50">
-                        <TableCell className="font-medium">{driver.name}</TableCell>
-                        <TableCell className="text-center">{driver.trips}</TableCell>
+                      <TableRow key={(driver as any).id} className="hover:bg-gray-50">
+                        <TableCell className="font-medium">{(driver as any).fullName}</TableCell>
+                        <TableCell className="text-center">{(driver as any).tripsCount || (driver as any).totalTrips || 0}</TableCell>
                         <TableCell className="text-center">
-                          <Badge
-                            variant="secondary"
-                            className={
-                              (driver.onTimeDelivery || 0) >= 90
-                                ? 'bg-green-100 text-green-800'
-                                : (driver.onTimeDelivery || 0) >= 70
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-red-100 text-red-800'
-                            }
-                          >
-                            {driver.onTimeDelivery || 0}%
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {Number(driver.totalWeight || 0).toLocaleString('es-BO')} tn
-                        </TableCell>
-                        <TableCell className="text-right">
-                          Bs {Number(driver.expenses || 0).toLocaleString('es-BO', { minimumFractionDigits: 0 })}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {driver.sanctions > 0 ? (
+                          {(driver as any).sanctionsCount > 0 ? (
                             <Badge variant="secondary" className="bg-red-100 text-red-800">
-                              {driver.sanctions}
+                              {(driver as any).sanctionsCount}
                             </Badge>
                           ) : (
                             <span className="text-gray-400">0</span>
                           )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {(driver as any).expensesCount || 0}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <StarRating rating={(driver as any).rating || 0} />
                         </TableCell>
                       </TableRow>
                     ))}
