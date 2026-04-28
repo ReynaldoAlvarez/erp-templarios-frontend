@@ -65,7 +65,7 @@ import { useAuth } from '@/hooks/use-auth';
 interface NavItem {
   title: string;
   href?: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon?: React.ComponentType<{ className?: string }>;
   badge?: string | number;
   children?: NavItem[];
 }
@@ -316,7 +316,7 @@ function NavItemWithChildren({ item }: { item: NavItem }) {
         <SidebarMenuItem>
           <CollapsibleTrigger asChild>
             <SidebarMenuButton tooltip={item.title}>
-              <item.icon className="h-4 w-4" />
+              {item.icon && <item.icon className="h-4 w-4" />}
               <span>{item.title}</span>
               <ChevronRight className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
             </SidebarMenuButton>
@@ -355,7 +355,7 @@ function NavItemWithChildren({ item }: { item: NavItem }) {
         }`}
       >
         <Link href={item.href || '#'}>
-          <item.icon className="h-4 w-4" />
+          {item.icon && <item.icon className="h-4 w-4" />}
           <span>{item.title}</span>
           {item.badge && (
             <span className="ml-auto bg-[#1B3F66]/10 text-[#1B3F66] text-xs font-medium px-2 py-0.5 rounded-full">
