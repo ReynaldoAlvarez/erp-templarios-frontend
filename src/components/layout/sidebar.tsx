@@ -145,6 +145,11 @@ const navigation: NavGroup[] = [
     title: 'Flota',
     items: [
       {
+        title: 'Dashboard Flota',
+        href: '/dashboard/flota',
+        icon: LayoutDashboard,
+      },
+      {
         title: 'Camiones',
         href: '/dashboard/flota/camiones',
         icon: Truck,
@@ -155,11 +160,6 @@ const navigation: NavGroup[] = [
         icon: Truck,
       },
       {
-        title: 'Conductores',
-        href: '/dashboard/conductores',
-        icon: UserCircle,
-      },
-      {
         title: 'Checklist',
         href: '/dashboard/checklist',
         icon: ClipboardList,
@@ -168,6 +168,21 @@ const navigation: NavGroup[] = [
         title: 'Geolocalización',
         href: '/dashboard/geolocalizacion',
         icon: MapPin,
+      },
+    ],
+  },
+  {
+    title: 'RRHH',
+    items: [
+      {
+        title: 'Dashboard RRHH',
+        href: '/dashboard/rrhh',
+        icon: Users,
+      },
+      {
+        title: 'Conductores',
+        href: '/dashboard/conductores',
+        icon: UserCircle,
       },
     ],
   },

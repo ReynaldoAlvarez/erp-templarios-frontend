@@ -1333,6 +1333,16 @@ export const dashboardApi = {
     } }>('/dashboard/summary', params);
     return response.data.data;
   },
+
+  getFleet: async (params?: import('@/types/api').DashboardParams): Promise<import('@/types/api').FleetDashboard> => {
+    const response = await api.get<{ data: import('@/types/api').FleetDashboard }>('/dashboard/fleet', params);
+    return response.data.data;
+  },
+
+  getHR: async (params?: import('@/types/api').DashboardParams): Promise<import('@/types/api').HRDashboard> => {
+    const response = await api.get<{ data: import('@/types/api').HRDashboard }>('/dashboard/hr', params);
+    return response.data.data;
+  },
 };
 
 // ==========================================

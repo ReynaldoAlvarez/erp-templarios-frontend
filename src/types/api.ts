@@ -2532,3 +2532,78 @@ export interface BLTripsSummary {
   incompleteDocs: number;
   trips: TripReportsSnapshot[];
 }
+
+// ============ Sprint 8C: Fleet & HR Dashboards ============
+
+// Fleet Dashboard
+export interface FleetDashboard {
+  summary: {
+    totalTrucks: number;
+    activeTrucks: number;
+    totalTrailers: number;
+    assignedTrailers: number;
+    availableTrailers: number;
+    trucksInMaintenance: number;
+    trucksScheduled: number;
+    trucksInTransit: number;
+    avgUtilization: number;
+    totalCapacityTons: number;
+  };
+  trucksByStatus: { status: string; count: number }[];
+  trucksByBrand: { brand: string; count: number }[];
+  recentMaintenance: Array<{
+    id: string;
+    truckPlate: string;
+    type: string;
+    status: string;
+    scheduledDate: string;
+    estimatedCost: number;
+  }>;
+  alerts: Array<{
+    type: 'maintenance_due' | 'permit_expiry' | 'mileage_alert';
+    message: string;
+    entityId: string;
+    severity: 'high' | 'medium' | 'low';
+  }>;
+}
+
+// HR Dashboard
+export interface HRDashboard {
+  summary: {
+    totalDrivers: number;
+    activeDrivers: number;
+    availableDrivers: number;
+    onTripDrivers: number;
+    monthlyDrivers: number;
+    tripDrivers: number;
+    avgRating: number;
+    totalTripsThisMonth: number;
+    avgDeliveryHours: number;
+  };
+  licenseAlerts: Array<{
+    driverId: string;
+    driverName: string;
+    licenseNumber: string;
+    expiryDate: string;
+    daysRemaining: number;
+    severity: 'expired' | 'expiring_soon' | 'warning';
+  }>;
+  topDrivers: Array<{
+    id: string;
+    name: string;
+    totalTrips: number;
+    rating: number;
+    avgDeliveryHours: number;
+    totalWeight: number;
+  }>;
+  driversByContract: { type: string; count: number }[];
+  driverPerformance: Array<{
+    id: string;
+    name: string;
+    trips: number;
+    onTimeDelivery: number;
+    totalWeight: number;
+    expenses: number;
+    sanctions: number;
+  }>;
+}

@@ -2962,3 +2962,22 @@ export function useDeleteExpense() {
     },
   });
 }
+
+// ==========================================
+// Sprint 8C: Fleet & HR Dashboards
+// ==========================================
+export function useFleetDashboard(params?: import('@/types/api').DashboardParams) {
+  return useQuery({
+    queryKey: ['dashboard', 'fleet', params],
+    queryFn: () => dashboardApi.getFleet(params),
+    staleTime: 60000, // 1 minute
+  });
+}
+
+export function useHRDashboard(params?: import('@/types/api').DashboardParams) {
+  return useQuery({
+    queryKey: ['dashboard', 'hr', params],
+    queryFn: () => dashboardApi.getHR(params),
+    staleTime: 60000, // 1 minute
+  });
+}
